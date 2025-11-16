@@ -17,7 +17,7 @@
   // Robust save config
   const SAVE_RETRY_DELAY_MS = 60;  // small delay before retry if verify failed
 
-  let enabled = typeof GM_getValue === 'function' ? GM_getValue(GLOBAL_ENABLE_KEY, true) : true;
+  let enabled = true;
   let moEnhancer = null;
   let moToolbar = null;
   let enhanced = false;
@@ -25,24 +25,27 @@
   let tabEl = null;
   let onResizeHandler = null;
 
-  // Prefer Promise-based API if present
-  const hasAsyncGM = typeof GM !== 'undefined'
-                  && typeof GM.getValue === 'function'
-                  && typeof GM.setValue === 'function';
+  function lsGet(key, def) {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw === null ? def : raw;
+    } catch {
+      return def;
+    }
+  }
+  function lsSet(key, value) {
+    try { localStorage.setItem(key, value); } catch {}
+  }
 
-  async function gmGet(key, def) {
-    try {
-      if (hasAsyncGM) return await GM.getValue(key, def);
-      if (typeof GM_getValue === 'function') return GM_getValue(key, def);
-    } catch {}
-    return def;
+  function loadEnabledFlag() {
+    const raw = lsGet(GLOBAL_ENABLE_KEY, null);
+    if (raw === null) return false; // default: start disabled until user opts in
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    return false;
   }
-  async function gmSet(key, value) {
-    try {
-      if (hasAsyncGM) return await GM.setValue(key, value);
-      if (typeof GM_setValue === 'function') { GM_setValue(key, value); return; }
-    } catch {}
-  }
+
+  enabled = loadEnabledFlag();
 
   // --- Storage keys ---
   function storageKeyForPage() { // legacy fallback key (single layout per page)
@@ -81,12 +84,12 @@
 
   function readBucketIndex() {
     try {
-      const raw = typeof GM_getValue === 'function' ? GM_getValue(indexKeyForPage(), '[]') : '[]';
+      const raw = lsGet(indexKeyForPage(), '[]');
       return JSON.parse(raw) || [];
     } catch { return []; }
   }
   function writeBucketIndex(list) {
-    try { if (typeof GM_setValue === 'function') GM_setValue(indexKeyForPage(), JSON.stringify(list)); } catch {}
+    try { lsSet(indexKeyForPage(), JSON.stringify(list)); } catch {}
   }
   function addBucketToIndex(bucket) {
     const list = readBucketIndex();
@@ -109,18 +112,18 @@
     const payloadStr = JSON.stringify({ counts, v: 8, bucket, savedAt: Date.now() });
 
     // Write -> read verify -> small-delay retry if needed
-    await gmSet(key, payloadStr);
-    let got = await gmGet(key, null);
+    lsSet(key, payloadStr);
+    let got = lsGet(key, null);
     if (got !== payloadStr) {
       await new Promise(r => setTimeout(r, SAVE_RETRY_DELAY_MS));
-      await gmSet(key, payloadStr);
-      got = await gmGet(key, null);
+      lsSet(key, payloadStr);
+      got = lsGet(key, null);
     }
 
     // Update index
     addBucketToIndex(bucket);
     if (got !== payloadStr) {
-      try { if (typeof GM_setValue === 'function') GM_setValue(storageKeyForPage(), payloadStr); } catch {}
+      try { lsSet(storageKeyForPage(), payloadStr); } catch {}
       console.warn('[Freetar] Save verify failed after retry; wrote legacy key as fallback:', key);
     }
   }
@@ -137,7 +140,7 @@
       const curId = computeBucketId();
 
       // Exact
-      let raw = typeof GM_getValue === 'function' ? GM_getValue(storageKeyForBucket(curId)) : null;
+      let raw = lsGet(storageKeyForBucket(curId), null);
 
       // Nearest
       if (!raw) {
@@ -146,7 +149,7 @@
         if (cur && list.length) {
           let best = null, bestDist = Infinity, bestSavedAt = -1;
           for (const id of list) {
-            const candidate = typeof GM_getValue === 'function' ? GM_getValue(storageKeyForBucket(id)) : null;
+            const candidate = lsGet(storageKeyForBucket(id), null);
             if (!candidate) continue;
             const parsed = JSON.parse(candidate);
             if (!parsed || !Array.isArray(parsed.counts)) continue;
@@ -162,7 +165,7 @@
       }
 
       // Legacy fallback
-      if (!raw) raw = typeof GM_getValue === 'function' ? GM_getValue(storageKeyForPage()) : null;
+      if (!raw) raw = lsGet(storageKeyForPage(), null);
       if (!raw) return null;
 
       const parsed = JSON.parse(raw);
@@ -546,10 +549,7 @@
 
     input.addEventListener('change', async () => {
       enabled = input.checked;
-      try {
-        if (hasAsyncGM) await GM.setValue(GLOBAL_ENABLE_KEY, enabled);
-        else if (typeof GM_setValue === 'function') GM_setValue(GLOBAL_ENABLE_KEY, enabled);
-      } catch {}
+      try { lsSet(GLOBAL_ENABLE_KEY, String(enabled)); } catch {}
       if (enabled) enhance();
       else disableAndRestore();
     });
