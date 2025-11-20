@@ -1,0 +1,3 @@
+[console_scripts]
+freetar=freetar.backend:main
+

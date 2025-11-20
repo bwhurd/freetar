@@ -1,0 +1,14 @@
+{
+  "name": "my-chord-library",
+  "private": true,
+  "devDependencies": {
+    "@biomejs/biome": "2.3.6"
+  },
+  "dependencies": {
+    "morphdom": "2.7.3",
+    "undo-manager": "^1.1.1"
+  },
+  "scripts": {
+    "postinstall": "node scripts/copy-morphdom.js"
+  }
+}

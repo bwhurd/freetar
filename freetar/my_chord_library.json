@@ -1,0 +1,69 @@
+[
+  {
+    "group": "Barre chords",
+    "chords": [
+      {
+        "name": "F",
+        "shape": "13321x"
+      },
+      {
+        "name": "Bb",
+        "shape": "x1333x"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      }
+    ]
+  },
+  {
+    "group": "New group",
+    "chords": [
+      {
+        "name": "(new)",
+        "shape": "000000"
+      },
+      {
+        "name": "(new)",
+        "shape": "000000"
+      },
+      {
+        "name": "Asus2",
+        "shape": "x02200"
+      }
+    ]
+  },
+  {
+    "group": "Open chords",
+    "chords": [
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "Test",
+        "shape": "007892"
+      }
+    ]
+  }
+]

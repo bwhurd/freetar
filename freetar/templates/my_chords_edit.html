@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Edit chord library</h2>
+
+<button id="add-group" class="btn btn-sm btn-primary mb-3">Add group</button>
+<button id="save" class="btn btn-sm btn-success mb-3 ms-2">Save</button>
+<button id="show-import-chords" class="btn btn-sm btn-secondary mb-2">Import Chords</button>
+<div id="import-chords-area" style="display: none; margin-bottom: 1rem;">
+    <label for="import-chords-input" class="form-label">Paste multiple chords (one per line):</label>
+    <textarea id="import-chords-input" class="form-control mb-2" rows="5"
+        style="resize: vertical; min-height: 5em; max-height: 15em;"></textarea>
+    <div>
+        <button id="import-chords-btn" class="btn btn-primary btn-sm">Import</button>
+        <button id="cancel-import-chords" class="btn btn-outline-secondary btn-sm">Cancel</button>
+    </div>
+    <div class="form-text">Format: <code>Label, shape[, group]</code>. Example: <code>Am, x02210, Open</code></div>
+</div>
+<div id="groups-root" class="row g-3" data-initial='{{ groups_json|tojson|safe }}'>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+    const root = document.getElementById('groups-root');
+    const initial = JSON.parse(root.dataset.initial || "[]");
+
+    function render() {
+        root.innerHTML = "";
+        initial.forEach((group, gi) => {
+            const col = document.createElement('div');
+            col.className = "col-md-4";
+            col.innerHTML = `
+        <div class="card h-100">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <input class="form-control form-control-sm group-name" value="${group.group || ''}">
+            <button class="btn btn-sm btn-outline-danger ms-2 remove-group">&times;</button>
+          </div>
+          <div class="card-body chord-list" data-gi="${gi}"></div>
+          <div class="card-footer">
+            <button class="btn btn-sm btn-outline-primary add-chord">Add chord</button>
+          </div>
+        </div>`;
+            root.appendChild(col);
+            const list = col.querySelector('.chord-list');
+            group.chords.forEach((ch, ci) => {
+                const card = document.createElement('div');
+                card.className = "card mb-2";
+                card.innerHTML = `
+          <div class="card-body py-2 d-flex gap-2 align-items-center">
+            <input class="form-control form-control-sm chord-name" style="max-width: 40%;" value="${ch.name}">
+            <input class="form-control form-control-sm chord-shape" value="${ch.shape}">
+            <button class="btn btn-sm btn-outline-danger remove-chord">&times;</button>
+          </div>`;
+                card.dataset.ci = ci;
+                list.appendChild(card);
+            });
+
+            // per-group sortable
+            Sortable.create(list, {
+                group: 'chords',
+                animation: 150,
+                onEnd: rebuildFromDOM
+            });
+
+            col.querySelector('.add-chord').onclick = () => {
+                group.chords.push({ name: "New", shape: "x00000" });
+                render();
+            };
+            col.querySelector('.remove-group').onclick = () => {
+                initial.splice(gi, 1);
+                render();
+            };
+        });
+    }
+
+    function rebuildFromDOM() {
+        const newData = [];
+        root.querySelectorAll('.card .chord-list').forEach((listEl) => {
+            const groupCard = listEl.closest('.card');
+            const groupName = groupCard.querySelector('.group-name').value.trim() || "Group";
+            const chords = [];
+            listEl.querySelectorAll('.card').forEach((cardEl) => {
+                chords.push({
+                    name: cardEl.querySelector('.chord-name').value.trim(),
+                    shape: cardEl.querySelector('.chord-shape').value.trim()
+                });
+            });
+            newData.push({ group: groupName, chords });
+        });
+        initial.splice(0, initial.length, ...newData);
+    }
+
+    document.getElementById('add-group').onclick = () => {
+        initial.push({ group: "New group", chords: [] });
+        render();
+    };
+
+    document.getElementById('save').onclick = async () => {
+        rebuildFromDOM();
+        await fetch("{{ url_for('my_chords_edit') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(initial)
+        });
+        alert("Saved");
+    };
+
+    // sync edits into data on input change
+    root.addEventListener('input', (e) => {
+        if (e.target.classList.contains('group-name') ||
+            e.target.classList.contains('chord-name') ||
+            e.target.classList.contains('chord-shape')) {
+            rebuildFromDOM();
+        }
+    });
+
+    render();
+
+
+    // Batch Import Code Start
+    const showImportBtn = document.getElementById('show-import-chords');
+    const importArea = document.getElementById('import-chords-area');
+    const inputBox = document.getElementById('import-chords-input');
+    const importBtn = document.getElementById('import-chords-btn');
+    const cancelBtn = document.getElementById('cancel-import-chords');
+    const groupsRoot = document.getElementById('groups-root');
+
+    if (showImportBtn && importArea && inputBox && importBtn && cancelBtn && groupsRoot) {
+        showImportBtn.addEventListener('click', () => {
+            importArea.style.display = '';
+            inputBox.value = '';
+            inputBox.focus();
+        });
+        cancelBtn.addEventListener('click', () => {
+            importArea.style.display = 'none';
+        });
+        importBtn.addEventListener('click', () => {
+            const lines = inputBox.value.split('\n').map(x => x.trim()).filter(Boolean);
+            if (!lines.length) return;
+
+            const groupEls = Array.from(groupsRoot.querySelectorAll('.group'));
+
+            lines.forEach(line => {
+                const parts = line.split(',').map(x => x.trim());
+                if (parts.length < 2) return;
+                const [label, shape, groupName] = parts;
+                let targetGroup = null;
+
+                if (groupName) {
+                    for (const groupEl of groupEls) {
+                        const nameInput = groupEl.querySelector('.group-name');
+                        if (nameInput && nameInput.value.toLowerCase().includes(groupName.toLowerCase())) {
+                            targetGroup = groupEl;
+                            break;
+                        }
+                    }
+                }
+                if (!targetGroup && groupEls.length) targetGroup = groupEls[0];
+                if (!targetGroup) return;
+
+                const grid = targetGroup.querySelector('.chord-grid');
+                if (!grid) return;
+
+                const card = document.createElement('div');
+                card.className = 'text-center chord-card mb-3';
+                card.innerHTML = `
+                <div class="d-flex align-items-center justify-content-between mb-1">
+                    <span class="material-icons-outlined chord-handle" style="cursor: move; font-size: 18px;">drag_indicator</span>
+                    <span class="chord-title flex-grow-1 text-truncate mx-1">${label}</span>
+                    <span class="material-icons-outlined chord-edit" style="cursor: pointer; font-size: 18px;">edit</span>
+                </div>
+                <div class="chord-edit-fields mb-2" style="display: none;">
+                    <input class="form-control form-control-sm mb-1 chord-name-input" value="${label}">
+                    <input class="form-control form-control-sm chord-shape-input" value="${shape}">
+                </div>
+                <small class="text-muted">Diagram updates after Save</small>
+            `;
+                grid.appendChild(card);
+                if (window.wireChordCard) window.wireChordCard(card);
+                else if (typeof wireChordCard === "function") wireChordCard(card);
+            });
+            importArea.style.display = 'none';
+        });
+    }
+
+    // Batch Import Code End
+
+</script>
+{% endblock %}

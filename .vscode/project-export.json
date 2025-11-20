@@ -1,0 +1,33 @@
+{
+  "forceInclude": [
+    "scripts\\copy-morphdom.js",
+    "freetar\\templates\\my_chords.html",
+    "freetar\\FreetarFileSummaries.md"
+  ],
+  "forceExclude": [
+    "poetry.lock",
+    "pyproject.toml",
+    "README.md",
+    "start-freetar.ps1",
+    ".gitignore",
+    "Dockerfile",
+    "LICENSE",
+    "package-lock.json",
+    "freetar\\__pycache__",
+    "freetar\\static",
+    "freetar\\templates",
+    "freetar\\backend.py",
+    "freetar\\my_chord_library.json",
+    "freetar\\ug.py",
+    "freetar\\utils.py",
+    "freetar\\templates\\about.html",
+    "freetar\\templates\\base.html",
+    "freetar\\templates\\error.html",
+    "freetar\\templates\\index.html",
+    "freetar\\templates\\macros.j2",
+    "freetar\\templates\\my_chords_edit.html",
+    "freetar\\templates\\tab.html",
+    "freetar\\static\\chordDiagram.js",
+    "freetar\\static\\my-chords.page.js"
+  ]
+}
