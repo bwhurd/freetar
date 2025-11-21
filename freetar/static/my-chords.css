@@ -877,3 +877,132 @@ main.container {
 .form-control.form-control-sm.group-name {
     padding-left: 2.5rem;
 }
+
+
+
+/*
+   Light mode overrides for print-friendly greyscale
+   ------------------------------------------------- */
+:root[data-bs-theme="light"] {
+    --color-bg: #ffffff;
+    --color-fg: #000000;
+    --root-dot-color: #555555;
+    --surface: #ffffff;
+    --surface-elevated: #f5f5f5;
+    --text-primary: #000000;
+    --text-secondary: #2f2f2f;
+    --accent: #555555;
+    --border-subtle: #c8c8c8;
+    --focus-ring: #7a7a7a;
+    --text-on-accent: #ffffff;
+    --shadow-elevated: 0 1px 0 #00000008 inset, 0 10px 28px #0000001f;
+}
+
+:root[data-bs-theme="light"] body {
+    background: #ffffff;
+    color: #000000;
+    text-shadow: none;
+}
+
+:root[data-bs-theme="light"] h2.mb-3::after {
+    background: linear-gradient(90deg, #7a7a7a, #7a7a7a 55%);
+}
+
+:root[data-bs-theme="light"] .btn {
+    background: #f5f5f5 !important;
+    color: #000000 !important;
+    border-color: #c8c8c8 !important;
+}
+
+:root[data-bs-theme="light"] .btn:hover {
+    background: #e6e6e6 !important;
+}
+
+:root[data-bs-theme="light"] .btn-success,
+:root[data-bs-theme="light"] #save-library {
+    background: #4f4f4f !important;
+    color: #ffffff !important;
+    border-color: #4f4f4f !important;
+}
+
+:root[data-bs-theme="light"] .btn-success:hover,
+:root[data-bs-theme="light"] #save-library:hover {
+    background: #5f5f5f !important;
+}
+
+:root[data-bs-theme="light"] .btn-primary,
+:root[data-bs-theme="light"] #add-group {
+    background: #dcdcdc !important;
+    color: #000000 !important;
+    border-color: #c8c8c8 !important;
+}
+
+:root[data-bs-theme="light"] .btn-outline-danger,
+:root[data-bs-theme="light"] .remove-group {
+    background: transparent !important;
+    color: #2f2f2f !important;
+    border-color: #c8c8c8 !important;
+}
+
+:root[data-bs-theme="light"] .group {
+    background: #f5f5f5;
+    border-color: #c8c8c8;
+    box-shadow: 0 4px 12px #00000014;
+}
+
+:root[data-bs-theme="light"] .chord-card {
+    background: #ffffff;
+    border: 1px solid #d9d9d9;
+    box-shadow: 0 2px 8px #00000014;
+}
+
+:root[data-bs-theme="light"] .chord-title {
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .group-handle {
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-card .delete-chord-btn,
+:root[data-bs-theme="light"] .chord-card .delete-chord-btn:hover {
+    background: #555555;
+    color: #ffffff;
+}
+
+:root[data-bs-theme="light"] #delete-group-modal>div {
+    background: #ffffff !important;
+    color: #000000;
+    border: 1px solid #c8c8c8;
+    box-shadow: 0 8px 24px #0000001f;
+}
+
+:root[data-bs-theme="light"] #delete-group-modal h5,
+:root[data-bs-theme="light"] #delete-group-modal p {
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-header-muted,
+:root[data-bs-theme="light"] .chord-header-open,
+:root[data-bs-theme="light"] .chord-header-fret,
+:root[data-bs-theme="light"] .chord-footer-label,
+:root[data-bs-theme="light"] .chord-fret-label {
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-dot.root-ghost {
+    border-color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-dot.root-ghost .chord-dot-mini,
+:root[data-bs-theme="light"] .chord-dot.root-played,
+:root[data-bs-theme="light"] .chord-header-root-played,
+:root[data-bs-theme="light"] .chord-header-root-ghost,
+:root[data-bs-theme="light"] .chord-header-root-ghost .chord-header-root-mini,
+:root[data-bs-theme="light"] .chord-dot-filled {
+    background: #555555 !important;
+}
+
+:root[data-bs-theme="light"] .chord-dot-label {
+    color: #ffffff;
+}
