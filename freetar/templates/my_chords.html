@@ -4,6 +4,9 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
 <link rel="stylesheet" href="{{ url_for('static', filename='my-chords.css') }}">
+<link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+Symbols+2&display=swap">
+
 
 <h2 class="mb-3">Chord Library</h2>
 
@@ -34,13 +37,14 @@
             <span class="material-icons-outlined group-handle"
                 style="cursor: move; font-size: 18px;">drag_indicator</span>
             <input class="form-control form-control-sm group-name" value="{{ group.group }}">
+
             <button type="button" class="btn btn-sm btn-primary add-chord">Add chord</button>
             <button type="button" class="btn btn-sm btn-primary delete-chords">Delete Chords</button>
             <button type="button" class="btn btn-sm btn-primary delete-group">Delete Group</button>
         </div>
 
         <div class="d-grid chord-grid"
-            style="row-gap: 0.5rem; column-gap: 3rem; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));">
+            style="row-gap: 0.5rem; column-gap: 2rem; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));">
             {% for chord in group.chords %}
             {% set diag = chord.diagram %}
             <div class="text-center chord-card mb-3">
@@ -137,20 +141,11 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-
-<!-- Page config needed by the external JS (Flask renders this URL) -->
-<script>window.MY_CHORDS_EDIT_URL = "{{ url_for('my_chords_edit') }}";</script>
-
-<!-- Page logic moved to a dedicated, cacheable file -->
-<script defer src="{{ url_for('static', filename='my-chords.page.js') }}"></script>
-
-<!-- Load diagram utilities before page logic (my-chords.page.js depends on renderCardDiagram). -->
-<script defer src="{{ url_for('static', filename='chordDiagram.js') }}"></script>
-
-<script src="{{ url_for('static', filename='vendor/undomanager.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
-<script>window.__hasMorphdom = typeof window.morphdom === 'function';</script>
-<script src="{{ url_for('static', filename='undoRedo.js') }}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script defer src="{{ url_for('static', filename='undoRedo.js') }}"></script>
+<script defer src="{{ url_for('static', filename='chordDiagram.js') }}"></script>
+<script>window.MY_CHORDS_EDIT_URL = "{{ url_for('my_chords_edit') }}";</script>
+<script defer src="{{ url_for('static', filename='my-chords.page.js') }}"></script>
 
 {% endblock %}

@@ -6,6 +6,8 @@
     /* Colors */
     --color-bg: #2a282d;
     --color-fg: #efeffc;
+    --root-dot-color: #43dfe7;
+    /* tinted root highlight */
 
     /* Typography */
     --font-base: system-ui, sans-serif;
@@ -237,7 +239,9 @@ body {
     left: 50%;
     transform: translateX(-50%);
     width: calc(var(--u) * var(--string-width));
-    background: var(--color-fg)
+    background: var(--color-fg);
+    z-index: 0;
+    /* ensure strings sit under dots */
 }
 
 /* horizontal fret lines – single pseudo element */
@@ -248,7 +252,9 @@ body {
     right: 0;
     bottom: 0;
     height: calc(var(--u) * var(--fretline-width));
-    background: var(--color-fg)
+    background: var(--color-fg);
+    z-index: 0;
+    /* keep fretlines below dots */
 }
 
 .string-left::before {
@@ -270,6 +276,46 @@ body {
     position: relative;
     /* Move up by --diagram-header-offset */
     top: calc(-1 * var(--u) * var(--diagram-header-offset))
+}
+
+/* Open-string root markers (appear above nut inside header cell) */
+.chord-diagram thead th .chord-header-root {
+    display: inline-block;
+    position: relative;
+    top: calc(-0.85 * var(--u) * var(--diagram-header-offset));
+    /* +10% size and lowered 1px */
+    width: calc(var(--u) * var(--dot-size) * 0.924);
+    /* 0.84 * 1.10 */
+    height: calc(var(--u) * var(--dot-size) * 0.924);
+    /* 0.84 * 1.10 */
+    border-radius: var(--radius-pill);
+    box-sizing: border-box;
+    z-index: 2;
+    /* above the nut */
+    transform: translateY(1px);
+}
+
+.chord-diagram thead th .chord-header-root-played {
+    background: var(--root-dot-color);
+}
+
+.chord-diagram thead th .chord-header-root-ghost {
+    background: transparent;
+    border: calc(var(--u) * 0.04) solid var(--color-fg);
+}
+
+.chord-diagram thead th .chord-header-root-ghost .chord-header-root-mini {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* +10% inner size for ghost open-string root */
+    width: calc(var(--u) * var(--dot-size) * 0.572);
+    /* 0.52 * 1.10 */
+    height: calc(var(--u) * var(--dot-size) * 0.572);
+    /* 0.52 * 1.10 */
+    background: var(--root-dot-color);
+    border-radius: var(--radius-pill);
 }
 
 /* Footer row for string numbers (below diagram) */
@@ -319,11 +365,56 @@ body {
     transform: translate(-50%, -50%);
     width: calc(var(--u) * var(--dot-size));
     height: calc(var(--u) * var(--dot-size));
-    border-radius: var(--radius-pill)
+    border-radius: var(--radius-pill);
+    box-sizing: border-box;
+    /* keep outlined ghost size consistent */
+    z-index: 2;
+    /* render above strings and fretlines */
 }
 
 .chord-dot-filled {
     background: var(--color-fg)
+}
+
+/* Root played: filled tint + "R" label */
+.chord-dot.root-played {
+    background: var(--root-dot-color) !important;
+    display: grid;
+    place-items: center;
+}
+
+.chord-dot-label {
+    /* 2x larger, remains centered within the dot; lowered by 1px */
+    font-size: calc(var(--u) * var(--dot-size) * 0.96);
+    font-weight: 800;
+    line-height: 1;
+    color: var(--text-on-accent, #0e1b1b);
+    pointer-events: none;
+    position: relative;
+    top: 1px;
+}
+
+/* Root ghost: outlined normal dot + smaller tinted inner dot */
+.chord-dot.root-ghost {
+    background: transparent !important;
+    border: calc(var(--u) * 0.04) solid var(--color-fg);
+}
+
+.chord-dot-mini {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    /* +20% size for ghost root mini dot (([n])) */
+    width: calc(var(--u) * var(--dot-size) * 0.624);
+    /* 0.52 * 1.20 */
+    height: calc(var(--u) * var(--dot-size) * 0.624);
+    /* 0.52 * 1.20 */
+    background: var(--root-dot-color);
+    border-radius: var(--radius-pill);
+    pointer-events: none;
+    z-index: 3;
+    /* above the outlined ring */
 }
 
 /* editor handles */
@@ -583,16 +674,24 @@ h2.mb-3::after {
     background: linear-gradient(90deg, #ffffff0f, #fff0 40%, #ffffff0f 100%)
 }
 
+.group-header {
+    transform: translateX(-2em) translateY(-0.5em);
+}
+
+.group-top-buttons {
+    transform: translateX(2em);
+}
+
 /* Section header input as minimalist, Apple-like inline header */
 .group-name {
     background: transparent !important;
     border: none !important;
     box-shadow: none !important;
-    font-size: 1.125rem;
+    font-size: 1.5rem;
     font-weight: var(--font-weight-medium);
     color: var(--text-primary);
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding-left: 0.5em !important;
+    padding-right: 0;
     outline: none;
     transition: background 0.18s, box-shadow .18s;
     border-radius: var(--radius-xxs);
@@ -720,4 +819,61 @@ h2.mb-3::after {
 #redo-history-btn[disabled] {
     opacity: .5;
     pointer-events: none;
+}
+
+/* Limit Bravura to chord names; keep robust fallbacks for missing glyphs */
+.chord-card .chord-title {
+    font-family: "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system,
+        "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
+    letter-spacing: 0.01em;
+}
+
+
+.chord-edit-fields {
+    padding-top: 1rem;
+    transform: translateX(0.5rem);
+}
+
+.chord-symbols-toolbar {
+    padding-top: 1rem;
+    transform: translateX(0.5rem);
+}
+
+.group-handle {
+    color: #0d6efd;
+    scale: 1.2;
+    transform: translateX(-0.2rem);
+
+}
+
+.form-control {
+    padding-left: 2em;
+
+}
+
+/* Page-only: widen container and trim gutters so 8 chords fit without shrinking cards */
+:root {
+    --chords-max: 1850px;
+    --chords-gutter: 100px;
+}
+
+.container,
+main.container {
+    max-width: var(--chords-max);
+    padding-left: var(--chords-gutter);
+    padding-right: var(--chords-gutter);
+}
+
+/* Slightly tighter grid gaps to help it fit */
+#groups-root .chord-grid {
+    column-gap: 5rem !important;
+}
+
+.group.group.mb-4 {
+    padding-left: 3rem;
+    padding-right: 3rem;
+}
+
+.form-control.form-control-sm.group-name {
+    padding-left: 2.5rem;
 }

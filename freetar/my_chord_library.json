@@ -1,17 +1,17 @@
 [
   {
-    "group": "Barre chords",
+    "group": "Barre Chords",
     "chords": [
       {
-        "name": "F",
+        "name": "A",
         "shape": "13321x"
       },
       {
-        "name": "Bb",
-        "shape": "x1333x"
+        "name": "A7",
+        "shape": "x022([1])0"
       },
       {
-        "name": "Am",
+        "name": "Ams",
         "shape": "x02210"
       },
       {
@@ -23,16 +23,20 @@
         "shape": "x02210"
       },
       {
-        "name": "Am",
-        "shape": "x02210"
+        "name": "(new)",
+        "shape": "000000"
       },
       {
-        "name": "Am",
-        "shape": "x02210"
+        "name": "(new)",
+        "shape": "000000"
       },
       {
-        "name": "Am",
-        "shape": "x02210"
+        "name": "(new)",
+        "shape": "000000"
+      },
+      {
+        "name": "(new)",
+        "shape": "000000"
       }
     ]
   },
@@ -40,16 +44,24 @@
     "group": "New group",
     "chords": [
       {
-        "name": "(new)",
+        "name": "ab",
+        "shape": "[5]x56xx"
+      },
+      {
+        "name": "Am b5",
+        "shape": "555666"
+      },
+      {
+        "name": "Ab#b",
         "shape": "000000"
       },
       {
-        "name": "(new)",
+        "name": "add13",
         "shape": "000000"
       },
       {
         "name": "Asus2",
-        "shape": "x02200"
+        "shape": "000000"
       }
     ]
   },
@@ -63,6 +75,27 @@
       {
         "name": "Test",
         "shape": "007892"
+      },
+      {
+        "name": "C",
+        "shape": "XXXX55"
+      }
+    ]
+  },
+  {
+    "group": "Toca Boca SOng",
+    "chords": [
+      {
+        "name": "Fm",
+        "shape": "133111"
+      },
+      {
+        "name": "Cm",
+        "shape": "x35543"
+      },
+      {
+        "name": "G",
+        "shape": "355433"
       }
     ]
   }
