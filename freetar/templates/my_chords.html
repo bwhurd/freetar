@@ -21,14 +21,17 @@
 </p> {% endif %}
 
 <div id="import-chords-area" style="display: none; margin-bottom: 1rem;">
-    <label for="import-chords-input" class="form-label">Paste multiple chords (one per line):</label>
+    <label for="import-chords-input" class="form-label">Paste multiple chords (one per line): 'Am, x02210, Open Chords'
+        where Am = Chord Name, x02210 = Chord Diagram, Open Chords = Group Name</label>
+    <div class="form-text"></code>. Example: <code></code>
+    </div>
     <textarea id="import-chords-input" class="form-control mb-2" rows="5"
         style="resize: vertical; min-height: 5em; max-height: 15em;"></textarea>
     <div>
         <button id="import-chords-btn" class="btn btn-primary btn-sm">Import</button>
         <button id="cancel-import-chords" class="btn btn-outline-secondary btn-sm">Cancel</button>
     </div>
-    <div class="form-text">Format: <code>Label, shape[, group]</code>. Example: <code>Am, x02210, Open</code></div>
+
 </div>
 <div id="groups-root">
     {% for group in groups %}
