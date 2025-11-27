@@ -2,9 +2,9 @@
     --accent: #43dfe7;
     --border-subtle: #ececf71f;
     --chord-card-height-u: 10;
-    --chord-card-width-u: 6.2;
-    --chords-gutter: clamp(0rem, 0.6vw, 0.35rem);
-    --chords-max: 100%;
+    --chord-card-width-u: 9;
+    --chords-gutter: 100px;
+    --chords-max: 1850px;
     --color-bg: #2a282d;
     --color-fg: #efeffc;
     --delete-btn-nudge-up: 1em;
@@ -88,7 +88,7 @@
     color: #000000;
 }
 
-:root[data-bs-theme="light"] #delete-group-modal .delete-group-modal-container {
+:root[data-bs-theme="light"] #delete-group-modal>div {
     background: #ffffff !important;
     border: 1px solid #c8c8c8;
     box-shadow: 0 8px 24px #0000001f;
@@ -370,10 +370,8 @@ body {
 
 body>.row {
     margin-inline: auto;
-    max-width: 100%;
-    width: 100%;
-    box-sizing: border-box;
-    padding: clamp(0.5rem, 1vw, 1.25rem) clamp(0.5rem, 1vw, 1.25rem) 1.5rem;
+    max-width: 72rem;
+    padding: clamp(1.25rem, 1rem + 1.5vw, 2.5rem) clamp(1rem, 2.5vw, 2rem) 3rem;
 }
 
 .my-chords-link {
@@ -407,27 +405,9 @@ label.form-label {
 
 main.container,
 .container {
-    width: 100%;
-    max-width: 98%;
-    margin-left: auto;
-    margin-right: auto;
-    box-sizing: border-box;
-
-}
-
-.container>.row {
-    margin-left: 0;
-    margin-right: 0;
-    width: 100%;
-}
-
-.container>.row>* {
-    padding-left: 0;
-    padding-right: 0;
-}
-
-.container {
-    transform: translateX(0.4em);
+    max-width: var(--chords-max);
+    padding-left: var(--chords-gutter);
+    padding-right: var(--chords-gutter);
 }
 
 pre {
@@ -443,22 +423,12 @@ pre {
     color: var(--color-fg);
 }
 
-#delete-group-modal .delete-group-modal-container {
+#delete-group-modal>div {
     background: var(--color-bg) !important;
     border-radius: var(--radius-xs);
     border: 1px solid rgba(255, 255, 255, 0.12);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
     color: var(--color-fg);
-    padding: 2em;
-}
-
-h5#delete-group-modal-title {
-    margin-bottom: 0.5em;
-    line-height: 2;
-}
-
-.modal-button-text {
-    font-size: 1.2em;
 }
 
 #groups-root {
@@ -467,11 +437,11 @@ h5#delete-group-modal-title {
 
 #groups-root .chord-grid {
     align-items: start;
-    column-gap: 0.12rem;
+    column-gap: 2rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(calc(var(--diagram-u) * var(--chord-card-width-u)), 100%), 1fr));
     justify-content: center;
-    row-gap: 0.15rem;
+    row-gap: 0.5rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -558,14 +528,11 @@ h5#delete-group-modal-title {
     max-width: 100%;
     min-height: calc(var(--diagram-u) * var(--chord-card-height-u));
     min-width: calc(var(--diagram-u) * var(--chord-card-width-u));
-    padding: 0.12rem;
+    padding: 2em;
+    padding: var(--space-1);
     position: relative;
     width: 100%;
     z-index: 0;
-}
-
-#groups-root .chord-card.mb-3 {
-    margin-bottom: 0.12rem;
 }
 
 .chord-card .chord-diagram {
@@ -1317,11 +1284,9 @@ h5#delete-group-modal-title {
     border-radius: var(--radius-xxs);
     border: 1px solid var(--border-subtle);
     box-shadow: var(--shadow-elevated);
-    box-sizing: border-box;
-    min-width: 0;
     position: relative;
-    width: 100%;
-    padding: 0.5em;
+    padding: var(--space-1) var(--space-1) var(--space-3);
+    padding: var(--space-4);
 }
 
 .group .delete-group-pill {
@@ -1353,12 +1318,12 @@ h5#delete-group-modal-title {
     align-self: center;
     display: flex;
     gap: 0.35rem;
-    margin-left: auto;
-    position: static;
-    right: auto;
-    top: auto;
-    transform: none;
-    z-index: auto;
+    margin-left: 2em;
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translate(4em, -50%);
+    z-index: 1;
 }
 
 .group-buttons .add-chord,
@@ -1473,8 +1438,7 @@ h5#delete-group-modal-title {
     gap: 2em;
 
     position: relative;
-    transform: none;
-    width: 100%;
+    transform: translateX(-2em) translateY(-0.5em);
 }
 
 .group-header .group-name {
@@ -1483,7 +1447,7 @@ h5#delete-group-modal-title {
     flex: 0 0 auto;
     flex: 1 1 auto;
     flex: 1 1 auto !important;
-    margin-right: var(--space-2);
+    margin-right: 2em;
     min-width: 0;
     width: auto;
 
@@ -1643,8 +1607,8 @@ h5#delete-group-modal-title {
 }
 
 .group.group.mb-4 {
-    padding-left: var(--space-4);
-    padding-right: var(--space-4);
+    padding-left: clamp(var(--space-4), 4vw, 3rem);
+    padding-right: clamp(var(--space-4), 4vw, 3rem);
 }
 
 .group:focus-within .remove-group,
@@ -1756,120 +1720,6 @@ h5#delete-group-modal-title {
     border: 1px solid #ffffff2a !important;
 }
 
-.modal {
-    display: none;
-}
-
-.modal.is-open {
-    display: block;
-}
-
-.modal.micromodal-slide {
-    position: static;
-}
-
-.modal.micromodal-slide .modal__overlay {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
-    pointer-events: auto;
-    opacity: 0;
-    transition: opacity 160ms ease-out;
-    z-index: 3000;
-}
-
-.modal.is-open .modal__overlay {
-    opacity: 1;
-}
-
-#chord-edit-modal .modal__overlay {
-    z-index: 3000;
-}
-
-#delete-group-modal .modal__overlay {
-    z-index: 3050;
-}
-
-#base-fret-modal .modal__overlay {
-    z-index: 3100;
-}
-
-.modal__container.chord-edit-modal-container {
-    max-width: 480px;
-    width: 100%;
-    outline: none;
-    border-radius: 12px;
-    padding: 1rem 1.25rem;
-    background: var(--surface-elevated, #18171a);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
-}
-
-.modal__container {
-    position: relative;
-}
-
-.modal__close-button {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    background: transparent;
-    border: none;
-    color: var(--text-primary);
-    font-size: 1.9rem;
-    line-height: 1;
-    padding: 0.35rem;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: 50%;
-    cursor: pointer;
-    transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
-}
-
-.modal__close-button:hover,
-.modal__close-button:focus-visible {
-    background: rgba(255, 255, 255, 0.12);
-    color: var(--text-primary);
-    outline: none;
-    transform: scale(1.05);
-}
-
-.chord-edit-modal-slot {
-    width: 100%;
-}
-
-.chord-card-spotlight {
-    transform: scale(1.05);
-    opacity: 1;
-    transition: transform 140ms ease-out, opacity 140ms ease-out;
-}
-
-.chord-edit-modal-container .chord-card {
-    background: transparent;
-    border: none;
-    box-shadow: none;
-}
-
-.chord-edit-modal-container .chord-handle {
-    display: none;
-}
-
-.chord-edit-modal-container .chord-edit {
-    display: none;
-}
-
-.chord-card-placeholder {
-    visibility: hidden;
-    margin-bottom: 1rem;
-}
-
 #base-fret-modal .base-fret-modal-box {
     background: #2a282d;
     color: #efeffc;
@@ -1891,9 +1741,4 @@ h5#delete-group-modal-title {
     font-size: 1.25rem;
     letter-spacing: 0.08em;
     min-height: 1.6em;
-}
-
-
-.row {
-    max-width: 99%;
 }

@@ -5,16 +5,23 @@
 <button id="add-group" class="btn btn-sm btn-primary mb-3">Add group</button>
 <button id="save" class="btn btn-sm btn-success mb-3 ms-2">Save</button>
 <button id="show-import-chords" class="btn btn-sm btn-secondary mb-2">Import Chords</button>
-<div id="import-chords-area" style="display: none; margin-bottom: 1rem;">
-    <label for="import-chords-input" class="form-label">Paste multiple chords (one per line):</label>
-    <textarea id="import-chords-input" class="form-control mb-2" rows="5"
-        style="resize: vertical; min-height: 5em; max-height: 15em;"></textarea>
-    <div>
+<div id="import-chords-area" class="import-chords-block" style="display: none; margin-bottom: 1rem;">
+    <label for="import-chords-input" class="import-chords-label">
+        Paste chords, one per line:
+    </label>
+    <textarea id="import-chords-input" class="import-chords-textarea" rows="5" autocomplete="off" spellcheck="false"
+        autocapitalize="off" autocorrect="off"></textarea>
+    <div class="import-chords-actions" style="margin-top: 0.75em;">
         <button id="import-chords-btn" class="btn btn-primary btn-sm">Import</button>
         <button id="cancel-import-chords" class="btn btn-outline-secondary btn-sm">Cancel</button>
     </div>
-    <div class="form-text">Format: <code>Label, shape[, group]</code>. Example: <code>Am, x02210, Open</code></div>
+    <div class="import-chords-hint" style="margin-top: 0.5em; font-size: 0.98em; color: #b7b7cc;">
+        Format: <code>Label, shape[, group]</code>
+        <span style="color:#666;">&nbsp;Example:</span>
+        <code>Am, x02210, Open</code>
+    </div>
 </div>
+
 <div id="groups-root" class="row g-3" data-initial='{{ groups_json|tojson|safe }}'>
 </div>
 

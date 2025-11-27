@@ -1,0 +1,41 @@
+New config.toml
+# Auth mode
+# Use ChatGPT Plus by default, switch to API with:
+#   codex --config preferred_auth_method="apikey"
+
+# Authentication - edit this line to switch modes
+preferred_auth_method = "chatgpt"
+# preferred_auth_method = "apikey"
+
+# Core model defaults for Codex CLI and IDE
+model = "gpt-5.1-codex-max"
+model_provider = "openai"           # built in OpenAI provider
+
+# Reasoning and verbosity
+model_reasoning_effort = "xhigh"
+model_reasoning_summary = "auto"
+model_verbosity = "medium"
+
+# Safety and control
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Minimal shell env, keep secrets out of tools
+[shell_environment_policy]
+inherit = "core"
+include_only = ["PATH", "HOME"]
+
+# Features useful for coding
+[features]
+apply_patch_freeform = true
+web_search_request = false
+
+# Built in OpenAI provider with per provider network tuning
+[model_providers.openai]
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+wire_api = "responses"               # Responses API, required for reasoning
+request_max_retries = 4
+stream_max_retries = 10
+stream_idle_timeout_ms = 300000
+requires_openai_auth = true          # use your ChatGPT / auth.json login

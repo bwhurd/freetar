@@ -1,0 +1,86 @@
+[
+  {
+    "group": " ",
+    "chords": [
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "C7",
+        "shape": "x3231x"
+      }
+    ]
+  },
+  {
+    "group": "Dominant",
+    "chords": [
+      {
+        "name": "A13",
+        "shape": "[5]x567x"
+      },
+      {
+        "name": "Am",
+        "shape": "x02210"
+      },
+      {
+        "name": "G",
+        "shape": "320011"
+      }
+    ]
+  },
+  {
+    "group": "Open Chords",
+    "chords": [
+      {
+        "name": "Am",
+        "shape": "676767"
+      },
+      {
+        "name": "E",
+        "shape": "676767"
+      },
+      {
+        "name": "A−",
+        "shape": "x00333"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      }
+    ]
+  },
+  {
+    "group": "Moveable",
+    "chords": [
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      }
+    ]
+  }
+]

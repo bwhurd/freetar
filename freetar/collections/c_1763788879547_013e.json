@@ -1,35 +1,14 @@
 [
   {
-    "group": "New group",
+    "group": "Open Chords",
     "chords": [
       {
-        "name": "...",
-        "shape": "[7]546x0"
-      }
-    ]
-  },
-  {
-    "group": "Group",
-    "chords": [
-      {
-        "name": "(new)",
-        "shape": "x00000"
+        "name": "B7",
+        "shape": "77x78x"
       },
       {
-        "name": "♯9",
-        "shape": "5([5])([0])000"
-      },
-      {
-        "name": "...",
-        "shape": "6xx006"
-      },
-      {
-        "name": "E7",
-        "shape": "003003"
-      },
-      {
-        "name": "...",
-        "shape": "005000"
+        "name": "A13",
+        "shape": "[5]x567x"
       },
       {
         "name": "...",
@@ -41,12 +20,36 @@
       },
       {
         "name": "...",
-        "shape": "4xx000"
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
       }
     ]
   },
   {
-    "group": "New group",
+    "group": "Other ones",
     "chords": [
       {
         "name": "(new)",

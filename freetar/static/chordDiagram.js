@@ -341,12 +341,14 @@ function parseRootKinds(shape) {
   return roots; // array of 6: 'played' | 'ghost' | null
 }
 
-function buildDiagramModel(shape) {
+function buildDiagramModel(shape, baseFret) {
   const tokens = parseShapeTokens(shape);
   const rootKinds = parseRootKinds(shape);
   const header = tokens.map((t) => (t == null ? 'X' : t === 0 ? 'O' : String(t)));
   const used = tokens.filter((t) => t != null && t !== 0);
-  let start = used.length ? Math.min(...used) : 1;
+  const base =
+    typeof baseFret === 'number' && Number.isFinite(baseFret) && baseFret > 0 ? baseFret : null;
+  let start = base ?? (used.length ? Math.min(...used) : 1);
   if (start <= 1) start = 1;
   const frets = [start, start + 1, start + 2, start + 3];
   const rows = frets.map((fret) => ({
@@ -357,8 +359,13 @@ function buildDiagramModel(shape) {
 }
 
 function buildChordTableInnerHTML(model) {
+  const headerTokens =
+    model && Array.isArray(model.header) && model.header.length
+      ? model.header
+      : new Array(6).fill('');
+
   // Header: show small turquoise dot for open-string roots ([0] or ([0])) instead of 'O'
-  const headerCells = model.header
+  const headerCells = headerTokens
     .map((x, i, arr) => {
       const pos = i === 0 ? ' string-left' : i === arr.length - 1 ? ' string-right' : '';
       const cls =
@@ -370,27 +377,27 @@ function buildChordTableInnerHTML(model) {
       } else if (x === 'O') {
         const rk = (model.rootKinds && model.rootKinds[i]) || null;
         if (rk === 'played') {
-          // open-string root (played) → small filled turquoise dot above nut
-          label = `<span class="chord-header-root chord-header-root-played"></span>`;
+          // open-string root (played) → filled root dot with R label above nut
+          label = `<span class="chord-header-root chord-header-root-played"><span class="chord-header-root-label">R</span></span>`;
         } else if (rk === 'ghost') {
-          // open-string root (not played) → outline + smaller inner turquoise dot
+          // open-string root (not played) → ghost ring with inner accent (no R label)
           label = `<span class="chord-header-root chord-header-root-ghost"><span class="chord-header-root-mini"></span></span>`;
         } else {
           label = `<span class="chord-header-label">O</span>`;
         }
       } else {
-        // numeric header shown in footer; nothing in header cell
-        label = '';
+        // numeric header shown in footer; keep placeholder for consistent row height
+        label = `<span class="chord-header-placeholder"></span>`;
       }
 
-      return `<th class="${cls} string-col${pos}">${label}</th>`;
+      return `<th class="chord-header-string ${cls} string-col${pos}">${label}</th>`;
     })
     .join('');
 
   // Body: dots sit ABOVE strings/fretlines and respect root styling
   const bodyRows = model.rows
     .map((row) => {
-      const cells = model.header
+      const cells = headerTokens
         .map((_, i, arr) => {
           const pos = i === 0 ? ' string-left' : i === arr.length - 1 ? ' string-right' : '';
           let dotClasses = 'chord-dot';
@@ -410,16 +417,16 @@ function buildChordTableInnerHTML(model) {
           return `<td class="chord-string-cell${pos}"><div class="chord-dot-wrap"><div class="${dotClasses}">${dotInner}</div></div></td>`;
         })
         .join('');
-      return `<tr><td class="chord-fret-label">${row.fret}</td>${cells}</tr>`;
+      return `<tr data-fret="${row.fret}"><td class="chord-fret-label">${row.fret}</td>${cells}</tr>`;
     })
     .join('');
 
-  const footerCells = model.header
-    .map((x) =>
-      x === 'X' || x === 'O'
-        ? `<td class="chord-footer-cell"></td>`
-        : `<td class="chord-footer-cell"><span class="chord-footer-label">${x}</span></td>`,
-    )
+  const footerCells = headerTokens
+    .map((x) => {
+      const footerLabel = x === 'X' || x === 'O' ? '' : x;
+      const footerText = footerLabel == null ? '' : footerLabel;
+      return `<td class="chord-footer-cell"><span class="chord-footer-label">${footerText}</span></td>`;
+    })
     .join('');
 
   return `
@@ -442,7 +449,10 @@ function buildChordTableInnerHTML(model) {
 function renderCardDiagram(card) {
   const shapeInput = card.querySelector('.chord-shape-input');
   const shape = shapeInput ? (shapeInput.value || '').trim() : '000000';
-  const model = buildDiagramModel(shape);
+  const baseAttr = card?.dataset?.baseFret;
+  const baseFret =
+    baseAttr && Number.isFinite(Number(baseAttr)) && Number(baseAttr) > 0 ? Number(baseAttr) : null;
+  const model = buildDiagramModel(shape, baseFret);
   let table = card.querySelector('table.chord-diagram');
   if (!table) {
     table = document.createElement('table');
@@ -536,3 +546,6 @@ function renderCardDiagram(card) {
     window.__chordCrispSizerAttached = true;
   }
 }
+
+// Expose tokenizer + root parser for edit-mode helpers
+window.parseTokensAndRootKinds = parseTokensAndRootKinds;

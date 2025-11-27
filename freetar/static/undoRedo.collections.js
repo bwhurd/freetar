@@ -1,16 +1,16 @@
-/* Persistent Undo/Redo for My Chords
-   - Stores a snapshot history in localStorage so Undo/Redo works after Save or reload.
-   - Applies a snapshot by POSTing it to /my-chords/edit, then reloads to re-render diagrams.
+/* Persistent Undo/Redo for Chord Collections
+   - Stores a snapshot history in localStorage separate from chords.
+   - Applies a snapshot by POSTing it to /my-collections/edit, then morphs #groups-root.
    - No external dependencies; self-contained IIFE.
 */
 (() => {
   'use strict';
 
   // ---------- Config ----------
-  const ENDPOINT = window.MY_CHORDS_EDIT_URL || '/my-chords/edit';
-  const STORAGE_KEY = 'freetar:chords:history:v1';
-  const MAX_SNAPSHOTS = 50; // cap to avoid unbounded growth
-  const BTN_ROW_SELECTOR = '.page-title-row'; // your top button row
+  const ENDPOINT = window.MY_COLLECTIONS_EDIT_URL || '/my-collections/edit';
+  const STORAGE_KEY = 'freetar:collections:history:v1';
+  const MAX_SNAPSHOTS = 50;
+  const BTN_ROW_SELECTOR = '.page-title-row'; // top button row
 
   const groupsRoot = document.getElementById('groups-root');
   if (!groupsRoot) return;
@@ -18,30 +18,27 @@
   // ---------- Helpers ----------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
-
-  // Stable stringify (JSON is ordered enough for your structure)
   const jstr = (o) => JSON.stringify(o);
 
-  // Build the same JSON your backend expects
+  // Build the JSON expected by /my-collections/edit
   function serializeFromDOM() {
     const groups = [];
     $$('.group', groupsRoot).forEach((groupEl) => {
       const nameInput = $('.group-name', groupEl);
       const rawGroupName = nameInput ? nameInput.value : '';
-      const groupName = rawGroupName.trim();
-      const chords = [];
-      $$('.chord-card', groupEl).forEach((card) => {
-        const nameInput = $('.chord-name-input', card);
-        const shapeInput = $('.chord-shape-input', card);
-        const titleEl = $('.chord-title', card);
-        const name = (
+      const groupName = rawGroupName.trim() || '\u00A0';
+      const collections = [];
+      $$('.collection-card', groupEl).forEach((card) => {
+        const nameInput = $('.collection-name-input', card);
+        const titleEl = $('.collection-title', card);
+        const rawName = (
           nameInput && nameInput.value ? nameInput.value : titleEl ? titleEl.textContent : ''
         ).trim();
-        const shape = shapeInput ? shapeInput.value.trim() : '';
-        if (!shape) return; // ignore placeholders (matches your current save behavior)
-        chords.push({ name: name || '(unnamed)', shape });
+        const name = rawName || 'Collection';
+        const id = card.dataset.collectionId || '';
+        collections.push({ id, name });
       });
-      groups.push({ group: groupName || '\u00A0', chords });
+      groups.push({ group: groupName, collections });
     });
     return groups;
   }
@@ -51,8 +48,7 @@
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return { items: [], index: -1 };
       const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed.items) || typeof parsed.index !== 'number')
-        throw new Error('bad history');
+      if (!Array.isArray(parsed.items) || typeof parsed.index !== 'number') throw new Error('bad history');
       return parsed;
     } catch {
       return { items: [], index: -1 };
@@ -63,7 +59,7 @@
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(hist));
     } catch (e) {
-      console.warn('[undo] failed to persist history', e);
+      console.warn('[collections:undo] failed to persist history', e);
     }
   }
 
@@ -76,19 +72,16 @@
     const current = serializeFromDOM();
     const last = hist.items[hist.items.length - 1];
 
-    // If nothing changed, skip
     if (last && statesEqual(last, current)) {
       updateButtons();
       return;
     }
 
-    // truncate redo branch
     if (hist.index < hist.items.length - 1) {
       hist.items = hist.items.slice(0, hist.index + 1);
     }
 
     hist.items.push(current);
-    // cap history
     if (hist.items.length > MAX_SNAPSHOTS) {
       const cut = hist.items.length - MAX_SNAPSHOTS;
       hist.items = hist.items.slice(cut);
@@ -99,26 +92,17 @@
 
     saveHistory(hist);
     updateButtons();
-    // console.debug('[undo] snapshot pushed:', reason);
-  }
-
-  // Allow other modules (e.g., diagram clicks) to request a snapshot without leaking internals
-  if (!window.freetarUndoSnapshot) {
-    window.freetarUndoSnapshot = function freetarUndoSnapshot(reason) {
-      pushSnapshot(reason || 'diagram-click');
-    };
+    // console.debug('[collections:undo] snapshot pushed:', reason);
   }
 
   async function applySnapshotAndPersist(targetState, reason = '') {
     try {
-      // 1) Persist state on the server
       await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(targetState),
       });
 
-      // 2) Fetch fresh HTML (no cache)
       const res = await fetch(window.location.href, {
         cache: 'no-store',
         headers: { 'X-Requested-With': 'fetch' },
@@ -126,7 +110,6 @@
       if (!res.ok) throw new Error('fetch failed: ' + res.status);
       const html = await res.text();
 
-      // 3) Parse and morph only #groups-root
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const newRoot = doc.getElementById('groups-root');
       const curRoot = document.getElementById('groups-root');
@@ -136,11 +119,11 @@
 
       window.morphdom(curRoot, newRoot, { childrenOnly: true });
 
-      // 4) Re-wire interactive bits and update undo/redo button state
-      if (window.rewireChordUI) window.rewireChordUI();
+      if (window.rewireCollectionsUI) window.rewireCollectionsUI();
+      if (window.rewireChordUI) window.rewireChordUI(); // harmless if chords UI is present
       updateButtons();
     } catch (e) {
-      console.warn('[undo] Live morph failed; falling back to reload. Reason:', e);
+      console.warn('[collections:undo] Live morph failed; falling back to reload. Reason:', e);
       window.location.reload();
     }
   }
@@ -173,12 +156,10 @@
   }
 
   // ---------- Buttons UI ----------
-  // ---------- Buttons UI ----------
   function insertButtons() {
     const row = $(BTN_ROW_SELECTOR);
     if (!row) return;
 
-    // Ensure a right-aligned wrapper exists
     let wrap = document.getElementById('undo-redo-wrap');
     if (!wrap) {
       wrap = document.createElement('span');
@@ -190,7 +171,6 @@
       row.appendChild(wrap);
     }
 
-    // Create buttons if missing
     let btnUndo = $('#undo-history-btn');
     if (!btnUndo) {
       btnUndo = document.createElement('button');
@@ -230,44 +210,35 @@
     redoBtn.disabled = !canRedo();
   }
 
-  // ---------- Event capture (when state meaningfully changes) ----------
+  // ---------- Event capture ----------
   function installCapture() {
-    // 1) Edits (commit on blur)
     groupsRoot.addEventListener(
       'blur',
       (e) => {
         const t = e.target;
-        if (
-          t &&
-          (t.classList.contains('group-name') ||
-            t.classList.contains('chord-name-input') ||
-            t.classList.contains('chord-shape-input'))
-        ) {
+        if (t && (t.classList.contains('group-name') || t.classList.contains('collection-name-input'))) {
           pushSnapshot('edit-blur');
         }
       },
       true,
     );
 
-    // 2) Add chord (button)
     groupsRoot.addEventListener('click', (e) => {
       const btn = e.target.closest('.add-chord');
       if (!btn) return;
-      setTimeout(() => pushSnapshot('add-chord'), 0);
+      setTimeout(() => pushSnapshot('add-collection'), 0);
     });
 
-    // 3) Delete chord (red minus)
     groupsRoot.addEventListener(
       'click',
       (e) => {
         const btn = e.target.closest('.delete-chord-btn');
         if (!btn) return;
-        setTimeout(() => pushSnapshot('delete-chord'), 0);
+        setTimeout(() => pushSnapshot('delete-collection'), 0);
       },
       true,
     );
 
-    // 4) Delete group (modal confirm)
     const confirmDeleteGroupBtn = document.getElementById('confirm-delete-group');
     if (confirmDeleteGroupBtn) {
       confirmDeleteGroupBtn.addEventListener('click', () => {
@@ -275,7 +246,6 @@
       });
     }
 
-    // 5) Add group (top row)
     const addGroupBtn = document.getElementById('add-group');
     if (addGroupBtn) {
       addGroupBtn.addEventListener('click', () => {
@@ -283,25 +253,13 @@
       });
     }
 
-    // 6) Batch import (if present)
-    const importBtn = document.getElementById('import-chords-btn');
-    if (importBtn) {
-      importBtn.addEventListener('click', () => {
-        setTimeout(() => pushSnapshot('import'), 0);
-      });
-    }
-
-    // 7) Manual Save removed — auto snapshots on edits/reorder/import are sufficient.
-
-    // 8) Optional: chord reorder capture (requires Sortable onEnd hook; see note below)
-    document.addEventListener('chords-reordered', () => {
-      pushSnapshot('reorder');
+    document.addEventListener('collections-reordered', () => {
+      pushSnapshot('reorder-collections');
     });
   }
 
   // ---------- Initialize / Reconcile ----------
   function reconcileOnLoad() {
-    // Ensure we have a stack and the index points at the current DOM state
     const hist = loadHistory();
     const current = serializeFromDOM();
 
@@ -312,7 +270,6 @@
       return;
     }
 
-    // Try to find current in the stack
     const curStr = jstr(current);
     let found = -1;
     for (let i = hist.items.length - 1; i >= 0; i--) {
@@ -325,11 +282,8 @@
       hist.index = found;
       saveHistory(hist);
     } else {
-      // Append current as new head (e.g., user loaded a different state)
       hist.items.push(current);
-      // cap to MAX_SNAPSHOTS
-      if (hist.items.length > MAX_SNAPSHOTS)
-        hist.items = hist.items.slice(hist.items.length - MAX_SNAPSHOTS);
+      if (hist.items.length > MAX_SNAPSHOTS) hist.items = hist.items.slice(hist.items.length - MAX_SNAPSHOTS);
       hist.index = hist.items.length - 1;
       saveHistory(hist);
     }
@@ -340,20 +294,7 @@
   reconcileOnLoad();
   installCapture();
   updateButtons();
-  window.addEventListener('keydown', (e) => {
-    if (e.defaultPrevented) return;
-    if (!e.ctrlKey) return;
-    const key = e.key || '';
-    if (key !== 'z' && key !== 'Z') return;
-    const t = e.target;
-    const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
-    if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
-    e.preventDefault();
-    if (e.shiftKey) doRedo();
-    else doUndo();
-  });
 
-  // Optional: make buttons auto-update if something else mutates the stack
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_KEY) updateButtons();
   });

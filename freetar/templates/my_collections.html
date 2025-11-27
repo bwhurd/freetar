@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+<!-- Styled by freetar/static/my-collections.css (Chord Collections page) -->
+
+{% block content %}
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
+<link rel="stylesheet" href="{{ url_for('static', filename='my-collections.css') }}">
+<link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+Symbols+2&display=swap">
+<div style="max-width: 100%;">
+    <div class="page-title-group">
+        <div class="page-breadcrumb text-muted small">
+            <a href="{{ url_for('my_collections') }}">
+                <span class="material-icons-outlined breadcrumb-icon">home</span>My Chords</a>
+        </div>
+
+
+        <div class="d-flex align-items-center mb-3 page-title-row">
+            <h2 class="page-title flex-grow-1">My Chords</h2>
+            <span id="undo-redo-wrap" class="d-flex align-items-center gap-2"></span>
+        </div>
+    </div>
+
+    {% if groups|length == 0 %}
+
+    <p id="empty-msg">No collections defined yet.</p> {% else %} <p id="empty-msg" style="display:none;">No collections
+        defined yet.</p> {% endif %}
+
+    <div id="groups-root">
+        {% for group in groups %}
+        <div class="group mb-4{% if group.deletable %} deletable-group{% endif %}">
+
+            <div class="group-header mb-2">
+                <div class="group-title-area">
+                    <span class="material-icons-outlined group-handle">drag_indicator</span>
+                    <input class="form-control form-control-sm group-name" value="{{ group.group }}">
+                </div>
+
+                <div class="group-buttons">
+                    <button type="button" class="add-chord" aria-label="Add collection" data-tooltip="Add Collection">
+                        <span class="material-icons-outlined">add_circle</span>
+                    </button>
+                    <button type="button" class="delete-chords" aria-label="Delete collections"
+                        data-tooltip="Delete Collections">
+                        <span class="material-icons-outlined">remove_circle_outline</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="d-grid chord-grid">
+                {% for collection in group.collections %}
+                <div class="text-center chord-card collection-card mb-3{% if collection.deletable %} deletable{% endif %} position-relative"
+                    data-collection-id="{{ collection.id }}">
+                    <span class="material-icons-outlined collection-handle">drag_indicator</span>
+                    <button class="delete-collection-btn" type="button" title="Delete collection" tabindex="-1"
+                        style="display:none;">&#8722;</button>
+                    <span class="material-icons-outlined collection-edit" title="Edit collection">edit</span>
+                    <div
+                        class="d-flex align-items-center justify-content-between mb-1 position-relative collection-card-header">
+                        <span class="chord-title flex-grow-1 collection-title">{{ collection.name }}</span>
+                    </div>
+                    <textarea class="form-control form-control-sm chord-name-input collection-name-input" rows="2"
+                        style="display:none;">{{ collection.name }}</textarea>
+                    <div class="collection-body-placeholder"></div>
+                </div>
+
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+
+
+    <!-- Delete Group Modal -->
+    <div class="modal" tabindex="-1" id="delete-group-modal"
+        style="display:none; background:rgba(0,0,0,0.4); position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:2000; align-items:center; justify-content:center;">
+        <div style="background:white; padding:2rem; border-radius:8px; max-width:90vw; min-width:320px;">
+            <h5 class="mb-3">Delete Group?</h5>
+            <p>This will delete the entire group and all its collections.<br>Are you sure you want to proceed?</p>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button id="confirm-delete-group" class="btn btn-danger btn-sm">Yes, delete group</button>
+                <button id="cancel-delete-group" class="btn btn-secondary btn-sm">Cancel</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script defer src="{{ url_for('static', filename='vendor/micromodal.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='undoRedo.collections.js') }}"></script>
+<script>
+    window.MY_COLLECTIONS_EDIT_URL = "{{ url_for('my_collections_edit') }}";
+</script>
+<script defer src="{{ url_for('static', filename='my-collections.page.js') }}"></script>
+
+{% endblock %}

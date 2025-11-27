@@ -9,7 +9,11 @@
   'use strict';
 
   // DOM refs (filled in init)
-  let groupsRoot, addGroupBtn, deleteGroupModal, confirmDeleteGroupBtn, cancelDeleteGroupBtn;
+  let groupsRoot,
+    deleteGroupModal,
+    confirmDeleteGroupBtn,
+    baseFretModal,
+    baseFretValueEl;
   // Batch import UI refs
   let showImportBtn, importArea, importInput, importBtn, cancelImportBtn;
 
@@ -18,6 +22,69 @@
   let deleteModeGroup = null;
   let deleteModeOffHandler = null;
   let deleteModeDirty = false;
+  let groupDeleteModeActive = false;
+  let groupDeleteModeGroup = null;
+  let hoverGroupInsert;
+  let suppressModalOnClose = false;
+  let currentEditingSourceCard = null;
+  let currentEditingSpotlightCard = null;
+  const MODAL_BASE_Z = 3000;
+  const MODAL_Z_STEP = 20;
+  const modalStack = [];
+
+  function applyModalStackZ() {
+    modalStack.forEach((modal, index) => {
+      const overlay = modal.querySelector('.modal__overlay');
+      const container = overlay && overlay.querySelector('.modal__container');
+      if (!overlay) return;
+
+      const overlayZ = MODAL_BASE_Z + index * MODAL_Z_STEP;
+      const containerZ = overlayZ + 10;
+
+      overlay.style.zIndex = String(overlayZ);
+      if (container) {
+        container.style.zIndex = String(containerZ);
+      }
+
+      if (index === 0) {
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.65)';
+      } else {
+        overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.92)';
+      }
+    });
+  }
+
+  function pushModalOnStack(modal) {
+    if (!modal) return;
+    if (!modalStack.includes(modal)) {
+      modalStack.push(modal);
+    }
+    applyModalStackZ();
+  }
+
+  function removeModalFromStack(modal) {
+    const idx = modalStack.indexOf(modal);
+    if (idx !== -1) {
+      modalStack.splice(idx, 1);
+    }
+    applyModalStackZ();
+  }
+
+  function wireModalCloseButtons() {
+    const closeButtons = document.querySelectorAll('.modal__close-button');
+    closeButtons.forEach((btn) => {
+      if (btn.dataset.closeWired === '1') return;
+      btn.dataset.closeWired = '1';
+      btn.addEventListener('click', (e) => {
+        const modal = btn.closest('.modal');
+        if (!modal) return;
+        if (window.MicroModal && modal.id) {
+          e.preventDefault();
+          MicroModal.close(modal.id);
+        }
+      });
+    });
+  }
 
   // Inject CSS so group tools (handle + buttons) only appear on hover/focus-within
   function ensureGroupHoverCSS() {
@@ -28,8 +95,7 @@
     /* Hide group-level controls by default */
     .group .group-header .group-handle,
     .group .group-header .add-chord,
-    .group .group-header .delete-chords,
-    .group .group-header .delete-group {
+    .group .group-header .delete-chords {
       opacity: 0;
       pointer-events: none;
       transition: opacity 120ms ease-in-out;
@@ -38,26 +104,64 @@
     .group:hover .group-header .group-handle,
     .group:hover .group-header .add-chord,
     .group:hover .group-header .delete-chords,
-    .group:hover .group-header .delete-group,
     .group:focus-within .group-header .group-handle,
     .group:focus-within .group-header .add-chord,
-    .group:focus-within .group-header .delete-chords,
-    .group:focus-within .group-header .delete-group {
+    .group:focus-within .group-header .delete-chords {
       opacity: 1;
       pointer-events: auto;
+    }
+    .group.insert-zone-hover .group-header .group-handle,
+    .group.insert-zone-hover .group-header .add-chord,
+    .group.insert-zone-hover .group-header .delete-chords {
+      opacity: 0 !important;
+      pointer-events: none !important;
     }
     /* Optional: on devices without hover, keep them available when focusing inside the group */
     @media (hover: none) {
       .group:focus-within .group-header .group-handle,
       .group:focus-within .group-header .add-chord,
-      .group:focus-within .group-header .delete-chords,
-      .group:focus-within .group-header .delete-group {
+      .group:focus-within .group-header .delete-chords {
         opacity: 1;
         pointer-events: auto;
       }
     }
   `;
     document.head.appendChild(style);
+  }
+
+  function moveCardIntoChordEditModal(sourceCard) {
+    if (!sourceCard) return null;
+    const modal = document.getElementById('chord-edit-modal');
+    if (!modal) return null;
+    const slot = modal.querySelector('.chord-edit-modal-slot');
+    if (!slot) return null;
+
+    const clone = sourceCard.cloneNode(true);
+    clone.classList.add('chord-card-spotlight');
+    clone.__sourceCard = sourceCard;
+    slot.innerHTML = '';
+    slot.appendChild(clone);
+
+    wireChordCard(clone);
+    try {
+      renderCardDiagram(clone);
+    } catch (_) {
+      /* noop */
+    }
+
+    currentEditingSourceCard = sourceCard;
+    currentEditingSpotlightCard = clone;
+    currentEditingCard = clone;
+    return clone;
+  }
+
+  function returnCardFromChordEditModal() {
+    const clone = currentEditingSpotlightCard;
+    const slot = document.querySelector('#chord-edit-modal .chord-edit-modal-slot');
+    if (slot && clone && slot.contains(clone)) {
+      slot.removeChild(clone);
+    }
+    currentEditingSpotlightCard = null;
   }
 
   /* Turn ASCII chord text into typographic symbols for display (HTML-safe).
@@ -196,9 +300,9 @@
     // items: array of token strings OR arrays (no extra space inside arrays)
     const row = document.createElement('div');
     row.className = 'chord-symbols-row';
-    // Auto width, centered, and single-line to keep exactly 3 rows total
+    // Let rows wrap inside the card when space is tight
     row.style.cssText =
-      'display:block; width:auto; margin-bottom:.15rem; white-space:nowrap; text-align:inherit;';
+      'display:flex; flex-wrap:wrap; gap:0.35rem; row-gap:0.25rem; width:100%; margin-bottom:.15rem; align-items:center;';
     items.forEach((item, idx) => {
       if (Array.isArray(item)) {
         const grp = document.createElement('span');
@@ -217,21 +321,17 @@
   }
 
   function ensureSymbolToolbar(card) {
-    const fields = card.querySelector('.chord-edit-fields');
-    if (!fields) return;
+    const section = card.querySelector('.chord-edit-section') || card;
+    if (!section) return;
 
-    // Create (or reuse) the single body-level overlay so it can be wider than the card
-    let bar = document.querySelector('.chord-symbols-toolbar');
+    let bar = section.querySelector('.chord-symbols-toolbar');
     if (!bar) {
       bar = document.createElement('div');
       bar.className = 'chord-symbols-toolbar';
-      // Wide overlay, normal font; floats above page content
-      bar.style.cssText =
-        'position:absolute; z-index:3000; user-select:none; width:auto; margin:0; padding:0;';
-      bar.style.fontSize = '1em'; // normal size again
-      bar.style.setProperty('--color-bg', '#2a282d'); // behind symbol
-      bar.style.setProperty('--color-fg', '#efeffc'); // symbol color
+      section.appendChild(bar);
+    }
 
+    if (!bar.dataset.built) {
       const row1 = ['Δ', '−', '°', 'ø', '7', 'Δ7', '−7', '°7', 'ø7', '6'];
       const row2 = ['9', '11', '13', 'add9', 'add11', 'add13', 'sus2', 'sus4'];
       const row3 = ['♭', '♯', '♮', '♭5', '♯5', '♭9', '♯9', '♯11', '♭13', ['(', ')'], '()', '/'];
@@ -239,6 +339,7 @@
       bar.appendChild(buildSymbolRow(card, row1));
       bar.appendChild(buildSymbolRow(card, row2));
       bar.appendChild(buildSymbolRow(card, row3));
+      bar.dataset.built = '1';
 
       // Keep input focus during mouse/touch and prevent click-away commit from background clicks
       bar.addEventListener(
@@ -272,86 +373,191 @@
         },
         false,
       ); // allow button click handler to run
-
-      document.body.appendChild(bar);
-    } else {
-      bar.style.display = '';
     }
 
-    // Insert or reuse an in-card spacer just below the inputs to push the next chord row down
-    let spacer = card.querySelector('.chord-symbols-spacer');
-    if (!spacer) {
-      spacer = document.createElement('div');
-      spacer.className = 'chord-symbols-spacer';
-      spacer.style.width = '100%';
-      spacer.style.height = '0px'; // will be set based on overlay height
-      spacer.style.pointerEvents = 'none';
-      fields.insertAdjacentElement('afterend', spacer);
-    }
-
-    // Reposition overlay: centered by default, but clamp to group container.
-    const reposition = () => {
-      const centerEl = card.querySelector('table.chord-diagram') || card;
-      const centerRect = centerEl.getBoundingClientRect();
-      const anchorRect = fields.getBoundingClientRect();
-      const groupEl = card.closest('.group') || card;
-      const groupRect = groupEl.getBoundingClientRect();
-
-      const em = parseFloat(getComputedStyle(card).fontSize) || 16;
-      const gap = Math.round(0.5 * em); // small gap below inputs
-
-      // Measure current overlay
-      bar.style.visibility = 'hidden';
-      bar.style.left = '0px';
-      bar.style.top = '0px';
-      const width = bar.offsetWidth;
-
-      const top = window.scrollY + anchorRect.bottom + gap;
-
-      const centerX = window.scrollX + centerRect.left + centerRect.width / 2;
-      const groupLeft = window.scrollX + groupRect.left;
-      const groupRight = window.scrollX + groupRect.right;
-      const pad = 8; // small breathing room from group edges
-
-      // Default centered position
-      let left = centerX - width / 2;
-      let align = 'center';
-
-      // Clamp to group container
-      if (left < groupLeft + pad) {
-        left = groupLeft + pad;
-        align = 'left';
-      } else if (left + width > groupRight - pad) {
-        left = groupRight - width - pad;
-        align = 'right';
-      }
-
-      // Finalize
-      bar.style.left = `${left}px`;
-      bar.style.top = `${top}px`;
-      bar.style.visibility = '';
-      bar.style.textAlign = align;
-
-      // Reserve space below inputs so the overlay never sits on top of the next chord row
-      const overlayHeight = bar.offsetHeight;
-      const bottomMargin = em; // extra breathing room so overlays never get occluded
-      spacer.style.height = `${overlayHeight + bottomMargin}px`;
-    };
-
-    bar.__reposition = reposition;
-    reposition();
-    window.addEventListener('scroll', bar.__reposition, true);
-    window.addEventListener('resize', bar.__reposition, true);
-    window.addEventListener('orientationchange', bar.__reposition, true);
+    bar.style.display = '';
+    return bar;
   }
 
   const EDIT_URL = () => window.MY_CHORDS_EDIT_URL || null;
 
   // ---------- helpers ----------
+  function buildShapeFromTokensAndRoots(tokens, roots) {
+    return tokens
+      .map((t, i) => {
+        const rk = roots[i];
+        if (t == null) return 'x';
+        if (t === 0) {
+          if (rk === 'played') return '[0]';
+          if (rk === 'ghost') return '([0])';
+          return '0';
+        }
+        if (rk === 'played') return `[${t}]`;
+        if (rk === 'ghost') return `([${t}])`;
+        return String(t);
+      })
+      .join('');
+  }
+
+  function toggleRootOnString(shape, stringIndex) {
+    if (typeof parseTokensAndRootKinds !== 'function') return shape;
+    const parsed = parseTokensAndRootKinds(shape);
+    if (!parsed || !Array.isArray(parsed.tokens) || !Array.isArray(parsed.roots)) return shape;
+    if (stringIndex < 0 || stringIndex >= parsed.tokens.length) return shape;
+
+    const tokens = parsed.tokens;
+    const roots = parsed.roots.slice(); // avoid mutating parsed roots
+    const token = tokens[stringIndex];
+    if (token == null || token === 0) return shape; // muted or open string, do nothing
+
+    const current = roots[stringIndex] || null;
+    let next = null;
+    if (current === null) next = 'played';
+    else if (current === 'played') next = 'ghost';
+    else next = null;
+    roots[stringIndex] = next;
+
+    return buildShapeFromTokensAndRoots(tokens, roots);
+  }
+
+  function isAllOpenOrMuted(shape) {
+    if (typeof parseTokensAndRootKinds !== 'function') return false;
+    const parsed = parseTokensAndRootKinds(shape);
+    if (!parsed || !Array.isArray(parsed.tokens)) return false;
+    if (!parsed.tokens.length) return false;
+    return parsed.tokens.every((t) => t == null || t === 0);
+  }
+
+  let baseFretActiveCard = null;
+  let baseFretBuffer = '';
+  let baseFretOnConfirm = null;
+
+  function updateBaseFretDisplay() {
+    if (baseFretValueEl) baseFretValueEl.textContent = baseFretBuffer || '\u2013';
+  }
+
+  function hideBaseFretModal() {
+    document.removeEventListener('keydown', baseFretKeyHandler, true);
+    baseFretActiveCard = null;
+    baseFretBuffer = '';
+    baseFretOnConfirm = null;
+    if (window.MicroModal) {
+      try {
+        MicroModal.close('base-fret-modal');
+      } catch (_) {
+        /* noop */
+      }
+    }
+  }
+
+  function baseFretKeyHandler(e) {
+    const key = e.key;
+    if (key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      hideBaseFretModal();
+      return;
+    }
+
+    const isDigit = /^[0-9]$/.test(key);
+    if (!isDigit) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    baseFretBuffer = key;
+    updateBaseFretDisplay();
+
+    const val = parseInt(key, 10);
+    if (!Number.isFinite(val) || val <= 0 || val > 24) {
+      hideBaseFretModal();
+      return;
+    }
+    const cb = baseFretOnConfirm;
+    const target = baseFretActiveCard;
+    hideBaseFretModal();
+    if (typeof cb === 'function' && target) cb(val);
+  }
+
+  function promptForBaseFret(card, onConfirm) {
+    if (!baseFretModal || !baseFretValueEl) return;
+    baseFretActiveCard = card;
+    baseFretOnConfirm = onConfirm;
+    baseFretBuffer = '';
+    updateBaseFretDisplay();
+    document.removeEventListener('keydown', baseFretKeyHandler, true);
+    document.addEventListener('keydown', baseFretKeyHandler, true);
+    if (window.MicroModal) {
+      MicroModal.show('base-fret-modal');
+    }
+  }
+
+  function handleFretLabelClick(card) {
+    if (typeof promptForBaseFret !== 'function') return;
+    promptForBaseFret(card, (newBase) => {
+      const shapeInput = card.querySelector('.chord-shape-input');
+      const oldShape = shapeInput ? shapeInput.value || '' : '';
+      const parsedShape =
+        typeof parseTokensAndRootKinds === 'function'
+          ? parseTokensAndRootKinds(oldShape)
+          : null;
+      if (
+        !parsedShape ||
+        !Array.isArray(parsedShape.tokens) ||
+        !Array.isArray(parsedShape.roots) ||
+        typeof buildShapeFromTokensAndRoots !== 'function'
+      )
+        return;
+
+      const tokens = parsedShape.tokens.slice();
+      const roots = parsedShape.roots.slice();
+
+      let currentTop = null;
+      const baseAttr = card?.dataset?.baseFret;
+      if (baseAttr) {
+        const parsedBase = parseInt(baseAttr, 10);
+        if (Number.isFinite(parsedBase) && parsedBase > 0) currentTop = parsedBase;
+      }
+      if (!currentTop) {
+        let minFret = Infinity;
+        tokens.forEach((t) => {
+          if (typeof t === 'number' && t > 0 && t < minFret) minFret = t;
+        });
+        currentTop = Number.isFinite(minFret) && minFret !== Infinity ? minFret : 1;
+      }
+
+      const F = parseInt(newBase, 10);
+      if (!Number.isFinite(F) || F <= 0) return;
+      const delta = F - currentTop;
+
+      for (let i = 0; i < tokens.length; i += 1) {
+        const t = tokens[i];
+        if (typeof t === 'number' && t > 0) tokens[i] = t + delta;
+      }
+
+      const newShape = buildShapeFromTokensAndRoots(tokens, roots);
+      const shapeChanged = newShape !== oldShape;
+
+      card.dataset.baseFret = String(F);
+      if (shapeInput) shapeInput.value = newShape;
+      renderCardDiagram(card);
+      const isEditing = currentEditingCard === card;
+      if (isEditing) {
+        if (shapeInput) shapeInput.focus();
+      } else {
+        persist('rebase-frets-click');
+      }
+      if (shapeChanged && window.freetarUndoSnapshot) {
+        window.freetarUndoSnapshot('diagram-click');
+      }
+    });
+  }
+
   function buildDataFromDOM() {
     const groups = [];
     groupsRoot.querySelectorAll('.group').forEach((groupEl) => {
-      const gName = groupEl.querySelector('.group-name')?.value.trim() || '';
+      const rawGroupName = groupEl.querySelector('.group-name')?.value || '';
+      const gName = rawGroupName.trim();
       const chords = [];
       groupEl.querySelectorAll('.chord-card').forEach((card) => {
         const nameInput = card.querySelector('.chord-name-input');
@@ -362,7 +568,7 @@
         if (!shape) return;
         chords.push({ name: name || '(unnamed)', shape });
       });
-      groups.push({ group: gName || 'Group', chords });
+      groups.push({ group: gName || '\u00A0', chords });
     });
     return groups;
   }
@@ -384,78 +590,146 @@
     }
   }
 
-  function beginEditing(card) {
-    if (currentEditingCard === card) return;
-    if (currentEditingCard && currentEditingCard !== card) finishEditing(true);
-    const fields = card.querySelector('.chord-edit-fields');
-    const nameInput = card.querySelector('.chord-name-input');
-    const shapeInput = card.querySelector('.chord-shape-input');
+  function beginEditing(sourceCard) {
+    const resolvedSource = sourceCard && sourceCard.__sourceCard ? sourceCard.__sourceCard : sourceCard;
+    if (!resolvedSource) return;
+    if (currentEditingSourceCard === resolvedSource) {
+      if (currentEditingCard) {
+        const existingInput = currentEditingCard.querySelector('.chord-name-input');
+        if (existingInput) {
+          existingInput.focus();
+          existingInput.select();
+        }
+      }
+      return;
+    }
+    if (currentEditingCard && currentEditingSourceCard && currentEditingSourceCard !== resolvedSource) {
+      finishEditing(true);
+    }
+
+    const clone = moveCardIntoChordEditModal(resolvedSource);
+    if (!clone) return;
+
+    const fields = clone.querySelector('.chord-edit-fields');
+    const nameInput = clone.querySelector('.chord-name-input');
+    const shapeInput = clone.querySelector('.chord-shape-input');
     if (!fields || !nameInput || !shapeInput) return;
 
-    currentEditingCard = card;
-    card.dataset.originalName = nameInput.value;
-    card.dataset.originalShape = shapeInput.value;
+    currentEditingCard = clone;
+    currentEditingSourceCard = resolvedSource;
+    clone.dataset.originalName = (resolvedSource.querySelector('.chord-name-input')?.value) || '';
+    clone.dataset.originalShape = (resolvedSource.querySelector('.chord-shape-input')?.value) || '';
 
-    // Move the two input rows directly below the chord diagram (title/diagram stay in place)
-    const table = card.querySelector('table.chord-diagram');
-    if (table && table.nextSibling !== fields) {
-      table.insertAdjacentElement('afterend', fields);
+    // Keep the edit UI directly under the diagram inside this card
+    const section = clone.querySelector('.chord-edit-section');
+    const table = clone.querySelector('table.chord-diagram');
+    if (section && table && table.nextElementSibling !== section) {
+      table.insertAdjacentElement('afterend', section);
     }
+
+    clone.classList.add('is-editing', 'editing-expanded');
+    if (section) section.style.display = '';
 
     fields.style.display = '';
 
-    // Show the wide 3-row symbols palette (overlay) and insert a spacer to push content below
-    ensureSymbolToolbar(card);
+    // Show the wide 3-row symbols palette anchored inside this card
+    ensureSymbolToolbar(clone);
+
+    if (window.MicroModal) {
+      MicroModal.show('chord-edit-modal');
+    }
 
     nameInput.focus();
     nameInput.select();
   }
 
-  function finishEditing(commit) {
-    const card = currentEditingCard;
-    if (!card) return;
-    const fields = card.querySelector('.chord-edit-fields');
-    const title = card.querySelector('.chord-title');
-    const nameInput = card.querySelector('.chord-name-input');
-    const shapeInput = card.querySelector('.chord-shape-input');
-    if (!fields || !title || !nameInput || !shapeInput) {
+  function finishEditing(commit, opts = {}) {
+    const { fromModalClose = false } = opts;
+    const spotlight = currentEditingSpotlightCard || currentEditingCard;
+    const sourceCard =
+      currentEditingSourceCard || (spotlight && spotlight.__sourceCard) || spotlight;
+    if (!spotlight || !sourceCard) {
       currentEditingCard = null;
+      currentEditingSourceCard = null;
+      currentEditingSpotlightCard = null;
+      return;
+    }
+    const fields = spotlight.querySelector('.chord-edit-fields');
+    const title = sourceCard.querySelector('.chord-title');
+    const spotlightNameInput = spotlight.querySelector('.chord-name-input');
+    const spotlightShapeInput = spotlight.querySelector('.chord-shape-input');
+    const sourceNameInput = sourceCard.querySelector('.chord-name-input');
+    const sourceShapeInput = sourceCard.querySelector('.chord-shape-input');
+    if (
+      !fields ||
+      !title ||
+      !spotlightNameInput ||
+      !spotlightShapeInput ||
+      !sourceNameInput ||
+      !sourceShapeInput
+    ) {
+      currentEditingCard = null;
+      currentEditingSourceCard = null;
+      currentEditingSpotlightCard = null;
       return;
     }
 
     if (commit) {
-      const newName = nameInput.value.trim();
+      const newName = spotlightNameInput.value.trim();
+      const newShape = spotlightShapeInput.value;
+      sourceNameInput.value = newName;
+      sourceShapeInput.value = newShape;
+      if (spotlight.dataset && spotlight.dataset.baseFret) {
+        sourceCard.dataset.baseFret = spotlight.dataset.baseFret;
+      } else {
+        delete sourceCard.dataset.baseFret;
+      }
       title.innerHTML = prettifyChordName(newName || '(unnamed)');
-      renderCardDiagram(card); // update diagram for new shape
-      persist('edit-commit'); // auto-save edit
+      renderCardDiagram(sourceCard);
+      persist('edit-commit');
     } else {
-      const originalName = card.dataset.originalName || '';
-      const originalShape = card.dataset.originalShape || '';
-      nameInput.value = originalName;
-      shapeInput.value = originalShape;
-      title.textContent = originalName || '(unnamed)'; // raw text on cancel
+      const originalName = spotlight.dataset.originalName || '';
+      const originalShape = spotlight.dataset.originalShape || '';
+      sourceNameInput.value = originalName;
+      sourceShapeInput.value = originalShape;
+      title.textContent = originalName || '(unnamed)';
+      renderCardDiagram(sourceCard);
     }
 
-    // Tear down the wide overlay and its listeners
-    const overlay = document.querySelector('.chord-symbols-toolbar');
-    if (overlay) {
-      window.removeEventListener('scroll', overlay.__reposition, true);
-      window.removeEventListener('resize', overlay.__reposition, true);
-      window.removeEventListener('orientationchange', overlay.__reposition, true);
-      overlay.remove();
-    }
-    // Remove the in-card spacer that pushed content below
-    const spacer = card.querySelector('.chord-symbols-spacer');
-    if (spacer) spacer.remove();
-
-    // Hide inputs; they remain positioned under the diagram for next edit
+    const overlay = spotlight.querySelector('.chord-symbols-toolbar');
+    if (overlay) overlay.style.display = 'none';
+    const section = spotlight.querySelector('.chord-edit-section');
+    if (section) section.style.display = 'none';
     fields.style.display = 'none';
+    spotlight.classList.remove('is-editing', 'editing-expanded');
 
-    // Cleanup state
-    delete card.dataset.originalName;
-    delete card.dataset.originalShape;
+    returnCardFromChordEditModal();
+
     currentEditingCard = null;
+    currentEditingSourceCard = null;
+    currentEditingSpotlightCard = null;
+
+    if (window.MicroModal && !fromModalClose) {
+      suppressModalOnClose = true;
+      try {
+        MicroModal.close('chord-edit-modal');
+      } catch (_) {
+        /* noop */
+      }
+      setTimeout(() => {
+        suppressModalOnClose = false;
+      }, 0);
+    }
   }
+
+  // Ctrl+Enter should commit the active edit, mirroring manual confirmation
+  document.addEventListener('keydown', (e) => {
+    if (!currentEditingCard) return;
+    if (e.key === 'Enter' && e.ctrlKey) {
+      e.preventDefault();
+      finishEditing(true);
+    }
+  });
 
   function wireChordCard(card) {
     const editBtn = card.querySelector('.chord-edit');
@@ -475,7 +749,13 @@
         shapeInput.focus();
         shapeInput.select();
       } else if (e.key === 'Escape') {
+        const modal = document.getElementById('chord-edit-modal');
+        const modalOpen = modal && modal.classList.contains('is-open');
         e.preventDefault();
+        if (modalOpen && window.MicroModal) {
+          MicroModal.close('chord-edit-modal');
+          return;
+        }
         finishEditing(false);
       }
     });
@@ -542,32 +822,268 @@
         e.preventDefault();
         finishEditing(true);
       } else if (e.key === 'Escape') {
+        const modal = document.getElementById('chord-edit-modal');
+        const modalOpen = modal && modal.classList.contains('is-open');
         e.preventDefault();
+        if (modalOpen && window.MicroModal) {
+          MicroModal.close('chord-edit-modal');
+          return;
+        }
         finishEditing(false);
       }
     });
+
+    function applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing) {
+      const newShape = buildShapeFromTokensAndRoots(tokens, roots);
+      if (newShape === oldShape) {
+        if (isEditing) shapeInput.focus();
+        return;
+      }
+      shapeInput.value = newShape;
+      renderCardDiagram(card);
+      if (isEditing) {
+        shapeInput.focus();
+      } else {
+        persist('toggle-root-click');
+      }
+      if (window.freetarUndoSnapshot) window.freetarUndoSnapshot('diagram-click');
+    }
+
+    function handleAltClick(stringIndex, tokens, roots, card, shapeInput, oldShape, isEditing) {
+      tokens[stringIndex] = null;
+      roots[stringIndex] = null;
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
+    }
+
+    function handleCtrlClick(card, isEditing) {
+      const isCurrent = isEditing;
+      if (!currentEditingCard) {
+        beginEditing(card);
+        return;
+      }
+      if (!isCurrent) {
+        beginEditing(card); // beginEditing will commit/cancel the other card as today
+        return;
+      }
+      finishEditing(true);
+    }
+
+    function handleShiftClick(
+      stringIndex,
+      fret,
+      tokens,
+      roots,
+      card,
+      shapeInput,
+      oldShape,
+      isEditing,
+    ) {
+      const t = tokens[stringIndex];
+      const r = roots[stringIndex];
+
+      if (t !== fret) {
+        tokens[stringIndex] = fret;
+        roots[stringIndex] = null;
+      } else if (t === fret) {
+        if (r === null) {
+          roots[stringIndex] = 'played';
+        } else if (r === 'played') {
+          roots[stringIndex] = 'ghost';
+        } else if (r === 'ghost') {
+          tokens[stringIndex] = null;
+          roots[stringIndex] = null;
+        } else {
+          tokens[stringIndex] = fret;
+          roots[stringIndex] = null;
+        }
+      }
+
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
+    }
+
+    function handlePlainClick(
+      stringIndex,
+      fret,
+      tokens,
+      roots,
+      card,
+      shapeInput,
+      oldShape,
+      isEditing,
+      clickedHeader,
+    ) {
+      const t = tokens[stringIndex];
+      const isSameFret = typeof t === 'number' && t > 0 && t === fret;
+      const isOpenHeaderClick = t === 0 && clickedHeader;
+
+      if (isSameFret || isOpenHeaderClick) {
+        tokens[stringIndex] = null;
+        roots[stringIndex] = null;
+      } else {
+        tokens[stringIndex] = fret;
+        roots[stringIndex] = null;
+      }
+
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
+    }
+
+    const table = card.querySelector('table.chord-diagram');
+    if (table && !table.__rootClickWired) {
+      table.__rootClickWired = true;
+      table.addEventListener('click', onChordDiagramClick);
+    }
+
+    function onChordDiagramClick(event) {
+      event.stopPropagation(); // keep edit mode active; avoid click-away handling
+      event.preventDefault(); // avoid text selection during shift-clicks
+      const fretLabel = event.target.closest('.chord-fret-label');
+      if (fretLabel) {
+        handleFretLabelClick(card);
+        return;
+      }
+      const isEditing = currentEditingCard === card;
+      if (event.ctrlKey) {
+        handleCtrlClick(card, isEditing);
+        return;
+      }
+
+      let stringIndex = -1;
+      let fret = NaN;
+      let clickedHeader = false;
+
+      const headerHit =
+        event.target.closest('.chord-header-label') ||
+        event.target.closest('.chord-header-root') ||
+        event.target.closest('.chord-header-root-mini') ||
+        event.target.closest('.chord-header-root-label');
+      const headerCell = headerHit
+        ? headerHit.closest('.chord-header-string')
+        : event.target.closest('.chord-header-string');
+      const bodyCell = event.target.closest('.chord-string-cell');
+      const targetCell = bodyCell || headerCell;
+      if (!targetCell) return;
+
+      const rowEl = targetCell.parentElement;
+      if (!rowEl) return;
+
+      if (headerCell && !bodyCell) {
+        clickedHeader = true;
+        fret = 0;
+        const headerCells = Array.from(rowEl.querySelectorAll('.chord-header-string'));
+        stringIndex = headerCells.indexOf(headerCell);
+      } else {
+        const fretAttr = rowEl.getAttribute('data-fret');
+        fret = fretAttr ? parseInt(fretAttr, 10) : NaN;
+        const cells = Array.from(rowEl.querySelectorAll('.chord-string-cell'));
+        stringIndex = bodyCell ? cells.indexOf(bodyCell) : -1;
+      }
+
+      if (stringIndex < 0 || !Number.isFinite(fret)) return;
+
+      const shapeInput = card.querySelector('.chord-shape-input');
+      if (!shapeInput) return;
+      const oldShape = shapeInput.value || '';
+      const needsBaseFretPrompt =
+        !clickedHeader && isAllOpenOrMuted(oldShape) && !card.dataset.baseFret;
+      if (needsBaseFretPrompt) {
+        promptForBaseFret(card, (baseFret) => {
+          card.dataset.baseFret = String(baseFret);
+          let newShape = oldShape;
+          if (typeof parseTokensAndRootKinds === 'function') {
+            const parsedPrompt = parseTokensAndRootKinds(oldShape);
+            if (
+              parsedPrompt &&
+              Array.isArray(parsedPrompt.tokens) &&
+              Array.isArray(parsedPrompt.roots)
+            ) {
+              const tokensP = parsedPrompt.tokens.slice();
+              const rootsP = parsedPrompt.roots.slice();
+              if (tokensP[stringIndex] == null || tokensP[stringIndex] === 0) {
+                tokensP[stringIndex] = baseFret;
+                rootsP[stringIndex] = null;
+                newShape = buildShapeFromTokensAndRoots(tokensP, rootsP);
+              }
+            }
+          }
+          const shapeChanged = newShape !== oldShape;
+          shapeInput.value = newShape;
+          renderCardDiagram(card);
+          // Ensure the freshly rendered diagram remains interactive
+          wireChordCard(card);
+          if (isEditing) {
+            shapeInput.focus();
+          } else {
+            persist('toggle-root-click');
+          }
+          if (shapeChanged && window.freetarUndoSnapshot) {
+            window.freetarUndoSnapshot('diagram-click');
+          }
+        });
+        return;
+      }
+      if (typeof parseTokensAndRootKinds !== 'function') return;
+      const parsed = parseTokensAndRootKinds(oldShape);
+      if (!parsed || !Array.isArray(parsed.tokens) || !Array.isArray(parsed.roots)) return;
+
+      const tokens = parsed.tokens.slice();
+      const roots = parsed.roots.slice();
+
+      if (event.altKey) {
+        handleAltClick(stringIndex, tokens, roots, card, shapeInput, oldShape, isEditing);
+      } else if (event.shiftKey) {
+        handleShiftClick(
+          stringIndex,
+          fret,
+          tokens,
+          roots,
+          card,
+          shapeInput,
+          oldShape,
+          isEditing,
+        );
+      } else {
+        handlePlainClick(
+          stringIndex,
+          fret,
+          tokens,
+          roots,
+          card,
+          shapeInput,
+          oldShape,
+          isEditing,
+          clickedHeader,
+        );
+      }
+    }
   }
 
-  function addChordToGrid(grid, name = '(new)', shape = '000000', opts = {}) {
+  function addChordToGrid(grid, name = '...', shape = '000000', opts = {}) {
+    const { silent = false, prepend = false } = opts || {};
     const prettyTitle = prettifyChordName(name);
     const card = document.createElement('div');
     card.className = 'text-center chord-card mb-3';
     card.innerHTML = `
     <div class="d-flex align-items-center justify-content-between mb-1 position-relative">
-      <span class="material-icons-outlined chord-handle" style="cursor: move; font-size: 18px;">drag_indicator</span>
+      <span class="material-icons-outlined chord-handle">drag_indicator</span>
       <span class="chord-title flex-grow-1 text-truncate mx-1">${prettyTitle}</span>
       <span class="material-icons-outlined chord-edit" style="cursor: pointer; font-size: 18px;">edit</span>
       <button class="delete-chord-btn" type="button" title="Delete chord" tabindex="-1" style="display:none;">&#8722;</button>
     </div>
-    <div class="chord-edit-fields mb-2" style="display: none;">
-      <input class="form-control form-control-sm mb-1 chord-name-input" value="${name}">
-      <input class="form-control form-control-sm chord-shape-input" value="${shape}">
-    </div>
-    <table class="chord-diagram"></table>`;
-    grid.appendChild(card);
+
+    <table class="chord-diagram"></table>
+
+    <div class="chord-edit-section">
+      <div class="chord-edit-fields mb-2">
+        <input class="form-control form-control-sm mb-1 chord-name-input" value="${name}">
+        <input class="form-control form-control-sm chord-shape-input" value="${shape}">
+      </div>
+      <div class="chord-symbols-toolbar"></div>
+    </div>`;
+    const insertBeforeNode = prepend ? grid.firstElementChild : null;
+    grid.insertBefore(card, insertBeforeNode);
     wireChordCard(card);
     renderCardDiagram(card);
-    if (!opts || !opts.silent) persist('add-chord'); // skip per-card save during batch import
+    if (!silent) persist('add-chord'); // skip per-card save during batch import
     return card;
   }
 
@@ -576,7 +1092,7 @@
     const grid = groupEl.querySelector('.chord-grid');
 
     if (addChordBtn && grid && !addChordBtn.__wired) {
-      addChordBtn.addEventListener('click', () => addChordToGrid(grid, '(new)', '000000'));
+      addChordBtn.addEventListener('click', () => addChordToGrid(grid, '...', '000000', { prepend: true }));
       addChordBtn.__wired = true;
     }
 
@@ -619,6 +1135,50 @@
     groupsRoot.dataset.groupSortable = '1';
   }
 
+  function createGroup(initialName = '', opts = {}) {
+    if (!groupsRoot) return null;
+    const { append = true } = opts;
+    const groupEl = document.createElement('div');
+    groupEl.className = 'group mb-4';
+
+    groupEl.innerHTML = `
+      <div class="group-header mb-2">
+        <div class="group-title-area">
+          <span class="material-icons-outlined group-handle">drag_indicator</span>
+          <input class="form-control form-control-sm group-name" value="">
+        </div>
+
+        <div class="group-buttons">
+          <button type="button" class="add-chord" aria-label="Add chord" data-tooltip="Add Chord">
+            <span class="material-icons-outlined">add_circle</span>
+          </button>
+          <button type="button" class="delete-chords" aria-label="Delete chords" data-tooltip="Delete Chords">
+            <span class="material-icons-outlined">remove_circle_outline</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="d-grid chord-grid"></div>
+    `;
+
+    if (append) groupsRoot.appendChild(groupEl);
+
+    const nameInput = groupEl.querySelector('.group-name');
+    if (nameInput) nameInput.value = initialName || '';
+
+    if (groupDeleteModeActive && groupDeleteModeGroup === groupEl) {
+      groupEl.classList.add('deletable-group');
+      const pill = ensureGroupDeletePill(groupEl);
+      if (pill) pill.style.display = '';
+    }
+
+    wireGroup(groupEl);
+    if (typeof ensureGroupSortable === 'function') ensureGroupSortable();
+    if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
+
+    return groupEl;
+  }
+
   function updateEmptyMsg() {
     const msg = document.getElementById('empty-msg');
     if (!msg) return;
@@ -641,13 +1201,27 @@
       el.innerHTML = prettifyChordName(el.textContent);
     });
 
-    groupsRoot.querySelectorAll('.group').forEach(wireGroup);
+    groupsRoot.querySelectorAll('.group').forEach((groupEl) => {
+      wireGroup(groupEl);
+    });
+    if (groupDeleteModeActive) {
+      if (groupDeleteModeGroup && groupsRoot.contains(groupDeleteModeGroup)) {
+        groupDeleteModeGroup.classList.add('deletable-group');
+        const pill = ensureGroupDeletePill(groupDeleteModeGroup);
+        if (pill) pill.style.display = '';
+      } else {
+        groupDeleteModeActive = false;
+        groupDeleteModeGroup = null;
+      }
+    }
     ensureGroupSortable();
+    if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
     updateEmptyMsg();
   }
   function enableDeleteMode(group) {
     if (deleteModeGroup && deleteModeGroup !== group) disableDeleteMode();
     deleteModeGroup = group;
+    enableGroupDeleteMode(group);
     group.querySelectorAll('.chord-card').forEach((card) => {
       card.classList.add('deletable');
       const btn = card.querySelector('.delete-chord-btn');
@@ -658,6 +1232,8 @@
         if (!deleteModeGroup) return;
         const t = ev.target;
         if (t.closest('.delete-chords')) return;
+        if (t.closest('.delete-group-pill')) return;
+        if (t.closest('#delete-group-modal')) return;
         const clickInGroup = deleteModeGroup.contains(t);
         const clickOnCard = t.closest('.chord-card');
         const clickOnMinus = t.closest('.delete-chord-btn');
@@ -669,6 +1245,7 @@
 
   function disableDeleteMode() {
     if (!deleteModeGroup) return;
+    disableGroupDeleteMode(deleteModeGroup);
     deleteModeGroup.querySelectorAll('.chord-card').forEach((card) => {
       card.classList.remove('deletable');
       const btn = card.querySelector('.delete-chord-btn');
@@ -685,15 +1262,334 @@
     }
   }
 
+  function ensureGroupDeletePill(groupEl) {
+    let pill = groupEl.querySelector('.delete-group-pill');
+    if (!pill) {
+      const header = groupEl.querySelector('.group-header');
+      if (!header) return null;
+      pill = document.createElement('button');
+      pill.type = 'button';
+      pill.className = 'delete-group-pill';
+      pill.title = 'Delete group';
+      pill.setAttribute('aria-label', 'Delete group');
+      pill.innerHTML = '\u2212';
+      header.appendChild(pill);
+    }
+    return pill;
+  }
+
+  function enableGroupDeleteMode(groupEl) {
+    if (!groupEl) return;
+    groupDeleteModeActive = true;
+    groupDeleteModeGroup = groupEl;
+    groupEl.classList.add('deletable-group');
+    const pill = ensureGroupDeletePill(groupEl);
+    if (pill) pill.style.display = '';
+  }
+
+  function disableGroupDeleteMode(targetGroup = groupDeleteModeGroup) {
+    const groupEl = targetGroup;
+    if (!groupEl) {
+      groupDeleteModeActive = false;
+      groupDeleteModeGroup = null;
+      return;
+    }
+    groupEl.classList.remove('deletable-group');
+    const pill = groupEl.querySelector('.delete-group-pill');
+    if (pill) pill.style.display = 'none';
+    if (groupEl === groupDeleteModeGroup) {
+      groupDeleteModeActive = false;
+      groupDeleteModeGroup = null;
+    }
+  }
+
+  hoverGroupInsert = (() => {
+    let insertPlusEl = null;
+    let insertTooltipEl = null;
+    let activeMode = null; // "before-first" | "after-last" | "between"
+    let activeAfterGroup = null;
+    let activeBeforeGroup = null;
+    let activeZone = null;
+    let activeGroup = null;
+    let hoveringPlus = false;
+    let emptyZone = null;
+
+    const ensureElements = () => {
+      if (insertPlusEl && insertTooltipEl) return;
+      insertPlusEl = document.createElement('span');
+      insertPlusEl.className = 'group-insert-plus material-icons-outlined';
+      insertPlusEl.textContent = 'add_circle';
+      insertPlusEl.style.display = 'none';
+
+      insertTooltipEl = document.createElement('div');
+      insertTooltipEl.className = 'group-insert-tooltip';
+      insertTooltipEl.textContent = 'Add Group';
+      insertTooltipEl.style.display = 'none';
+
+      document.body.appendChild(insertPlusEl);
+      document.body.appendChild(insertTooltipEl);
+
+      insertPlusEl.addEventListener('mouseenter', () => {
+        hoveringPlus = true;
+        if (!insertPlusEl || insertPlusEl.style.display === 'none') return;
+        const rect = insertPlusEl.getBoundingClientRect();
+        insertTooltipEl.style.left = `${rect.left + rect.width / 2 + window.scrollX}px`;
+        insertTooltipEl.style.top = `${rect.top + window.scrollY}px`;
+        insertTooltipEl.style.display = 'block';
+      });
+
+      insertPlusEl.addEventListener('mouseleave', (ev) => {
+        hoveringPlus = false;
+        if (insertTooltipEl) insertTooltipEl.style.display = 'none';
+        const to = ev?.relatedTarget;
+        if (activeZone && (to === activeZone || activeZone?.contains(to))) return;
+        hideInsertUI();
+      });
+
+      insertPlusEl.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (!groupsRoot) return;
+
+        const newGroup = createGroup('New group', { append: false });
+        if (!newGroup) return;
+
+        let sibling = null;
+        if (activeMode === 'before-first') {
+          sibling = activeBeforeGroup || groupsRoot.firstElementChild;
+        } else if (activeMode === 'after-last') {
+          sibling = activeAfterGroup ? activeAfterGroup.nextElementSibling : null;
+        } else if (activeMode === 'between') {
+          sibling = activeAfterGroup ? activeAfterGroup.nextElementSibling : null;
+        }
+
+        groupsRoot.insertBefore(newGroup, sibling);
+        const grid = newGroup.querySelector('.chord-grid');
+        if (grid) addChordToGrid(grid, '...', '000000', { silent: true });
+        updateEmptyMsg();
+        ensureZones();
+        await persist('add-group-hover');
+        const nameInput = newGroup.querySelector('.group-name');
+        if (nameInput) {
+          nameInput.focus();
+          if (typeof nameInput.select === 'function') nameInput.select();
+        }
+        hideInsertUI();
+      });
+    };
+
+    const hideInsertUI = () => {
+      if (hoveringPlus) return;
+      activeMode = null;
+      activeAfterGroup = null;
+      activeBeforeGroup = null;
+      activeZone = null;
+      if (activeGroup) {
+        activeGroup.classList.remove('insert-zone-hover');
+        activeGroup = null;
+      }
+      if (insertPlusEl) insertPlusEl.style.display = 'none';
+      if (insertTooltipEl) insertTooltipEl.style.display = 'none';
+    };
+
+    const showAt = (left, top, mode, { afterGroup = null, beforeGroup = null, zone = null, group = null } = {}) => {
+      ensureElements();
+      activeMode = mode;
+      activeAfterGroup = afterGroup;
+      activeBeforeGroup = beforeGroup;
+      activeZone = zone;
+      if (activeGroup && activeGroup !== group) activeGroup.classList.remove('insert-zone-hover');
+      activeGroup = group || null;
+      if (activeGroup) activeGroup.classList.add('insert-zone-hover');
+      insertPlusEl.style.left = `${left}px`;
+      insertPlusEl.style.top = `${top}px`;
+      insertPlusEl.style.display = 'flex';
+    };
+
+    const handleZoneEnter = (zone) => {
+      if (!groupsRoot) return;
+      ensureElements();
+      const groups = Array.from(groupsRoot.querySelectorAll('.group'));
+      const isEmpty = zone.classList.contains('group-insert-empty');
+      if (isEmpty && !groups.length) {
+        const zoneRect = zone.getBoundingClientRect();
+        showAt(
+          zoneRect.left + zoneRect.width / 2 + window.scrollX,
+          zoneRect.top + zoneRect.height / 2 + window.scrollY,
+          'after-last',
+          {
+            afterGroup: null,
+            beforeGroup: null,
+            zone,
+            group: null,
+          },
+        );
+        return;
+      }
+
+      const group = zone.__groupRef;
+      if (!group) return;
+      const idx = groups.indexOf(group);
+      if (idx === -1) return;
+      const rect = group.getBoundingClientRect();
+      const isTop = zone.classList.contains('group-insert-top');
+      let y;
+      let mode;
+      let afterGroup = null;
+      let beforeGroup = null;
+
+      if (isTop) {
+        if (idx === 0) {
+          mode = 'before-first';
+          beforeGroup = group;
+          y = rect.top + window.scrollY;
+        } else {
+          const prev = groups[idx - 1];
+          const prevRect = prev.getBoundingClientRect();
+          mode = 'between';
+          afterGroup = prev;
+          y = (prevRect.bottom + rect.top) / 2 + window.scrollY;
+        }
+      } else {
+        if (idx === groups.length - 1) {
+          mode = 'after-last';
+          afterGroup = group;
+          y = rect.bottom + window.scrollY;
+        } else {
+          const next = groups[idx + 1];
+          const nextRect = next.getBoundingClientRect();
+          mode = 'between';
+          afterGroup = group;
+          y = (rect.bottom + nextRect.top) / 2 + window.scrollY;
+        }
+      }
+
+      const x = rect.left + rect.width / 2 + window.scrollX;
+      showAt(x, y, mode, { afterGroup, beforeGroup, zone, group });
+    };
+
+    const handleZoneLeave = (e) => {
+      const to = e?.relatedTarget;
+      if (insertPlusEl && (to === insertPlusEl || insertPlusEl?.contains(to))) return;
+      activeZone = null;
+      if (activeGroup) {
+        activeGroup.classList.remove('insert-zone-hover');
+        activeGroup = null;
+      }
+      if (!hoveringPlus) hideInsertUI();
+    };
+
+    const wireZone = (zone) => {
+      if (zone.__wired) return;
+      zone.addEventListener('mouseenter', () => handleZoneEnter(zone));
+      zone.addEventListener('mouseleave', handleZoneLeave);
+      zone.__wired = true;
+    };
+
+    const ensureZones = () => {
+      if (!groupsRoot) return;
+      ensureElements();
+      const groups = Array.from(groupsRoot.querySelectorAll('.group'));
+      if (!groups.length) {
+        if (!emptyZone) {
+          emptyZone = document.createElement('div');
+          emptyZone.className = 'group-insert-zone group-insert-empty';
+          wireZone(emptyZone);
+          groupsRoot.appendChild(emptyZone);
+        }
+        emptyZone.style.display = '';
+        return;
+      }
+      if (emptyZone) emptyZone.style.display = 'none';
+
+      groups.forEach((group, idx) => {
+        let topZone = group.querySelector('.group-insert-zone.group-insert-top');
+        if (!topZone) {
+          topZone = document.createElement('div');
+          topZone.className = 'group-insert-zone group-insert-top';
+          group.appendChild(topZone);
+        }
+        let bottomZone = group.querySelector('.group-insert-zone.group-insert-bottom');
+        if (!bottomZone) {
+          bottomZone = document.createElement('div');
+          bottomZone.className = 'group-insert-zone group-insert-bottom';
+          group.appendChild(bottomZone);
+        }
+
+        const isFirst = idx === 0;
+        topZone.__groupRef = group;
+        bottomZone.__groupRef = group;
+        topZone.style.display = isFirst ? '' : 'none';
+        topZone.style.pointerEvents = isFirst ? 'auto' : 'none';
+        bottomZone.style.display = '';
+        bottomZone.style.pointerEvents = 'auto';
+
+        wireZone(topZone);
+        wireZone(bottomZone);
+      });
+    };
+
+    return {
+      init() {
+        ensureElements();
+        ensureZones();
+      },
+      refresh() {
+        ensureZones();
+      },
+    };
+  })();
+
+  document.addEventListener('chords-reordered', () => {
+    if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
+  });
+
   // ---------- init & global wiring ----------
   function init() {
     ensureGroupHoverCSS(); // make group tools appear only on hover/focus-within
     groupsRoot = document.getElementById('groups-root');
     if (!groupsRoot) return console.warn('my-chords.page.js: #groups-root not found.');
-    addGroupBtn = document.getElementById('add-group');
     deleteGroupModal = document.getElementById('delete-group-modal');
     confirmDeleteGroupBtn = document.getElementById('confirm-delete-group');
-    cancelDeleteGroupBtn = document.getElementById('cancel-delete-group');
+    baseFretModal = document.getElementById('base-fret-modal');
+    baseFretValueEl = document.getElementById('base-fret-modal-value');
+    wireModalCloseButtons();
+
+    if (window.MicroModal) {
+      MicroModal.init({
+        onShow: (modal) => {
+          pushModalOnStack(modal);
+        },
+        onClose: (modal) => {
+          removeModalFromStack(modal);
+          if (!modal) return;
+          if (modal.id === 'chord-edit-modal') {
+            if (suppressModalOnClose) return;
+            if (currentEditingCard) {
+              finishEditing(true, { fromModalClose: true });
+            }
+          }
+          if (modal.id === 'delete-group-modal' && deleteGroupModal) {
+            deleteGroupModal._target = null;
+          }
+          if (modal.id === 'base-fret-modal') {
+            document.removeEventListener('keydown', baseFretKeyHandler, true);
+            baseFretActiveCard = null;
+            baseFretOnConfirm = null;
+            baseFretBuffer = '';
+            updateBaseFretDisplay();
+          }
+        },
+        openTrigger: 'data-micromodal-trigger',
+        closeTrigger: 'data-micromodal-close',
+        openClass: 'is-open',
+        disableScroll: true,
+        disableFocus: false,
+        awaitOpenAnimation: false,
+        awaitCloseAnimation: false,
+        debugMode: false,
+      });
+    }
 
     // ----- Batch Import wiring (restore old behavior) -----
     showImportBtn = document.getElementById('show-import-chords');
@@ -702,32 +1598,8 @@
     importBtn = document.getElementById('import-chords-btn');
     cancelImportBtn = document.getElementById('cancel-import-chords');
 
-    // Create a new group block (matches current header controls + drag handle)
-    const createGroup = (initialName = 'Imported') => {
-      const groupEl = document.createElement('div');
-      groupEl.className = 'group mb-4';
-      groupEl.innerHTML = `
-          <div class="d-flex align-items-center mb-2 group-header gap-2">
-            <span class="material-icons-outlined group-handle" style="cursor: move; font-size: 18px;">drag_indicator</span>
-            <input class="form-control form-control-sm group-name" value="New group">
-            <div class="group-top-buttons">
-              <button type="button" class="btn btn-sm btn-primary add-chord">Add chord</button>
-              <button type="button" class="btn btn-sm btn-primary delete-chords">Delete Chords</button>
-              <button type="button" class="btn btn-sm btn-primary delete-group">Delete Group</button>
-            </div>
-          </div>
-          <div class="d-grid chord-grid"
-               style="row-gap: .5rem; column-gap: 2rem; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));"></div>`;
-      groupsRoot.appendChild(groupEl);
-      const nameInput = groupEl.querySelector('.group-name');
-      if (nameInput) nameInput.value = initialName;
-      wireGroup(groupEl); // wire Add chord + chord Sortable
-      if (typeof ensureGroupSortable === 'function') ensureGroupSortable(); // keep group dragging alive
-      return groupEl;
-    };
-
     const getDefaultGroup = () => {
-      return groupsRoot.querySelector('.group') || createGroup('Imported');
+      return groupsRoot.querySelector('.group') || createGroup('');
     };
     // Find the FIRST existing group whose name begins with the first word of "name" (case-insensitive).
     // Do not create a new group here; caller will fall back to the top group.
@@ -796,26 +1668,19 @@
 
     // Re-attach the rest of the interactive wiring
     rewireChordUI();
+    if (hoverGroupInsert && hoverGroupInsert.init) hoverGroupInsert.init();
 
-    // Add Group
-    if (addGroupBtn) {
-      addGroupBtn.addEventListener('click', () => {
-        const groupEl = document.createElement('div');
-        groupEl.className = 'group mb-4';
-        groupEl.innerHTML = `
-          <div class="d-flex align-items-center mb-2 group-header gap-2">
-            <span class="material-icons-outlined group-handle" style="cursor: move; font-size: 18px;">drag_indicator</span>
-            <input class="form-control form-control-sm group-name" value="New group">
-            <button type="button" class="btn btn-sm btn-primary add-chord">Add chord</button>
-            <button type="button" class="btn btn-sm btn-primary delete-chords">Delete Chords</button>
-            <button type="button" class="btn btn-sm btn-primary delete-group">Delete Group</button>
-          </div>
-         <div class="d-grid chord-grid"
-               style="row-gap: .5rem; column-gap: 2rem; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));"></div>`;
-        groupsRoot.appendChild(groupEl);
-        wireGroup(groupEl);
-      });
-    }
+    // Persist cleared group names on blur
+    groupsRoot.addEventListener(
+      'blur',
+      (e) => {
+        const t = e.target;
+        if (t && t.classList.contains('group-name')) {
+          persist('group-name-blur');
+        }
+      },
+      true,
+    );
 
     // Delegated deletes (chords + groups)
     groupsRoot.addEventListener('click', (e) => {
@@ -840,46 +1705,62 @@
         e.stopPropagation();
         return;
       }
-      const deleteGroupBtn = e.target.closest('.delete-group');
-      if (deleteGroupBtn && deleteGroupModal) {
-        disableDeleteMode();
-        deleteGroupModal.style.setProperty('display', 'flex', 'important');
+      const deleteGroupBtn = e.target.closest('.delete-group-pill');
+      if (
+        deleteGroupBtn &&
+        deleteGroupModal &&
+        groupDeleteModeActive &&
+        deleteGroupBtn.closest('.group') === groupDeleteModeGroup
+      ) {
         deleteGroupModal._target = deleteGroupBtn.closest('.group') || null;
+        if (window.MicroModal) {
+          MicroModal.show('delete-group-modal');
+        }
         e.preventDefault();
         e.stopPropagation();
-        return;
       }
     });
 
     // Modal controls
-    if (cancelDeleteGroupBtn) {
-      cancelDeleteGroupBtn.addEventListener('click', () => {
-        deleteGroupModal.style.setProperty('display', 'none', 'important');
-        deleteGroupModal._target = null;
-      });
-    }
     if (confirmDeleteGroupBtn) {
       confirmDeleteGroupBtn.addEventListener('click', async () => {
-        if (deleteGroupModal._target) {
+        if (deleteGroupModal && deleteGroupModal._target) {
           if (deleteModeGroup === deleteGroupModal._target) disableDeleteMode();
+          else if (groupDeleteModeActive && deleteGroupModal._target === groupDeleteModeGroup) {
+            disableGroupDeleteMode(deleteGroupModal._target);
+          }
           deleteGroupModal._target.remove();
+          if (!groupsRoot.querySelector('.group')) disableGroupDeleteMode();
           await persist('delete-group');
+          updateEmptyMsg();
+          if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
         }
-        deleteGroupModal.style.setProperty('display', 'none', 'important');
-        deleteGroupModal._target = null;
+        if (window.MicroModal) MicroModal.close('delete-group-modal');
+        if (deleteGroupModal) deleteGroupModal._target = null;
       });
     }
 
     // Click-away commit + Esc cancel while editing
     document.addEventListener('click', (e) => {
       if (!currentEditingCard) return;
+      const modal = document.getElementById('chord-edit-modal');
+      if (modal && modal.classList.contains('is-open')) {
+        return;
+      }
+      if (baseFretModal && baseFretModal.contains(e.target)) return;
       if (currentEditingCard.contains(e.target)) return;
       finishEditing(true);
     });
     document.addEventListener('keydown', (e) => {
       if (!currentEditingCard) return;
       if (e.key === 'Escape') {
+        const modal = document.getElementById('chord-edit-modal');
+        const modalOpen = modal && modal.classList.contains('is-open');
         e.preventDefault();
+        if (modalOpen && window.MicroModal) {
+          MicroModal.close('chord-edit-modal');
+          return;
+        }
         finishEditing(false);
       }
     });

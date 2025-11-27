@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+<!-- Styled by freetar/static/my-chords.css (My Chords page) -->
 
 {% block content %}
 
@@ -8,11 +9,25 @@
     href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+Symbols+2&display=swap">
 
 
-<h2 class="mb-3">Chord Library</h2>
+<div class="page-title-group">
+    {% if collection_id is defined %}
+    <div class="page-breadcrumb text-muted small">
+        <a href="{{ url_for('my_collections') }}" class="text-decoration-none">
+            <span class="material-icons-outlined breadcrumb-icon">home</span>
+            My Chords
+        </a>
+        <span class="mx-1">/</span>
+        <span class="text-muted">{{ collection_group or 'Collection Group' }}</span>
+    </div>
 
-<div class="d-flex mb-3 gap-2"> <button id="show-import-chords" class="btn btn-sm btn-primary">Import Chords</button>
-    <button id="add-group" class="btn btn-sm btn-primary">Add group</button> <span id="undo-redo-wrap"
-        style="margin-left:auto; display:flex; gap:0.5rem; align-items:center;"></span>
+    {% endif %}
+
+    <div class="d-flex align-items-center mb-3 page-title-row">
+        <h2 class="page-title flex-grow-1">{% if collection_id is defined %}{{ collection_name }}{% else %}Chord
+            Library{% endif %}</h2>
+        <button id="show-import-chords" class="btn btn-sm btn-primary title-import-btn">Import Chords</button>
+        <span id="undo-redo-wrap" class="d-flex align-items-center gap-2"></span>
+    </div>
 </div>
 
 {% if groups|length == 0 %}
@@ -21,9 +36,16 @@
 </p> {% endif %}
 
 <div id="import-chords-area" style="display: none; margin-bottom: 1rem;">
-    <label for="import-chords-input" class="form-label">Paste multiple chords (one per line): 'Am, x02210, Open Chords'
-        where Am = Chord Name, x02210 = Chord Diagram, Open Chords = Group Name</label>
-    <div class="form-text"></code>. Example: <code></code>
+    <div style="font-size: 14px!important; margin-top: 0!important; margin-bottom: 0 !important;">
+        <label for="import-chords-input" class="form-label">
+            <code style="color: #0d6efd;">Add one chord per line, like this :</code>
+            <code style="padding-left:1em;">Am, x02210</code>
+    </div>
+    <div
+        style="font-size: 1rem!important; margin-top: 0!important; margin-bottom: 0 !important; transform: translateY(-0.5em) !important;">
+        <code style="color: #0d6efd;">Optionally, include the group name:</code>
+        <code style="padding-left:1em;">Am, x02210, Group Name</code>
+        </label>
     </div>
     <textarea id="import-chords-input" class="form-control mb-2" rows="5"
         style="resize: vertical; min-height: 5em; max-height: 15em;"></textarea>
@@ -31,39 +53,40 @@
         <button id="import-chords-btn" class="btn btn-primary btn-sm">Import</button>
         <button id="cancel-import-chords" class="btn btn-outline-secondary btn-sm">Cancel</button>
     </div>
-
 </div>
+
 <div id="groups-root">
     {% for group in groups %}
     <div class="group mb-4">
-        <div class="d-flex align-items-center mb-2 group-header gap-2">
-            <span class="material-icons-outlined group-handle"
-                style="cursor: move; font-size: 18px;">drag_indicator</span>
-            <input class="form-control form-control-sm group-name" value="{{ group.group }}">
+        <div class="group-header mb-2">
+            <div class="group-title-area">
+                <span class="material-icons-outlined group-handle">drag_indicator</span>
+                <input class="form-control form-control-sm group-name" value="{{ group.group }}">
+            </div>
 
-            <button type="button" class="btn btn-sm btn-primary add-chord">Add chord</button>
-            <button type="button" class="btn btn-sm btn-primary delete-chords">Delete Chords</button>
-            <button type="button" class="btn btn-sm btn-primary delete-group">Delete Group</button>
+            <div class="group-buttons">
+                <button type="button" class="add-chord" aria-label="Add chord" data-tooltip="Add Chord">
+                    <span class="material-icons-outlined">add_circle</span>
+                </button>
+                <button type="button" class="delete-chords" aria-label="Delete chords" data-tooltip="Delete Chords">
+                    <span class="material-icons-outlined">remove_circle_outline</span>
+                </button>
+            </div>
         </div>
 
-        <div class="d-grid chord-grid"
-            style="row-gap: 0.5rem; column-gap: 2rem; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr));">
+
+
+        <div class="d-grid chord-grid">
             {% for chord in group.chords %}
             {% set diag = chord.diagram %}
             <div class="text-center chord-card mb-3">
                 <div class="d-flex align-items-center justify-content-between mb-1 position-relative">
-                    <span class="material-icons-outlined chord-handle"
-                        style="cursor: move; font-size: 18px;">drag_indicator</span>
+                    <span class="material-icons-outlined chord-handle">drag_indicator</span>
                     <span class="chord-title flex-grow-1 text-truncate mx-1">{{ chord.name }}</span>
                     <span class="material-icons-outlined chord-edit"
                         style="cursor: pointer; font-size: 18px;">edit</span>
                     <button class="delete-chord-btn" type="button" title="Delete chord" tabindex="-1"
                         style="display:none;">&#8722;</button>
-                </div>
-
-                <div class="chord-edit-fields mb-2" style="display: none;">
-                    <input class="form-control form-control-sm mb-1 chord-name-input" value="{{ chord.name }}">
-                    <input class="form-control form-control-sm chord-shape-input" value="{{ chord.shape }}">
                 </div>
 
                 <table class="chord-diagram">
@@ -123,6 +146,14 @@
                         </tr>
                     </tbody>
                 </table>
+
+                <div class="chord-edit-section">
+                    <div class="chord-edit-fields mb-2">
+                        <input class="form-control form-control-sm mb-1 chord-name-input" value="{{ chord.name }}">
+                        <input class="form-control form-control-sm chord-shape-input" value="{{ chord.shape }}">
+                    </div>
+                    <div class="chord-symbols-toolbar"></div>
+                </div>
             </div>
             {% endfor %}
         </div>
@@ -131,24 +162,73 @@
 
 </div>
 
-<!-- Delete Group Modal -->
-<div class="modal" tabindex="-1" id="delete-group-modal"
-    style="display:none; background:rgba(0,0,0,0.4); position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:2000; align-items:center; justify-content:center;">
-    <div style="background:white; padding:2rem; border-radius:8px; max-width:90vw; min-width:320px;">
-        <h5 class="mb-3">Delete Group?</h5>
-        <p>This will delete the entire group and all its chords.<br>Are you sure you want to proceed?</p>
-        <div class="d-flex justify-content-end gap-2 mt-3">
-            <button id="confirm-delete-group" class="btn btn-danger btn-sm">Yes, delete group</button>
-            <button id="cancel-delete-group" class="btn btn-secondary btn-sm">Cancel</button>
+<script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script defer src="{{ url_for('static', filename='vendor/micromodal.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='undoRedo.js') }}"></script>
+<script defer src="{{ url_for('static', filename='chordDiagram.js') }}"></script>
+<script>
+    {% if collection_id is defined %}
+    window.MY_CHORDS_EDIT_URL = "{{ url_for('collection_chords_edit', collection_id=collection_id) }}";
+    {% else %}
+    window.MY_CHORDS_EDIT_URL = "{{ url_for('my_chords_edit') }}";
+    {% endif %}
+</script>
+<script defer src="{{ url_for('static', filename='my-chords.page.js') }}"></script>
+
+{% endblock %}
+
+{% block modals %}
+<!-- Base Fret Modal -->
+<div class="modal micromodal-slide" id="base-fret-modal" aria-hidden="true">
+    <div class="modal__overlay" tabindex="-1" data-micromodal-close>
+        <div class="modal__container base-fret-modal-container base-fret-modal-box" role="dialog" aria-modal="true"
+            aria-labelledby="base-fret-modal-title">
+
+            <button type="button" class="modal__close-button" aria-label="Close modal"
+                data-micromodal-close>&times;</button>
+            <div id="base-fret-modal-title">Enter a fret number (1–24) for the spot you clicked.</div>
+            <div id="base-fret-modal-value" aria-live="polite"></div>
+
         </div>
     </div>
 </div>
 
-<script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
-<script defer src="{{ url_for('static', filename='undoRedo.js') }}"></script>
-<script defer src="{{ url_for('static', filename='chordDiagram.js') }}"></script>
-<script>window.MY_CHORDS_EDIT_URL = "{{ url_for('my_chords_edit') }}";</script>
-<script defer src="{{ url_for('static', filename='my-chords.page.js') }}"></script>
+<!-- Delete Group Modal -->
+<div class="modal micromodal-slide" id="delete-group-modal" aria-hidden="true">
+    <div class="modal__overlay" tabindex="-1" data-micromodal-close>
+        <div class="modal__container delete-group-modal-container" role="dialog" aria-modal="true"
+            aria-labelledby="delete-group-modal-title">
 
+            <h5 id="delete-group-modal-title" class="mb-3">This will delete the group and its chords.<br>
+                Are you sure?</h5>
+            <p>
+            </p>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+                <button id="confirm-delete-group" class="btn btn-danger btn-sm"><span class="modal-button-text">Yes,
+                        delete group</span></button>
+                <button id="cancel-delete-group" class="btn btn-secondary btn-sm" aria-label="Cancel delete"
+                    data-micromodal-close>Cancel</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Chord Edit Spotlight Modal -->
+<div class="modal micromodal-slide" id="chord-edit-modal" aria-hidden="true">
+    <div class="modal__overlay" tabindex="-1" data-micromodal-close>
+        <div class="modal__container chord-edit-modal-container" role="dialog" aria-modal="true"
+            aria-labelledby="chord-edit-modal-title">
+
+            <button type="button" class="modal__close-button" aria-label="Close edit modal"
+                data-micromodal-close>&times;</button>
+
+
+            <!-- The currently edited chord card will be moved into this slot -->
+            <div class="chord-edit-modal-slot"></div>
+
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -27,6 +27,11 @@
     integrity="sha384-KK94CHFLLe+nY2dmCWGMq91rCGa5gtU4mk92HdvYe+M/SXH301p5ILy+dN9+nJOZ" crossorigin="anonymous">
 
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.3/jquery.min.js"></script>
+  <style>
+    .my-chords-link {
+      margin-right: 40px;
+    }
+  </style>
   <title>{{ title or "Freetar - guitar chords from Ultimate Guitar" }}</title>
   <link rel="icon" type="image/png" href="/static/guitar.png" />
   <script>
@@ -51,6 +56,11 @@
       </form>
       <ul class="navbar-nav ms-2" style="flex-direction: row;">
         <li class="nav-item">
+          <a class="nav-link my-chords-link" href="{{ url_for('my_collections') }}">
+            <span class="d-none d-md-inline">My Chords</span>
+          </a>
+        </li>
+        <li class="nav-item">
           <a class="nav-link" href="/about">
             <span class="d-none d-md-inline">About</span>
           </a>
@@ -72,6 +82,8 @@
           {% endblock %}
       </div>
   </div>
+
+  {% block modals %}{% endblock %}
 
   <script src="/static/custom.js"></script>
 

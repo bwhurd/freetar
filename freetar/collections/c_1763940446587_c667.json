@@ -1,0 +1,65 @@
+[
+  {
+    "group": "Favorites",
+    "chords": [
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "C69",
+        "shape": "3[3]2233"
+      },
+      {
+        "name": "G6",
+        "shape": "[3]x243x"
+      },
+      {
+        "name": "E7",
+        "shape": "([7])87x0x"
+      },
+      {
+        "name": "A7",
+        "shape": "[5]455xx"
+      },
+      {
+        "name": "A-7",
+        "shape": "[5]x55xx"
+      },
+      {
+        "name": "...",
+        "shape": "066070"
+      }
+    ]
+  },
+  {
+    "group": "New group 2",
+    "chords": [
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      },
+      {
+        "name": "...",
+        "shape": "000000"
+      }
+    ]
+  },
+  {
+    "group": "New group",
+    "chords": [
+      {
+        "name": "...",
+        "shape": "000000"
+      }
+    ]
+  }
+]

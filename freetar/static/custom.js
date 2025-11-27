@@ -230,3 +230,112 @@ document.querySelectorAll('.favorite').forEach(item => {
   })
 })
 
+async function exportFavorites() {
+  try {
+    const favorites = JSON.parse(localStorage.getItem("favorites")) || {};
+    const response = await fetch("/advanced/export-settings");
+    if (!response.ok) {
+      throw new Error("Unable to fetch chord settings");
+    }
+    const settings = await response.json();
+    const backup = {
+      version: settings.version || "1",
+      favorites,
+      chords: settings.chords || [],
+    };
+    if (Object.prototype.hasOwnProperty.call(settings, "collections")) {
+      backup.collections = settings.collections;
+    }
+
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "freetar-backup.json";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Failed to export backup", err);
+    alert("Export failed. Please try again.");
+  }
+}
+
+function isLegacyFavoritesBackup(payload) {
+  return (
+    payload &&
+    typeof payload === "object" &&
+    !Array.isArray(payload) &&
+    !("favorites" in payload) &&
+    !("chords" in payload) &&
+    !("collections" in payload)
+  );
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
+async function importFavorites(input) {
+  const file = input && input.files && input.files[0];
+  if (!file) {
+    return;
+  }
+
+  try {
+    const content = await readFileAsText(file);
+    const parsed = JSON.parse(content);
+
+    if (isLegacyFavoritesBackup(parsed)) {
+      localStorage.setItem("favorites", JSON.stringify(parsed));
+      alert("Favorites imported.");
+      window.location.reload();
+      return;
+    }
+
+    if (!parsed || typeof parsed !== "object") {
+      alert("Import failed: backup file is not valid JSON data.");
+      return;
+    }
+
+    if (parsed.favorites && typeof parsed.favorites === "object") {
+      localStorage.setItem("favorites", JSON.stringify(parsed.favorites));
+    }
+
+    const settingsPayload = {};
+    if (Array.isArray(parsed.chords)) {
+      settingsPayload.chords = parsed.chords;
+    }
+    if (parsed.collections && typeof parsed.collections === "object") {
+      settingsPayload.collections = parsed.collections;
+    }
+
+    if (Object.keys(settingsPayload).length > 0) {
+      const response = await fetch("/advanced/import-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settingsPayload),
+      });
+      if (!response.ok) {
+        throw new Error("Server rejected import payload");
+      }
+    }
+
+    alert("Backup imported. Reloading to apply changes.");
+    window.location.reload();
+  } catch (err) {
+    console.error("Failed to import backup", err);
+    alert("Import failed. Please check the file and try again.");
+  } finally {
+    if (input && input.value !== undefined) {
+      input.value = "";
+    }
+  }
+}
+

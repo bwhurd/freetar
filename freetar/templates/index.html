@@ -4,107 +4,111 @@
 {% block content %}
 
 <div class="table-responsive">
-  <table id="results" class="table">
-      <thead>
-          <tr>
-              <th scope="col" class="order">artist</th>
-              <th scope="col" class="order">song</th>
-              <th scope="col" class="order">rating</th>
-              <th scope="col" class="order">type</th>
-              <th scope="col">favorite</th>
-          </tr>
-      </thead>
-      <tbody>
-          {% if search_results %}
-              {% for result in search_results.results %}
-              <tr>
-                  <td class="artist"><a href="/search?search_term={{ result.artist_name }}">{{ result.artist_name}}</a></td>
-                  <td class="song"><a href="{{ result.tab_url}}">{{ result.song_name}} (ver {{result.version}})</a></td>
-                  <td class="rating" data-value="{{ result.rating }}">{{ result.rating}}/5 ({{result.votes}})</td>
-                  <td class="type">{{ result._type}}</td>
-                  <td>
-                    <span data-artist="{{result.artist_name}}" data-song="{{result.song_name}}" data-type="{{result._type}}" data-rating="{{result.rating}}" data-url="{{ result.tab_url }}" class="favorite">★</span>
-                  </td>
-              </tr>
-              {% endfor %}
-          {% endif %}
-      </tbody>
-  </table>
+    <table id="results" class="table">
+        <thead>
+            <tr>
+                <th scope="col" class="order">artist</th>
+                <th scope="col" class="order">song</th>
+                <th scope="col" class="order">rating</th>
+                <th scope="col" class="order">type</th>
+                <th scope="col">favorite</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if search_results %}
+            {% for result in search_results.results %}
+            <tr>
+                <td class="artist"><a href="/search?search_term={{ result.artist_name }}">{{ result.artist_name}}</a>
+                </td>
+                <td class="song"><a href="{{ result.tab_url}}">{{ result.song_name}} (ver {{result.version}})</a></td>
+                <td class="rating" data-value="{{ result.rating }}">{{ result.rating}}/5 ({{result.votes}})</td>
+                <td class="type">{{ result._type}}</td>
+                <td>
+                    <span data-artist="{{result.artist_name}}" data-song="{{result.song_name}}"
+                        data-type="{{result._type}}" data-rating="{{result.rating}}" data-url="{{ result.tab_url }}"
+                        class="favorite">★</span>
+                </td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
 </div>
 
 <div>
-  {% if search_results %}
-        More results
-        <table>
-            <tr>
-                {% for page in range(search_results.total_pages) %}
-                <td>
-                    <a    
-                        {% if page + 1 != search_results.current_page %}
-                            href="/search?search_term={{ search_term }}&page={{ page + 1 }}"
-                        {% endif %}
-                    >{{ page + 1 }}
-                    </a>
-                </td>
-                {% endfor %}
-            </tr>
-        </table>
-  {% endif %}
+    {% if search_results %}
+    More results
+    <table>
+        <tr>
+            {% for page in range(search_results.total_pages) %}
+            <td>
+                <a {% if page + 1 !=search_results.current_page %}
+                    href="/search?search_term={{ search_term }}&page={{ page + 1 }}" {% endif %}>{{ page + 1 }}
+                </a>
+            </td>
+            {% endfor %}
+        </tr>
+    </table>
+    {% endif %}
 </div>
 
-<details><summary>Advanced</summary>
-  <strong class="d-block">Export favorites</strong>
-  <button type="button" class="btn btn-secondary" onclick="exportFavorites()">Export</button><br/>
-  <strong class="mt-3 d-block">Import favorites</strong>
-<input type="file" class="form-control" onchange="importFavorites(this)" />
+<details>
+    <summary style="font-weight:600; padding:0.25em 0; cursor:pointer;">
+        Backup + Restore Settings
+    </summary>
+
+    <div style="margin-top:1em; display:inline-flex; flex-direction:column; gap:0.75em;">
+
+        <!-- Export row -->
+        <div style="display:flex; align-items:center; gap:0.75em; flex-wrap:wrap;">
+            <span style="font-weight:600; white-space:nowrap;">
+                Export favorites + My Chords data
+            </span>
+            <button type="button" class="btn btn-secondary" onclick="exportFavorites()">
+                Export
+            </button>
+        </div>
+
+        <!-- Import row -->
+        <div style="display:flex; align-items:center; gap:0.75em; flex-wrap:wrap;">
+            <span style="font-weight:600; white-space:nowrap;">
+                Import favorites
+            </span>
+            <button type="button" class="btn btn-secondary"
+                onclick="document.getElementById('importFavoritesFile').click()">
+                Import
+            </button>
+            <input id="importFavoritesFile" type="file" class="form-control" style="display:none;"
+                onchange="importFavorites(this)" />
+        </div>
+
+    </div>
 </details>
 
+
 <script>
-        favorites = JSON.parse(localStorage.getItem("favorites")) || {};
+    favorites = JSON.parse(localStorage.getItem("favorites")) || {};
 
-        $.each(favorites, function (index, song) {
-            $('#results').append(
-                '<tr>' +
-                '<td>' + song.artist_name + '</td>' +
-                '<td class="song">' +
-                '<a href="' + song.tab_url + '">' + song.song + '</a>' +
-                '</td>' +
-                '<td>' + song.rating + '</td>' +
-                '<td>' + song.type + '</td>' +
-                '<td><span data-artist="'+song.artist_name+'" data-song="'+song.song+'" data-type="'+song.type+'" data-rating="'+song.rating+'" data-url="'+song.tab_url+'" class="favorite">★</span></td>' +
-                '</tr>');
-        });
+    $.each(favorites, function (index, song) {
+        $('#results').append(
+            '<tr>' +
+            '<td>' + song.artist_name + '</td>' +
+            '<td class="song">' +
+            '<a href="' + song.tab_url + '">' + song.song + '</a>' +
+            '</td>' +
+            '<td>' + song.rating + '</td>' +
+            '<td>' + song.type + '</td>' +
+            '<td><span data-artist="' + song.artist_name + '" data-song="' + song.song + '" data-type="' + song.type + '" data-rating="' + song.rating + '" data-url="' + song.tab_url + '" class="favorite">★</span></td>' +
+            '</tr>');
+    });
 
-  function exportFavorites() {
-    const blob = new Blob([localStorage.getItem("favorites")], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "freetar-favorites.json";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-  }
-
-  function importFavorites(input) {
-    const file = input.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const content = e.target.result;
-        localStorage.setItem("favorites", content);
-      };
-      reader.readAsText(file);
-      location.reload();
-    }
-  }
 </script>
 
 <script>
     favorites_url = Object.keys(JSON.parse(localStorage.getItem("favorites")) || {});
     for (const fav of [...document.getElementsByClassName('favorite')]) {
-      if (favorites_url.includes(fav.getAttribute('data-url').split("?")[0])) $(fav).css("color", "#ffae00");
-    } 
+        if (favorites_url.includes(fav.getAttribute('data-url').split("?")[0])) $(fav).css("color", "#ffae00");
+    }
 
     // Add sorting to the table
     // taken from https://stackoverflow.com/a/70024272
