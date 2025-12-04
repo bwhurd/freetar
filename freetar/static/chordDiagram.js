@@ -7,129 +7,115 @@
 // Mirror backend.py _parse_shape_tokens
 function parseShapeTokens(shape) {
   // Dual-mode tokenizer:
-  // - If separators exist (spaces/commas/pipes/dashes), allow multi-digit tokens.
+  // - If separators exist (spaces/commas/pipes/dashes), allow multi-digit tokens. The UI emits
+  //   space-separated tokens so frets >= 10 stay unambiguous.
   // - Otherwise (compact), read single digits; bracketed ([n]) or (([n])) are captured as one token.
   const { tokens } = parseTokensAndRootKinds(shape);
   return tokens;
 }
 
-// Detect per-string root annotations without altering numeric frets.
-// Returns array of 6 entries: 'played' | 'ghost' | null
-function parseRootKinds(shape) {
-  const s = (shape || '').trim();
-  // Order matters: ([n]) first, then [n], then x/number.
-  const re = /\(\s*\[(\d+)\]\s*\)|\[\s*(\d+)\s*\]|[xX]|\d+/g;
-  const kindsRaw = [];
-  let m;
-  while ((m = re.exec(s)) !== null) {
-    if (m[1])
-      kindsRaw.push('ghost'); // ([n])
-    else if (m[2])
-      kindsRaw.push('played'); // [n]
-    else kindsRaw.push(null); // x/X or plain number
-  }
-  if (kindsRaw.length === 0) return [null, null, null, null, null, null];
-  let kinds = kindsRaw;
-  if (kinds.length < 6) kinds = new Array(6 - kinds.length).fill(null).concat(kinds);
-  if (kinds.length > 6) kinds = kinds.slice(-6);
-  return kinds;
-}
-
 /* Shared tokenizer for values + root kinds */
-function parseTokensAndRootKinds(shape) {
-  const s = (shape || '').trim();
-  const SEP = /[,\s\/|\-]+/; // spaces, commas, slashes, pipes, dashes
-  const hasSep = SEP.test(s);
-  const vals = [];
-  const kinds = []; // 'played' | 'ghost' | null
+function parseTokensAndRootKinds(shapeText) {
+  const input = typeof shapeText === 'string' ? shapeText : '';
+  const tokens = [];
+  const roots = []; // 'played' | 'ghost' | null
+  const SEP = /[,\s\/|\-]/; // treat whitespace and punctuation as separators
 
   const push = (val, kind = null) => {
-    vals.push(val);
-    kinds.push(kind);
+    if (tokens.length >= 6) return; // drop extras from the end
+    const numVal = val == null ? null : Number(val);
+    tokens.push(Number.isFinite(numVal) ? numVal : null);
+    roots.push(kind === 'played' || kind === 'ghost' ? kind : null);
   };
 
-  // Try to parse a segment into one token (with optional root kind)
-  function parseSegment(seg) {
+  const len = input.length;
+  let i = 0;
+  while (i < len) {
+    const ch = input[i];
+
+    if (SEP.test(ch)) {
+      i += 1;
+      continue;
+    }
+
+    const sub = input.slice(i);
     let m;
-    if ((m = seg.match(/^\(\s*\[(\d+)\]\s*\)$/))) return push(parseInt(m[1], 10), 'ghost'); // ([n])
-    if ((m = seg.match(/^\[\s*(\d+)\s*\]$/))) return push(parseInt(m[1], 10), 'played'); // [n]
-    if (/^[xX]$/.test(seg)) return push(null, null);
-    if (/^\d+$/.test(seg)) return push(parseInt(seg, 10), null);
-    // Fallback: scan within segment (handles "x[2]" etc.)
-    let i = 0;
-    while (i < seg.length) {
-      const sub = seg.slice(i);
-      if ((m = sub.match(/^\(\s*\[(\d+)\]\s*\)/))) {
-        push(parseInt(m[1], 10), 'ghost');
-        i += m[0].length;
-        continue;
-      }
-      if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
-        push(parseInt(m[1], 10), 'played');
-        i += m[0].length;
-        continue;
-      }
-      const ch = seg[i];
-      if (ch === 'x' || ch === 'X') {
-        push(null, null);
-        i += 1;
-        continue;
-      }
-      if (/\d/.test(ch)) {
-        push(parseInt(ch, 10), null);
-        i += 1;
-        continue;
-      } // single digit in compact/fallback
-      i += 1; // skip anything else
+
+    if ((m = sub.match(/^\{\s*\(\s*(\d+)\s*\)\s*\}/))) {
+      push(parseInt(m[1], 10), 'ghost'); // {(10)}
+      i += m[0].length;
+      continue;
     }
+    if ((m = sub.match(/^\{\s*(\d+)\s*\}/))) {
+      push(parseInt(m[1], 10), 'ghost'); // {10}
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\[\s*\(\s*(\d+)\s*\)\s*\]/))) {
+      push(parseInt(m[1], 10), 'played'); // [(10)]
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
+      push(parseInt(m[1], 10), 'played'); // [10]
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\(\s*\[\s*(\d+)\s*\]\s*\)/))) {
+      push(parseInt(m[1], 10), 'ghost'); // legacy ([10])
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\(\s*(\d+)\s*\)/))) {
+      push(parseInt(m[1], 10), null); // (10)
+      i += m[0].length;
+      continue;
+    }
+
+    if (ch === 'x' || ch === 'X') {
+      push(null, null);
+      i += 1;
+      continue;
+    }
+
+    if (/\d/.test(ch)) {
+      const digitRunMatch = sub.match(/^\d+/);
+      const digitRun = digitRunMatch ? digitRunMatch[0] : ch;
+      const nextCharIndex = i + digitRun.length;
+      const prevChar = i > 0 ? input[i - 1] : null;
+      const nextChar = nextCharIndex < len ? input[nextCharIndex] : null;
+      const prevIsSep = prevChar == null || SEP.test(prevChar);
+      const nextIsSep = nextChar == null || SEP.test(nextChar);
+      const isolatedTwoDigit = prevIsSep && nextIsSep && digitRun.length === 2;
+
+      if (isolatedTwoDigit) {
+        push(parseInt(digitRun, 10), null); // treat space-separated 10/11/etc. as multi-digit
+        i += digitRun.length;
+        continue;
+      }
+
+      for (let k = 0; k < digitRun.length && tokens.length < 6; k += 1) {
+        const d = parseInt(digitRun[k], 10);
+        push(Number.isFinite(d) ? d : null, null);
+      }
+      i += digitRun.length;
+      continue;
+    }
+
+    i += 1; // skip anything else
   }
 
-  if (hasSep) {
-    s.split(SEP)
-      .filter(Boolean)
-      .forEach((part) => parseSegment(part.trim()));
-  } else {
-    // Compact: scan char-by-char with bracket recognition
-    let i = 0,
-      m;
-    while (i < s.length) {
-      const sub = s.slice(i);
-      if ((m = sub.match(/^\(\s*\[(\d+)\]\s*\)/))) {
-        push(parseInt(m[1], 10), 'ghost');
-        i += m[0].length;
-        continue;
-      }
-      if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
-        push(parseInt(m[1], 10), 'played');
-        i += m[0].length;
-        continue;
-      }
-      const ch = s[i];
-      if (ch === 'x' || ch === 'X') {
-        push(null, null);
-        i += 1;
-        continue;
-      }
-      if (/\d/.test(ch)) {
-        push(parseInt(ch, 10), null);
-        i += 1;
-        continue;
-      }
-      i += 1; // ignore other characters
-    }
+  while (tokens.length < 6) {
+    tokens.push(null);
+    roots.push(null);
   }
 
-  // Normalize to 6 strings
-  const padToSix = (arr, fill = null) =>
-    arr.length === 0
-      ? [fill, fill, fill, fill, fill, fill]
-      : arr.length < 6
-        ? new Array(6 - arr.length).fill(fill).concat(arr)
-        : arr.length > 6
-          ? arr.slice(-6)
-          : arr;
+  if (tokens.length > 6) {
+    tokens.length = 6;
+    roots.length = 6;
+  }
 
-  return { tokens: padToSix(vals, null), roots: padToSix(kinds, null) };
+  return { tokens, roots };
 }
 
 function parseRootKinds(shape) {
@@ -137,208 +123,34 @@ function parseRootKinds(shape) {
   return roots; // array of 6: 'played' | 'ghost' | null
 }
 
-/* Shared tokenizer for values + root kinds */
-function parseTokensAndRootKinds(shape) {
-  const s = (shape || '').trim();
-  const SEP = /[,\s\/|\-]+/; // spaces, commas, slashes, pipes, dashes
-  const hasSep = SEP.test(s);
-  const vals = [];
-  const kinds = []; // 'played' | 'ghost' | null
+function buildShapeFromTokensAndRootKinds(tokens, roots) {
+  const vals = Array.isArray(tokens) ? tokens.slice(0, 6) : [];
+  const kinds = Array.isArray(roots) ? roots.slice(0, 6) : [];
+  while (vals.length < 6) vals.push(null);
+  while (kinds.length < 6) kinds.push(null);
 
-  const push = (val, kind = null) => {
-    vals.push(val);
-    kinds.push(kind);
-  };
-
-  // Try to parse a segment into one token (with optional root kind)
-  function parseSegment(seg) {
-    let m;
-    if ((m = seg.match(/^\(\s*\[(\d+)\]\s*\)$/))) return push(parseInt(m[1], 10), 'ghost'); // ([n])
-    if ((m = seg.match(/^\[\s*(\d+)\s*\]$/))) return push(parseInt(m[1], 10), 'played'); // [n]
-    if (/^[xX]$/.test(seg)) return push(null, null);
-    if (/^\d+$/.test(seg)) return push(parseInt(seg, 10), null);
-    // Fallback: scan within segment (handles "x[2]" etc.)
-    let i = 0;
-    while (i < seg.length) {
-      const sub = seg.slice(i);
-      if ((m = sub.match(/^\(\s*\[(\d+)\]\s*\)/))) {
-        push(parseInt(m[1], 10), 'ghost');
-        i += m[0].length;
-        continue;
+  return vals
+    .map((t, i) => {
+      const rk = kinds[i] === 'played' || kinds[i] === 'ghost' ? kinds[i] : null;
+      if (t == null) return 'x';
+      const num = Number(t);
+      if (!Number.isFinite(num)) return 'x';
+      if (num === 0) {
+        if (rk === 'played') return '[0]';
+        if (rk === 'ghost') return '{0}';
+        return '0';
       }
-      if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
-        push(parseInt(m[1], 10), 'played');
-        i += m[0].length;
-        continue;
-      }
-      const ch = seg[i];
-      if (ch === 'x' || ch === 'X') {
-        push(null, null);
-        i += 1;
-        continue;
-      }
-      if (/\d/.test(ch)) {
-        push(parseInt(ch, 10), null);
-        i += 1;
-        continue;
-      } // single digit in compact/fallback
-      i += 1; // skip anything else
-    }
-  }
-
-  if (hasSep) {
-    s.split(SEP)
-      .filter(Boolean)
-      .forEach((part) => parseSegment(part.trim()));
-  } else {
-    // Compact: scan char-by-char with bracket recognition
-    let i = 0,
-      m;
-    while (i < s.length) {
-      const sub = s.slice(i);
-      if ((m = sub.match(/^\(\s*\[(\d+)\]\s*\)/))) {
-        push(parseInt(m[1], 10), 'ghost');
-        i += m[0].length;
-        continue;
-      }
-      if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
-        push(parseInt(m[1], 10), 'played');
-        i += m[0].length;
-        continue;
-      }
-      const ch = s[i];
-      if (ch === 'x' || ch === 'X') {
-        push(null, null);
-        i += 1;
-        continue;
-      }
-      if (/\d/.test(ch)) {
-        push(parseInt(ch, 10), null);
-        i += 1;
-        continue;
-      }
-      i += 1; // ignore other characters
-    }
-  }
-
-  // Normalize to 6 strings
-  const padToSix = (arr, fill = null) =>
-    arr.length === 0
-      ? [fill, fill, fill, fill, fill, fill]
-      : arr.length < 6
-        ? new Array(6 - arr.length).fill(fill).concat(arr)
-        : arr.length > 6
-          ? arr.slice(-6)
-          : arr;
-
-  return { tokens: padToSix(vals, null), roots: padToSix(kinds, null) };
+      const core = num >= 10 ? `(${num})` : String(num);
+      if (rk === 'played') return `[${core}]`;
+      if (rk === 'ghost') return `{${core}}`;
+      return core;
+    })
+    .join('');
 }
 
-function parseRootKinds(shape) {
-  const { roots } = parseTokensAndRootKinds(shape);
-  return roots; // array of 6: 'played' | 'ghost' | null
-}
-
-/* Shared tokenizer for values + root kinds */
-function parseTokensAndRootKinds(shape) {
-  const s = (shape || '').trim();
-  const SEP = /[,\s\/|\-]+/; // spaces, commas, slashes, pipes, dashes
-  const hasSep = SEP.test(s);
-  const vals = [];
-  const kinds = []; // 'played' | 'ghost' | null
-
-  const push = (val, kind = null) => {
-    vals.push(val);
-    kinds.push(kind);
-  };
-
-  // Try to parse a segment into one token (with optional root kind)
-  function parseSegment(seg) {
-    let m;
-    if ((m = seg.match(/^\(\s*\[(\d+)\]\s*\)$/))) return push(parseInt(m[1], 10), 'ghost'); // ([n])
-    if ((m = seg.match(/^\[\s*(\d+)\s*\]$/))) return push(parseInt(m[1], 10), 'played'); // [n]
-    if (/^[xX]$/.test(seg)) return push(null, null);
-    if (/^\d+$/.test(seg)) return push(parseInt(seg, 10), null);
-    // Fallback: scan within segment (handles "x[2]" etc.)
-    let i = 0;
-    while (i < seg.length) {
-      const sub = seg.slice(i);
-      if ((m = sub.match(/^\(\s*\[(\d+)\]\s*\)/))) {
-        push(parseInt(m[1], 10), 'ghost');
-        i += m[0].length;
-        continue;
-      }
-      if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
-        push(parseInt(m[1], 10), 'played');
-        i += m[0].length;
-        continue;
-      }
-      const ch = seg[i];
-      if (ch === 'x' || ch === 'X') {
-        push(null, null);
-        i += 1;
-        continue;
-      }
-      if (/\d/.test(ch)) {
-        push(parseInt(ch, 10), null);
-        i += 1;
-        continue;
-      } // single digit in compact/fallback
-      i += 1; // skip anything else
-    }
-  }
-
-  if (hasSep) {
-    s.split(SEP)
-      .filter(Boolean)
-      .forEach((part) => parseSegment(part.trim()));
-  } else {
-    // Compact: scan char-by-char with bracket recognition
-    let i = 0,
-      m;
-    while (i < s.length) {
-      const sub = s.slice(i);
-      if ((m = sub.match(/^\(\s*\[(\d+)\]\s*\)/))) {
-        push(parseInt(m[1], 10), 'ghost');
-        i += m[0].length;
-        continue;
-      }
-      if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
-        push(parseInt(m[1], 10), 'played');
-        i += m[0].length;
-        continue;
-      }
-      const ch = s[i];
-      if (ch === 'x' || ch === 'X') {
-        push(null, null);
-        i += 1;
-        continue;
-      }
-      if (/\d/.test(ch)) {
-        push(parseInt(ch, 10), null);
-        i += 1;
-        continue;
-      }
-      i += 1; // ignore other characters
-    }
-  }
-
-  // Normalize to 6 strings
-  const padToSix = (arr, fill = null) =>
-    arr.length === 0
-      ? [fill, fill, fill, fill, fill, fill]
-      : arr.length < 6
-        ? new Array(6 - arr.length).fill(fill).concat(arr)
-        : arr.length > 6
-          ? arr.slice(-6)
-          : arr;
-
-  return { tokens: padToSix(vals, null), roots: padToSix(kinds, null) };
-}
-
-function parseRootKinds(shape) {
-  const { roots } = parseTokensAndRootKinds(shape);
-  return roots; // array of 6: 'played' | 'ghost' | null
+function normalizeShapeText(raw) {
+  const parsed = parseTokensAndRootKinds(raw);
+  return buildShapeFromTokensAndRootKinds(parsed.tokens, parsed.roots);
 }
 
 function buildDiagramModel(shape, baseFret) {
@@ -547,5 +359,22 @@ function renderCardDiagram(card) {
   }
 }
 
+function focusBaseFretInput() {
+  const input =
+    document.querySelector('#base-fret-modal-value.base-fret-input') ||
+    document.getElementById('base-fret-modal-value');
+  if (!input || typeof input.focus !== 'function') return;
+  input.focus({ preventScroll: true });
+  const len = input.value ? input.value.length : 0;
+  try {
+    input.setSelectionRange(len, len);
+  } catch (_) {
+    /* noop */
+  }
+}
+
 // Expose tokenizer + root parser for edit-mode helpers
 window.parseTokensAndRootKinds = parseTokensAndRootKinds;
+window.buildShapeFromTokensAndRootKinds = buildShapeFromTokensAndRootKinds;
+window.normalizeShapeText = normalizeShapeText;
+window.focusBaseFretInput = focusBaseFretInput;

@@ -1,7 +1,10 @@
-import os
 import json
 import logging
+import os
 import re
+import secrets
+import time
+from datetime import datetime
 from pathlib import Path
 
 import waitress
@@ -32,6 +35,9 @@ CHORD_LIB_PATH = Path(__file__).with_name("my_chord_library.json")
 COLLECTIONS_PATH = Path(__file__).with_name("my_chord_collections.json")
 # Folder to hold per-collection chord library files
 CHORDS_DIR = Path(__file__).with_name("collections")
+DEFAULT_COLLECTION_LIBRARY = [
+    {"group": "New group", "chords": [{"name": "Am", "shape": "x02210"}]}
+]
 
 
 def chord_lib_path_for(collection_id: str | None) -> Path:
@@ -112,6 +118,43 @@ def save_collections(data: list):
         )
     except Exception:
         pass
+
+
+def generate_collection_id(existing_ids: set[str] | None = None) -> str:
+    """Generate a collection id similar to the client scheme, avoiding collisions."""
+    existing_ids = existing_ids or set()
+    while True:
+        cid = f"c_{int(time.time() * 1000)}_{secrets.token_hex(2)}"
+        if cid not in existing_ids:
+            return cid
+
+
+def slugify_name(name: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9]+", "-", (name or "").strip()).strip("-").lower()
+    return slug or "group"
+
+
+def build_collections_export_payload(groups: list[dict]) -> dict:
+    export_groups: list[dict] = []
+    for grp in groups or []:
+        if not isinstance(grp, dict):
+            continue
+        group_name = grp.get("group", "")
+        collections_payload: list[dict] = []
+        for coll in grp.get("collections", []):
+            if not isinstance(coll, dict):
+                continue
+            cid = coll.get("id")
+            library = load_chord_library(cid) if cid is not None else []
+            collections_payload.append(
+                {
+                    "id": cid,
+                    "name": coll.get("name", ""),
+                    "library": library,
+                }
+            )
+        export_groups.append({"group": group_name, "collections": collections_payload})
+    return {"version": 1, "groups": export_groups}
 
 
 def build_chord_backup():
@@ -233,6 +276,21 @@ def build_chord_view_groups(groups):
             )
         result.append({"group": group_name, "chords": out_chords})
     return result
+
+
+def build_chord_library_export_payload(groups: list[dict]) -> dict:
+    export_groups: list[dict] = []
+    for grp in groups or []:
+        if not isinstance(grp, dict):
+            continue
+        group_name = grp.get("group", "")
+        chords_payload: list[dict] = []
+        for chord in grp.get("chords", []):
+            if not isinstance(chord, dict):
+                continue
+            chords_payload.append(dict(chord))
+        export_groups.append({"group": group_name, "chords": chords_payload})
+    return {"version": 1, "groups": export_groups}
 
 
 @app.context_processor
@@ -363,6 +421,94 @@ def my_chords():
     )
 
 
+def _active_collection_id():
+    return request.args.get("collection_id") or None
+
+
+@app.route("/my-chords/export", methods=["GET"])
+def my_chords_export():
+    collection_id = _active_collection_id()
+    groups = load_chord_library(collection_id)
+    payload = build_chord_library_export_payload(groups)
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"freetar-chord-library-export-{date_str}.json"
+    resp = app.response_class(
+        response=json.dumps(payload, ensure_ascii=False, indent=2),
+        status=200,
+        mimetype="application/json",
+    )
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@app.route("/my-chords/export-group/<int:group_index>", methods=["GET"])
+def my_chords_export_group(group_index: int):
+    collection_id = _active_collection_id()
+    groups = load_chord_library(collection_id) or []
+    if group_index < 0 or group_index >= len(groups):
+        return {"error": "Group not found"}, 404
+    target = groups[group_index]
+    payload = build_chord_library_export_payload([target])
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    slug = slugify_name(target.get("group", "group"))
+    filename = f"freetar-chord-group-{slug}-export-{date_str}.json"
+    resp = app.response_class(
+        response=json.dumps(payload, ensure_ascii=False, indent=2),
+        status=200,
+        mimetype="application/json",
+    )
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@app.route("/my-chords/import", methods=["POST"])
+def my_chords_import():
+    try:
+        payload = request.get_json(force=True)
+    except Exception as exc:
+        return {"error": "Invalid JSON", "detail": str(exc)}, 400
+
+    if not isinstance(payload, dict):
+        return {"error": "Payload must be an object"}, 400
+
+    groups_payload = payload.get("groups")
+    if not isinstance(groups_payload, list):
+        return {"error": "Payload.groups must be a list"}, 400
+
+    collection_id = _active_collection_id()
+    existing_groups = load_chord_library(collection_id) or []
+    seen_names = {grp.get("group", "") for grp in existing_groups if isinstance(grp, dict)}
+
+    def next_group_name(base_name: str) -> str:
+        base = (base_name or "").strip() or "\u00A0"
+        if base not in seen_names:
+            seen_names.add(base)
+            return base
+        suffix = 2
+        while True:
+            candidate = f"{base}-{suffix:02d}"
+            if candidate not in seen_names:
+                seen_names.add(candidate)
+                return candidate
+            suffix += 1
+
+    new_groups: list[dict] = []
+    for grp in groups_payload:
+        if not isinstance(grp, dict):
+            continue
+        final_name = next_group_name(grp.get("group", ""))
+        chords_payload: list[dict] = []
+        for chord in grp.get("chords", []):
+            if not isinstance(chord, dict):
+                continue
+            chords_payload.append(dict(chord))
+        new_groups.append({"group": final_name, "chords": chords_payload})
+
+    merged_groups = new_groups + existing_groups
+    save_chord_library(merged_groups, collection_id)
+    return ("", 204)
+
+
 @app.route("/my-chords/edit", methods=["GET", "POST"])
 def my_chords_edit():
     """
@@ -402,6 +548,110 @@ def my_collections():
     )
 
 
+@app.route("/my-collections/export", methods=["GET"])
+def my_collections_export():
+    groups = load_collections()
+    payload = build_collections_export_payload(groups)
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    filename = f"freetar-chord-collections-export-{date_str}.json"
+    resp = app.response_class(
+        response=json.dumps(payload, ensure_ascii=False, indent=2),
+        status=200,
+        mimetype="application/json",
+    )
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@app.route("/my-collections/export-group/<int:group_index>", methods=["GET"])
+def my_collections_export_group(group_index: int):
+    groups = load_collections() or []
+    if group_index < 0 or group_index >= len(groups):
+        return {"error": "Group not found"}, 404
+    target = groups[group_index]
+    payload = build_collections_export_payload([target])
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    slug = slugify_name(target.get("group", "group"))
+    filename = f"freetar-chord-collection-group-{slug}-export-{date_str}.json"
+    resp = app.response_class(
+        response=json.dumps(payload, ensure_ascii=False, indent=2),
+        status=200,
+        mimetype="application/json",
+    )
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
+@app.route("/my-collections/import", methods=["POST"])
+def my_collections_import():
+    try:
+        payload = request.get_json(force=True)
+    except Exception as exc:
+        return {"error": "Invalid JSON", "detail": str(exc)}, 400
+
+    if not isinstance(payload, dict):
+        return {"error": "Payload must be an object"}, 400
+
+    groups_payload = payload.get("groups")
+    if not isinstance(groups_payload, list):
+        return {"error": "Payload.groups must be a list"}, 400
+
+    existing_groups = load_collections() or []
+    seen_names = set()
+    for grp in existing_groups:
+        seen_names.add(grp.get("group", ""))
+    seen_ids = {
+        coll.get("id")
+        for grp in existing_groups
+        for coll in grp.get("collections", [])
+        if isinstance(coll, dict) and coll.get("id")
+    }
+
+    def next_group_name(base_name: str) -> str:
+        base = (base_name or "").strip() or "\u00A0"
+        if base not in seen_names:
+            seen_names.add(base)
+            return base
+        suffix = 2
+        while True:
+            candidate = f"{base}-{suffix:02d}"
+            if candidate not in seen_names:
+                seen_names.add(candidate)
+                return candidate
+            suffix += 1
+
+    new_groups: list[dict] = []
+    for grp in groups_payload:
+        if not isinstance(grp, dict):
+            continue
+        final_name = next_group_name(grp.get("group", ""))
+        new_collections: list[dict] = []
+        for coll in grp.get("collections", []):
+            if not isinstance(coll, dict):
+                continue
+            new_id = generate_collection_id(seen_ids)
+            seen_ids.add(new_id)
+            library = coll.get("library")
+            if not isinstance(library, list):
+                library = []
+            save_chord_library(library, new_id)
+            new_collections.append(
+                {
+                    "id": new_id,
+                    "name": coll.get("name", ""),
+                }
+            )
+        new_groups.append({"group": final_name, "collections": new_collections})
+
+    merged_groups = new_groups + existing_groups
+    save_collections(merged_groups)
+    return render_template(
+        "my_collections.html",
+        groups=merged_groups,
+        title="Collections",
+    )
+
+
 @app.route("/my-collections/edit", methods=["POST"])
 def my_collections_edit():
     try:
@@ -411,7 +661,31 @@ def my_collections_edit():
     except Exception as exc:
         return {"error": "Invalid JSON", "detail": str(exc)}, 400
 
+    existing_ids = set()
+    for grp in load_collections() or []:
+        for coll in grp.get("collections", []):
+            cid = coll.get("id")
+            if cid:
+                existing_ids.add(cid)
+
+    incoming_ids = set()
+    for grp in payload:
+        if not isinstance(grp, dict):
+            continue
+        for coll in grp.get("collections", []):
+            if not isinstance(coll, dict):
+                continue
+            cid = coll.get("id")
+            if cid:
+                incoming_ids.add(cid)
+
+    new_ids = incoming_ids - existing_ids
     save_collections(payload)
+    for cid in new_ids:
+        path = chord_lib_path_for(cid)
+        if path.exists():
+            continue
+        save_chord_library(DEFAULT_COLLECTION_LIBRARY, cid)
     return ("", 204)
 
 

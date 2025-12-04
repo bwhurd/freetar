@@ -25,12 +25,168 @@
   let groupDeleteModeActive = false;
   let groupDeleteModeGroup = null;
   let hoverGroupInsert;
+  let libraryFileInput = null;
   let suppressModalOnClose = false;
   let currentEditingSourceCard = null;
   let currentEditingSpotlightCard = null;
+  let pendingEditSnapshots = [];
+  let diagramLockEnabled = true;
+  let diagramLockToggleBtn = null;
+  let chordSettingsMenu = null;
+  let chordSettingsToggleBtn = null;
+  let maxPerRowCheckbox = null;
+  let maxPerRowInput = null;
+  let maxPerRowRow = null;
+  let settingsOutsideHandler = null;
+  let maxChordsPerRowEnabled = false;
+  let maxChordsPerRow = 8;
   const MODAL_BASE_Z = 3000;
   const MODAL_Z_STEP = 20;
   const modalStack = [];
+  const LOCK_TOOLTIP_ON = 'Diagram lock is ON (Ctrl+click to edit safely)';
+  const LOCK_TOOLTIP_OFF = 'Diagram lock is OFF (diagram clicks edit immediately)';
+  const SETTINGS_KEY = 'my_chords_settings';
+  const MAX_PER_ROW_DEFAULT = 8;
+  const MAX_PER_ROW_MIN = 1;
+  const MAX_PER_ROW_MAX = 24;
+
+  function loadSettings() {
+    try {
+      const raw = window.localStorage ? localStorage.getItem(SETTINGS_KEY) : null;
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') return parsed;
+    } catch (_) {
+      /* ignore storage errors */
+    }
+    return {};
+  }
+
+  function saveSettings(next = {}) {
+    try {
+      const current = loadSettings();
+      const merged = Object.assign({}, current, next || {});
+      if (window.localStorage) {
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(merged));
+      }
+    } catch (_) {
+      /* ignore storage errors */
+    }
+  }
+
+  function loadDiagramLockSetting(defaultValue) {
+    const settings = loadSettings();
+    if (settings && typeof settings.diagramLockEnabled === 'boolean') {
+      return settings.diagramLockEnabled;
+    }
+    return defaultValue;
+  }
+
+  function saveDiagramLockSetting(value) {
+    diagramLockEnabled = !!value;
+    persistUISettings();
+  }
+
+  function clampMaxPerRow(value) {
+    const parsed = Number.parseInt(value, 10);
+    if (!Number.isFinite(parsed)) return MAX_PER_ROW_DEFAULT;
+    return Math.min(Math.max(parsed, MAX_PER_ROW_MIN), MAX_PER_ROW_MAX);
+  }
+
+  function persistUISettings() {
+    saveSettings({
+      diagramLockEnabled,
+      maxChordsPerRowEnabled,
+      maxChordsPerRow,
+    });
+  }
+
+  function applyMaxPerRowLayout() {
+    const root = document.body;
+    if (!root) return;
+    document.documentElement.style.setProperty(
+      '--chord-grid-max-columns',
+      String(maxChordsPerRow || MAX_PER_ROW_DEFAULT),
+    );
+    root.classList.toggle('chords-max-per-row-active', !!maxChordsPerRowEnabled);
+  }
+
+  function updateChordSettingsUI() {
+    const menuOpen = chordSettingsMenu?.classList.contains('chord-settings-menu--open');
+    if (chordSettingsToggleBtn) {
+      chordSettingsToggleBtn.setAttribute('aria-expanded', menuOpen ? 'true' : 'false');
+    }
+    if (chordSettingsMenu) {
+      chordSettingsMenu.setAttribute('aria-hidden', menuOpen ? 'false' : 'true');
+    }
+    if (maxPerRowCheckbox) {
+      maxPerRowCheckbox.checked = !!maxChordsPerRowEnabled;
+    }
+    if (maxPerRowInput) {
+      maxPerRowInput.disabled = !maxChordsPerRowEnabled;
+      maxPerRowInput.value = String(maxChordsPerRow || MAX_PER_ROW_DEFAULT);
+    }
+    if (maxPerRowRow) {
+      maxPerRowRow.classList.toggle('is-disabled', !maxChordsPerRowEnabled);
+    }
+  }
+
+  function detachSettingsOutsideHandler() {
+    if (settingsOutsideHandler) {
+      document.removeEventListener('mousedown', settingsOutsideHandler, true);
+      document.removeEventListener('touchstart', settingsOutsideHandler, true);
+      settingsOutsideHandler = null;
+    }
+  }
+
+  function closeChordSettingsMenu() {
+    if (!chordSettingsMenu) return;
+    chordSettingsMenu.classList.remove('chord-settings-menu--open');
+    detachSettingsOutsideHandler();
+    updateChordSettingsUI();
+  }
+
+  function openChordSettingsMenu() {
+    if (!chordSettingsMenu) return;
+    chordSettingsMenu.classList.add('chord-settings-menu--open');
+    if (!settingsOutsideHandler) {
+      settingsOutsideHandler = (ev) => {
+        if (!chordSettingsMenu || !chordSettingsMenu.classList.contains('chord-settings-menu--open')) return;
+        if (chordSettingsMenu.contains(ev.target)) return;
+        if (chordSettingsToggleBtn && chordSettingsToggleBtn.contains(ev.target)) return;
+        closeChordSettingsMenu();
+      };
+      document.addEventListener('mousedown', settingsOutsideHandler, true);
+      document.addEventListener('touchstart', settingsOutsideHandler, true);
+    }
+    updateChordSettingsUI();
+  }
+
+  function toggleChordSettingsMenu() {
+    if (!chordSettingsMenu) return;
+    const isOpen = chordSettingsMenu.classList.contains('chord-settings-menu--open');
+    if (isOpen) closeChordSettingsMenu();
+    else openChordSettingsMenu();
+  }
+  const CONTROL_TOOLTIP_TEXT = {
+    undo: 'Undo (Ctrl+Z)',
+    redo: 'Redo (Ctrl+Shift+Z)',
+  };
+
+  function setControlTooltip(button, text) {
+    if (!button || !text) return;
+    button.dataset.tooltip = text;
+    button.dataset.tooltipSrc = text;
+    button.setAttribute('data-tooltip', text);
+    button.setAttribute('title', text);
+    button.title = text;
+    button.setAttribute('aria-label', text);
+  }
+
+  function ensureHistoryTooltips() {
+    setControlTooltip(document.getElementById('undo-history-btn'), CONTROL_TOOLTIP_TEXT.undo);
+    setControlTooltip(document.getElementById('redo-history-btn'), CONTROL_TOOLTIP_TEXT.redo);
+  }
 
   function applyModalStackZ() {
     modalStack.forEach((modal, index) => {
@@ -73,20 +229,56 @@
   function wireModalCloseButtons() {
     const closeButtons = document.querySelectorAll('.modal__close-button');
     closeButtons.forEach((btn) => {
-      if (btn.dataset.closeWired === '1') return;
+      if (btn.__modalCloseWired) return;
+      btn.__modalCloseWired = true;
       btn.dataset.closeWired = '1';
       btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         const modal = btn.closest('.modal');
         if (!modal) return;
+        const isChordEdit = modal.id === 'chord-edit-modal';
+        const focusTarget =
+          isChordEdit
+            ? currentEditingSourceCard?.querySelector('.chord-edit') || currentEditingSourceCard
+            : null;
+        if (isChordEdit && currentEditingCard) {
+          finishEditing(true, { fromModalClose: true });
+        }
         if (window.MicroModal && modal.id) {
-          e.preventDefault();
           MicroModal.close(modal.id);
+        } else if (modal.classList.contains('is-open')) {
+          modal.classList.remove('is-open');
+        }
+        if (focusTarget && typeof focusTarget.focus === 'function') {
+          setTimeout(() => {
+            const hadTabIndex = focusTarget.hasAttribute('tabindex');
+            const needsTabIndex = focusTarget.tabIndex < 0;
+            if (needsTabIndex) focusTarget.setAttribute('tabindex', '-1');
+            focusTarget.focus({ preventScroll: true });
+            if (!hadTabIndex && needsTabIndex) focusTarget.removeAttribute('tabindex');
+          }, 0);
         }
       });
     });
   }
 
-  // Inject CSS so group tools (handle + buttons) only appear on hover/focus-within
+  function updateDiagramLockButtonUI() {
+    if (!diagramLockToggleBtn) return;
+    const tooltip = diagramLockEnabled ? LOCK_TOOLTIP_ON : LOCK_TOOLTIP_OFF;
+    diagramLockToggleBtn.dataset.tooltipSrc = tooltip;
+    diagramLockToggleBtn.dataset.tooltip = tooltip;
+    diagramLockToggleBtn.setAttribute('data-tooltip', tooltip);
+    diagramLockToggleBtn.setAttribute('title', tooltip);
+    diagramLockToggleBtn.title = tooltip;
+    diagramLockToggleBtn.setAttribute('aria-label', tooltip);
+    diagramLockToggleBtn.setAttribute('aria-pressed', String(diagramLockEnabled));
+    diagramLockToggleBtn.dataset.locked = diagramLockEnabled ? 'true' : 'false';
+    const iconEl = diagramLockToggleBtn.querySelector('.material-icons-outlined');
+    if (iconEl) iconEl.textContent = diagramLockEnabled ? 'lock' : 'lock_open';
+    if (window.initTooltips) window.initTooltips();
+  }
+  // Inject CSS so drag handle appears on header hover, but buttons appear on group hover
   function ensureGroupHoverCSS() {
     if (document.getElementById('group-hover-tools-css')) return;
     const style = document.createElement('style');
@@ -95,32 +287,57 @@
     /* Hide group-level controls by default */
     .group .group-header .group-handle,
     .group .group-header .add-chord,
-    .group .group-header .delete-chords {
+    .group .group-header .delete-chords,
+    .group .group-header .export-group {
       opacity: 0;
       pointer-events: none;
       transition: opacity 120ms ease-in-out;
     }
-    /* Reveal on mouse hover or when any control/input inside the group has focus */
-    .group:hover .group-header .group-handle,
-    .group:hover .group-header .add-chord,
-    .group:hover .group-header .delete-chords,
-    .group:focus-within .group-header .group-handle,
-    .group:focus-within .group-header .add-chord,
-    .group:focus-within .group-header .delete-chords {
+
+    /* Drag handle: only when the header row itself is hovered or has focus */
+    .group .group-header:hover .group-handle,
+    .group .group-header:focus-within .group-handle {
       opacity: 1;
       pointer-events: auto;
     }
+
+    /* Group buttons: when header is hovered/focused OR anywhere over the group */
+    .group .group-header:hover .add-chord,
+    .group .group-header:hover .delete-chords,
+    .group .group-header:hover .export-group,
+    .group .group-header:focus-within .add-chord,
+    .group .group-header:focus-within .delete-chords,
+    .group .group-header:focus-within .export-group,
+    .group:hover .group-header .add-chord,
+    .group:hover .group-header .delete-chords,
+    .group:hover .group-header .export-group,
+    .group:focus-within .group-header .add-chord,
+    .group:focus-within .group-header .delete-chords,
+    .group:focus-within .group-header .export-group {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .group.insert-zone-hover .group-header .group-handle,
     .group.insert-zone-hover .group-header .add-chord,
-    .group.insert-zone-hover .group-header .delete-chords {
+    .group.insert-zone-hover .group-header .delete-chords,
+    .group.insert-zone-hover .group-header .export-group {
       opacity: 0 !important;
       pointer-events: none !important;
     }
-    /* Optional: on devices without hover, keep them available when focusing inside the group */
+
+    /* On devices without hover, keep them available on focus */
     @media (hover: none) {
-      .group:focus-within .group-header .group-handle,
+      .group .group-header:focus-within .group-handle {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .group .group-header:focus-within .add-chord,
+      .group .group-header:focus-within .delete-chords,
+      .group .group-header:focus-within .export-group,
       .group:focus-within .group-header .add-chord,
-      .group:focus-within .group-header .delete-chords {
+      .group:focus-within .group-header .delete-chords,
+      .group:focus-within .group-header .export-group {
         opacity: 1;
         pointer-events: auto;
       }
@@ -381,20 +598,171 @@
 
   const EDIT_URL = () => window.MY_CHORDS_EDIT_URL || null;
 
+  function getCollectionIdFromContext() {
+    const editUrl = EDIT_URL();
+    const match = editUrl && editUrl.match(/\/my-collections\/([^/]+)\/edit/);
+    if (match && match[1]) return decodeURIComponent(match[1]);
+    const pathMatch =
+      window.location &&
+      window.location.pathname &&
+      window.location.pathname.match(/\/my-collections\/([^/]+)(?:\/|$)/);
+    if (pathMatch && pathMatch[1]) return decodeURIComponent(pathMatch[1]);
+    const params = new URLSearchParams(window.location.search || '');
+    const qsId = params.get('collection_id');
+    return qsId || null;
+  }
+
+  function buildLibraryExportUrl() {
+    const cid = getCollectionIdFromContext();
+    const base = '/my-chords/export';
+    return cid ? `${base}?collection_id=${encodeURIComponent(cid)}` : base;
+  }
+
+  function buildLibraryImportUrl() {
+    const cid = getCollectionIdFromContext();
+    const base = '/my-chords/import';
+    return cid ? `${base}?collection_id=${encodeURIComponent(cid)}` : base;
+  }
+
+  function buildGroupExportUrl(groupIndex) {
+    const cid = getCollectionIdFromContext();
+    const base = `/my-chords/export-group/${groupIndex}`;
+    return cid ? `${base}?collection_id=${encodeURIComponent(cid)}` : base;
+  }
+
+  function showInlineError(msg) {
+    console.warn('[my-chords] ' + msg);
+    const target =
+      document.querySelector('#undo-redo-wrap button[aria-label="Import chord library"]') || null;
+    if (!target) return;
+    const prevTitle = target.getAttribute('title') || target.getAttribute('data-tooltip') || '';
+    target.setAttribute('title', msg);
+    target.setAttribute('data-tooltip', msg);
+    if (window.initTooltips) window.initTooltips();
+    setTimeout(() => {
+      target.setAttribute('title', prevTitle || 'Import chord library');
+      target.setAttribute('data-tooltip', prevTitle || 'Import chord library');
+      if (window.initTooltips) window.initTooltips();
+    }, 2400);
+  }
+
+  async function refreshGroupsFromServer() {
+    try {
+      const res = await fetch(window.location.href, {
+        cache: 'no-store',
+        headers: { 'X-Requested-With': 'fetch' },
+      });
+      if (!res.ok) throw new Error('fetch failed');
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const newRoot = doc.getElementById('groups-root');
+      if (!newRoot || !groupsRoot) throw new Error('#groups-root missing');
+      if (typeof window.morphdom !== 'function') throw new Error('morphdom not loaded');
+      window.morphdom(groupsRoot, newRoot, { childrenOnly: true });
+      if (window.rewireChordUI) window.rewireChordUI();
+      const state = buildDataFromDOM();
+      document.dispatchEvent(new CustomEvent('chords-imported', { detail: { state } }));
+    } catch (err) {
+      showInlineError('Import applied, but refresh failed. Reload to see changes.');
+      console.warn('Import refresh failed:', err);
+    }
+  }
+
+  function ensureLibraryFileInput() {
+    if (libraryFileInput) return libraryFileInput;
+    libraryFileInput = document.createElement('input');
+    libraryFileInput.type = 'file';
+    libraryFileInput.accept = 'application/json,.json';
+    libraryFileInput.style.display = 'none';
+    libraryFileInput.addEventListener('change', handleLibraryFileSelection);
+    document.body.appendChild(libraryFileInput);
+    return libraryFileInput;
+  }
+
+  async function handleLibraryFileSelection(event) {
+    const inputEl = event?.target || libraryFileInput;
+    if (!inputEl) return;
+    const file = inputEl.files && inputEl.files[0];
+    inputEl.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const text = typeof reader.result === 'string' ? reader.result : '';
+        if (!text) throw new Error('Empty file');
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (err) {
+          throw new Error('Invalid JSON');
+        }
+        if (!parsed || typeof parsed !== 'object') throw new Error('Invalid payload shape');
+        const res = await fetch(buildLibraryImportUrl(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed),
+        });
+        if (!res.ok) throw new Error(`Import failed (${res.status})`);
+        await refreshGroupsFromServer();
+      } catch (err) {
+        showInlineError('Import failed. Please check the JSON file.');
+        console.warn('Chord library import failed:', err);
+      }
+    };
+    reader.onerror = () => {
+      showInlineError('Import failed. Could not read file.');
+    };
+    reader.readAsText(file);
+  }
+
+  function wireLibraryImportExportButtons() {
+    const importBtn = document.querySelector(
+      '#undo-redo-wrap button[aria-label="Import chord library"]',
+    );
+    const exportBtn = document.querySelector('#undo-redo-wrap .toolbar-export');
+    if (importBtn && !importBtn.__wired) {
+      importBtn.__wired = true;
+      importBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const inputEl = ensureLibraryFileInput();
+        if (inputEl && typeof inputEl.click === 'function') inputEl.click();
+      });
+    }
+    if (exportBtn && !exportBtn.__wired) {
+      exportBtn.__wired = true;
+      exportBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const url = buildLibraryExportUrl();
+        if (url) window.location.href = url;
+      });
+    }
+  }
+
   // ---------- helpers ----------
   function buildShapeFromTokensAndRoots(tokens, roots) {
-    return tokens
+    if (typeof window.buildShapeFromTokensAndRootKinds === 'function') {
+      return window.buildShapeFromTokensAndRootKinds(tokens, roots);
+    }
+    const vals = Array.isArray(tokens) ? tokens.slice(0, 6) : [];
+    const kinds = Array.isArray(roots) ? roots.slice(0, 6) : [];
+    while (vals.length < 6) vals.push(null);
+    while (kinds.length < 6) kinds.push(null);
+
+    return vals
       .map((t, i) => {
-        const rk = roots[i];
+        const rk = kinds[i] === 'played' || kinds[i] === 'ghost' ? kinds[i] : null;
         if (t == null) return 'x';
-        if (t === 0) {
+        const num = Number(t);
+        if (!Number.isFinite(num)) return 'x';
+        if (num === 0) {
           if (rk === 'played') return '[0]';
-          if (rk === 'ghost') return '([0])';
+          if (rk === 'ghost') return '{0}';
           return '0';
         }
-        if (rk === 'played') return `[${t}]`;
-        if (rk === 'ghost') return `([${t}])`;
-        return String(t);
+        const core = num >= 10 ? `(${num})` : String(num);
+        if (rk === 'played') return `[${core}]`;
+        if (rk === 'ghost') return `{${core}}`;
+        return core;
       })
       .join('');
   }
@@ -432,8 +800,37 @@
   let baseFretBuffer = '';
   let baseFretOnConfirm = null;
 
+  function sanitizeBaseFretValue(raw) {
+    return (raw || '').replace(/\D/g, '').slice(0, 2);
+  }
+
+  function syncBaseFretBufferFromInput() {
+    if (!baseFretValueEl) return;
+    const cleaned = sanitizeBaseFretValue(baseFretValueEl.value || '');
+    baseFretBuffer = cleaned;
+    if (baseFretValueEl.value !== cleaned) baseFretValueEl.value = cleaned;
+  }
+
   function updateBaseFretDisplay() {
-    if (baseFretValueEl) baseFretValueEl.textContent = baseFretBuffer || '\u2013';
+    if (!baseFretValueEl) return;
+    baseFretValueEl.value = baseFretBuffer;
+    baseFretValueEl.placeholder = '\u00A0';
+  }
+
+  function focusBaseFretInputField() {
+    if (typeof window.focusBaseFretInput === 'function') {
+      window.focusBaseFretInput();
+      return;
+    }
+    if (baseFretValueEl && typeof baseFretValueEl.focus === 'function') {
+      baseFretValueEl.focus({ preventScroll: true });
+      const len = baseFretValueEl.value ? baseFretValueEl.value.length : 0;
+      try {
+        baseFretValueEl.setSelectionRange(len, len);
+      } catch (_) {
+        /* noop */
+      }
+    }
   }
 
   function hideBaseFretModal() {
@@ -441,6 +838,7 @@
     baseFretActiveCard = null;
     baseFretBuffer = '';
     baseFretOnConfirm = null;
+    updateBaseFretDisplay();
     if (window.MicroModal) {
       try {
         MicroModal.close('base-fret-modal');
@@ -459,24 +857,40 @@
       return;
     }
 
-    const isDigit = /^[0-9]$/.test(key);
-    if (!isDigit) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    baseFretBuffer = key;
-    updateBaseFretDisplay();
-
-    const val = parseInt(key, 10);
-    if (!Number.isFinite(val) || val <= 0 || val > 24) {
+    if (key === 'Enter') {
+      e.preventDefault();
+      e.stopPropagation();
+      syncBaseFretBufferFromInput();
+      if (!baseFretBuffer) {
+        updateBaseFretDisplay();
+        focusBaseFretInputField();
+        return;
+      }
+      const val = parseInt(baseFretBuffer, 10);
+      if (!Number.isFinite(val) || val < 1 || val > 24) {
+        baseFretBuffer = '';
+        updateBaseFretDisplay();
+        focusBaseFretInputField();
+        return;
+      }
+      const cb = baseFretOnConfirm;
+      const target = baseFretActiveCard;
       hideBaseFretModal();
+      if (typeof cb === 'function' && target) cb(val);
       return;
     }
-    const cb = baseFretOnConfirm;
-    const target = baseFretActiveCard;
-    hideBaseFretModal();
-    if (typeof cb === 'function' && target) cb(val);
+
+    const isDigit = /^[0-9]$/.test(key);
+    if (isDigit || key === 'Backspace' || key === 'Delete') {
+      // Allow typing; sync after the keystroke so we pick up the new value.
+      setTimeout(syncBaseFretBufferFromInput, 0);
+      return;
+    }
+
+    const navigationKeys = ['Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Shift'];
+    if (navigationKeys.includes(key)) return;
+
+    e.stopPropagation();
   }
 
   function promptForBaseFret(card, onConfirm) {
@@ -490,6 +904,9 @@
     if (window.MicroModal) {
       MicroModal.show('base-fret-modal');
     }
+    setTimeout(() => {
+      focusBaseFretInputField();
+    }, 0);
   }
 
   function handleFretLabelClick(card) {
@@ -547,8 +964,12 @@
       } else {
         persist('rebase-frets-click');
       }
-      if (shapeChanged && window.freetarUndoSnapshot) {
-        window.freetarUndoSnapshot('diagram-click');
+      if (shapeChanged) {
+        if (isEditing) {
+          bufferPendingEditSnapshot();
+        } else if (window.freetarUndoSnapshot) {
+          window.freetarUndoSnapshot('diagram-click');
+        }
       }
     });
   }
@@ -571,6 +992,78 @@
       groups.push({ group: gName || '\u00A0', chords });
     });
     return groups;
+  }
+
+  function getGroupIndex(groupEl) {
+    return Array.prototype.indexOf.call(groupsRoot.querySelectorAll('.group'), groupEl);
+  }
+
+  function wireGroupExportButton(groupEl) {
+    const btn = groupEl.querySelector('.export-group');
+    if (!btn || btn.__wiredExport) return;
+    btn.__wiredExport = true;
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const idx = getGroupIndex(groupEl);
+      if (idx < 0) return;
+      const url = buildGroupExportUrl(idx);
+      if (url) window.location.href = url;
+    });
+  }
+
+  function clearPendingEditSnapshots() {
+    pendingEditSnapshots.length = 0;
+  }
+
+  function buildEditingAwareSnapshot() {
+    const baseline = buildDataFromDOM();
+    if (!currentEditingCard || !currentEditingSourceCard || !groupsRoot) return baseline;
+    const sourceGroup = currentEditingSourceCard.closest('.group');
+    if (!sourceGroup || !groupsRoot.contains(sourceGroup)) return baseline;
+
+    const groups = Array.from(groupsRoot.querySelectorAll('.group'));
+    const groupIndex = groups.indexOf(sourceGroup);
+    if (groupIndex < 0 || groupIndex >= baseline.length) return baseline;
+
+    const cardsInGroup = Array.from(sourceGroup.querySelectorAll('.chord-card'));
+    const chordIndex = cardsInGroup.indexOf(currentEditingSourceCard);
+    if (chordIndex < 0) return baseline;
+
+    const editCard = currentEditingSpotlightCard || currentEditingCard;
+    const nameInput = editCard?.querySelector('.chord-name-input');
+    const shapeInput = editCard?.querySelector('.chord-shape-input');
+    if (!nameInput || !shapeInput) return baseline;
+
+    const name = (nameInput.value || '').trim();
+    const shape = (shapeInput.value || '').trim();
+
+    const targetGroup = baseline[groupIndex];
+    if (!targetGroup || !Array.isArray(targetGroup.chords)) return baseline;
+
+    if (!shape) {
+      if (chordIndex < targetGroup.chords.length) {
+        targetGroup.chords.splice(chordIndex, 1);
+      }
+      return baseline;
+    }
+
+    const entry = { name: name || '(unnamed)', shape };
+    if (chordIndex < targetGroup.chords.length) {
+      targetGroup.chords[chordIndex] = entry;
+    } else {
+      targetGroup.chords.push(entry);
+    }
+    return baseline;
+  }
+
+  function bufferPendingEditSnapshot() {
+    if (!currentEditingCard) return;
+    const snapshot = buildEditingAwareSnapshot();
+    const last = pendingEditSnapshots[pendingEditSnapshots.length - 1];
+    const snapshotKey = JSON.stringify(snapshot);
+    const lastKey = last ? JSON.stringify(last) : null;
+    if (lastKey && lastKey === snapshotKey) return;
+    pendingEditSnapshots.push(snapshot);
   }
 
   async function persist(reason) {
@@ -606,6 +1099,8 @@
     if (currentEditingCard && currentEditingSourceCard && currentEditingSourceCard !== resolvedSource) {
       finishEditing(true);
     }
+
+    clearPendingEditSnapshots();
 
     const clone = moveCardIntoChordEditModal(resolvedSource);
     if (!clone) return;
@@ -649,6 +1144,7 @@
     const sourceCard =
       currentEditingSourceCard || (spotlight && spotlight.__sourceCard) || spotlight;
     if (!spotlight || !sourceCard) {
+      clearPendingEditSnapshots();
       currentEditingCard = null;
       currentEditingSourceCard = null;
       currentEditingSpotlightCard = null;
@@ -668,6 +1164,7 @@
       !sourceNameInput ||
       !sourceShapeInput
     ) {
+      clearPendingEditSnapshots();
       currentEditingCard = null;
       currentEditingSourceCard = null;
       currentEditingSpotlightCard = null;
@@ -676,7 +1173,11 @@
 
     if (commit) {
       const newName = spotlightNameInput.value.trim();
-      const newShape = spotlightShapeInput.value;
+      const newShape =
+        typeof window.normalizeShapeText === 'function'
+          ? window.normalizeShapeText(spotlightShapeInput.value)
+          : spotlightShapeInput.value;
+      spotlightShapeInput.value = newShape;
       sourceNameInput.value = newName;
       sourceShapeInput.value = newShape;
       if (spotlight.dataset && spotlight.dataset.baseFret) {
@@ -687,6 +1188,12 @@
       title.innerHTML = prettifyChordName(newName || '(unnamed)');
       renderCardDiagram(sourceCard);
       persist('edit-commit');
+      if (pendingEditSnapshots.length && window.freetarUndoSnapshot) {
+        pendingEditSnapshots.forEach((state) => {
+          window.freetarUndoSnapshot('edit-session', state);
+        });
+      }
+      clearPendingEditSnapshots();
     } else {
       const originalName = spotlight.dataset.originalName || '';
       const originalShape = spotlight.dataset.originalShape || '';
@@ -694,6 +1201,7 @@
       sourceShapeInput.value = originalShape;
       title.textContent = originalName || '(unnamed)';
       renderCardDiagram(sourceCard);
+      clearPendingEditSnapshots();
     }
 
     const overlay = spotlight.querySelector('.chord-symbols-toolbar');
@@ -725,7 +1233,7 @@
   // Ctrl+Enter should commit the active edit, mirroring manual confirmation
   document.addEventListener('keydown', (e) => {
     if (!currentEditingCard) return;
-    if (e.key === 'Enter' && e.ctrlKey) {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       finishEditing(true);
     }
@@ -846,7 +1354,11 @@
       } else {
         persist('toggle-root-click');
       }
-      if (window.freetarUndoSnapshot) window.freetarUndoSnapshot('diagram-click');
+      if (isEditing) {
+        bufferPendingEditSnapshot();
+      } else if (window.freetarUndoSnapshot) {
+        window.freetarUndoSnapshot('diagram-click');
+      }
     }
 
     function handleAltClick(stringIndex, tokens, roots, card, shapeInput, oldShape, isEditing) {
@@ -936,14 +1448,17 @@
     function onChordDiagramClick(event) {
       event.stopPropagation(); // keep edit mode active; avoid click-away handling
       event.preventDefault(); // avoid text selection during shift-clicks
+      const isEditing = currentEditingCard === card;
+      if (event.ctrlKey || event.metaKey) {
+        handleCtrlClick(card, isEditing);
+        return;
+      }
+      if (diagramLockEnabled && !isEditing) {
+        return;
+      }
       const fretLabel = event.target.closest('.chord-fret-label');
       if (fretLabel) {
         handleFretLabelClick(card);
-        return;
-      }
-      const isEditing = currentEditingCard === card;
-      if (event.ctrlKey) {
-        handleCtrlClick(card, isEditing);
         return;
       }
 
@@ -1015,8 +1530,12 @@
           } else {
             persist('toggle-root-click');
           }
-          if (shapeChanged && window.freetarUndoSnapshot) {
-            window.freetarUndoSnapshot('diagram-click');
+          if (shapeChanged) {
+            if (isEditing) {
+              bufferPendingEditSnapshot();
+            } else if (window.freetarUndoSnapshot) {
+              window.freetarUndoSnapshot('diagram-click');
+            }
           }
         });
         return;
@@ -1090,6 +1609,7 @@
   function wireGroup(groupEl) {
     const addChordBtn = groupEl.querySelector('.add-chord');
     const grid = groupEl.querySelector('.chord-grid');
+    wireGroupExportButton(groupEl);
 
     if (addChordBtn && grid && !addChordBtn.__wired) {
       addChordBtn.addEventListener('click', () => addChordToGrid(grid, '...', '000000', { prepend: true }));
@@ -1149,10 +1669,10 @@
         </div>
 
         <div class="group-buttons">
-          <button type="button" class="add-chord" aria-label="Add chord" data-tooltip="Add Chord">
+          <button type="button" class="add-chord" aria-label="Add chord" data-tooltip="Add Chord" title="Add Chord">
             <span class="material-icons-outlined">add_circle</span>
           </button>
-          <button type="button" class="delete-chords" aria-label="Delete chords" data-tooltip="Delete Chords">
+          <button type="button" class="delete-chords" aria-label="Delete chords" data-tooltip="Delete Chords" title="Delete Chords">
             <span class="material-icons-outlined">remove_circle_outline</span>
           </button>
         </div>
@@ -1161,7 +1681,10 @@
       <div class="d-grid chord-grid"></div>
     `;
 
-    if (append) groupsRoot.appendChild(groupEl);
+    if (append) {
+      groupsRoot.appendChild(groupEl);
+      if (window.initTooltips) window.initTooltips();
+    }
 
     const nameInput = groupEl.querySelector('.group-name');
     if (nameInput) nameInput.value = initialName || '';
@@ -1204,6 +1727,7 @@
     groupsRoot.querySelectorAll('.group').forEach((groupEl) => {
       wireGroup(groupEl);
     });
+    groupsRoot.querySelectorAll('.group').forEach((groupEl) => wireGroupExportButton(groupEl));
     if (groupDeleteModeActive) {
       if (groupDeleteModeGroup && groupsRoot.contains(groupDeleteModeGroup)) {
         groupDeleteModeGroup.classList.add('deletable-group');
@@ -1217,6 +1741,8 @@
     ensureGroupSortable();
     if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
     updateEmptyMsg();
+    ensureHistoryTooltips();
+    if (window.initTooltips) window.initTooltips();
   }
   function enableDeleteMode(group) {
     if (deleteModeGroup && deleteModeGroup !== group) disableDeleteMode();
@@ -1364,6 +1890,7 @@
         }
 
         groupsRoot.insertBefore(newGroup, sibling);
+        if (window.initTooltips) window.initTooltips();
         const grid = newGroup.querySelector('.chord-grid');
         if (grid) addChordToGrid(grid, '...', '000000', { silent: true });
         updateEmptyMsg();
@@ -1544,16 +2071,33 @@
     if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
   });
 
+  // Ctrl-click anywhere within the active edit card (outside the diagram) commits the edit.
+  document.addEventListener('click', (e) => {
+    if (!currentEditingCard) return;
+    if (!(e.ctrlKey || e.metaKey)) return;
+    if (!currentEditingCard.contains(e.target)) return;
+    if (e.target.closest('table.chord-diagram')) return; // diagram has its own ctrl handler
+    e.preventDefault();
+    e.stopPropagation();
+    finishEditing(true);
+  }, true);
+
   // ---------- init & global wiring ----------
   function init() {
     ensureGroupHoverCSS(); // make group tools appear only on hover/focus-within
     groupsRoot = document.getElementById('groups-root');
     if (!groupsRoot) return console.warn('my-chords.page.js: #groups-root not found.');
+    if (window.setupTooltipBoundary) window.setupTooltipBoundary({ boundary: document.body });
     deleteGroupModal = document.getElementById('delete-group-modal');
     confirmDeleteGroupBtn = document.getElementById('confirm-delete-group');
     baseFretModal = document.getElementById('base-fret-modal');
     baseFretValueEl = document.getElementById('base-fret-modal-value');
+    updateBaseFretDisplay();
+    if (baseFretValueEl) {
+      baseFretValueEl.addEventListener('input', syncBaseFretBufferFromInput);
+    }
     wireModalCloseButtons();
+    const storedSettings = loadSettings();
 
     if (window.MicroModal) {
       MicroModal.init({
@@ -1597,6 +2141,87 @@
     importInput = document.getElementById('import-chords-input');
     importBtn = document.getElementById('import-chords-btn');
     cancelImportBtn = document.getElementById('cancel-import-chords');
+    if (window.initTooltips) window.initTooltips();
+    if (storedSettings && typeof storedSettings.maxChordsPerRowEnabled === 'boolean') {
+      maxChordsPerRowEnabled = storedSettings.maxChordsPerRowEnabled;
+    }
+    if (storedSettings && storedSettings.maxChordsPerRow !== undefined) {
+      maxChordsPerRow = clampMaxPerRow(storedSettings.maxChordsPerRow);
+    } else {
+      maxChordsPerRow = MAX_PER_ROW_DEFAULT;
+    }
+    chordSettingsMenu = document.getElementById('chord-settings-menu');
+    chordSettingsToggleBtn = document.getElementById('chord-settings-toggle');
+    maxPerRowCheckbox = document.getElementById('max-per-row-checkbox');
+    maxPerRowInput = document.getElementById('max-per-row-input');
+    maxPerRowRow = document.getElementById('max-per-row-row');
+    diagramLockToggleBtn = document.getElementById('diagram-lock-toggle');
+    if (diagramLockToggleBtn) {
+      const storedLock =
+        storedSettings && typeof storedSettings.diagramLockEnabled === 'boolean'
+          ? storedSettings.diagramLockEnabled
+          : loadDiagramLockSetting(null);
+      if (typeof storedLock === 'boolean') {
+        diagramLockEnabled = storedLock;
+      } else if (diagramLockToggleBtn.dataset.locked !== undefined) {
+        diagramLockEnabled = diagramLockToggleBtn.dataset.locked !== 'false';
+      } else {
+        diagramLockEnabled = false;
+      }
+      updateDiagramLockButtonUI();
+      diagramLockToggleBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        diagramLockEnabled = !diagramLockEnabled;
+        updateDiagramLockButtonUI();
+        saveDiagramLockSetting(diagramLockEnabled);
+      });
+    }
+    if (chordSettingsToggleBtn && chordSettingsMenu && !chordSettingsToggleBtn.__settingsWired) {
+      chordSettingsToggleBtn.__settingsWired = true;
+      chordSettingsToggleBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        toggleChordSettingsMenu();
+      });
+      chordSettingsToggleBtn.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') {
+          closeChordSettingsMenu();
+        }
+      });
+    }
+    if (chordSettingsMenu && !chordSettingsMenu.__settingsWired) {
+      chordSettingsMenu.__settingsWired = true;
+      chordSettingsMenu.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape') {
+          closeChordSettingsMenu();
+          if (chordSettingsToggleBtn && typeof chordSettingsToggleBtn.focus === 'function') {
+            chordSettingsToggleBtn.focus({ preventScroll: true });
+          }
+        }
+      });
+    }
+    if (maxPerRowCheckbox && !maxPerRowCheckbox.__settingsWired) {
+      maxPerRowCheckbox.__settingsWired = true;
+      maxPerRowCheckbox.addEventListener('change', (ev) => {
+        maxChordsPerRowEnabled = !!ev.target.checked;
+        updateChordSettingsUI();
+        applyMaxPerRowLayout();
+        persistUISettings();
+      });
+    }
+    if (maxPerRowInput && !maxPerRowInput.__settingsWired) {
+      maxPerRowInput.__settingsWired = true;
+      maxPerRowInput.addEventListener('input', (ev) => {
+        const nextVal = clampMaxPerRow(ev.target.value);
+        maxChordsPerRow = nextVal;
+        maxPerRowInput.value = String(nextVal);
+        applyMaxPerRowLayout();
+        updateChordSettingsUI();
+        persistUISettings();
+      });
+    }
+    applyMaxPerRowLayout();
+    updateChordSettingsUI();
+    wireLibraryImportExportButtons();
 
     const getDefaultGroup = () => {
       return groupsRoot.querySelector('.group') || createGroup('');
@@ -1614,6 +2239,31 @@
       return null; // no match; caller handles fallback
     };
 
+    const isImportAreaVisible = () => {
+      if (!importArea) return false;
+      return getComputedStyle(importArea).display !== 'none';
+    };
+
+    const showImportArea = () => {
+      if (!importArea) return;
+      importArea.style.display = '';
+      if (showImportBtn) showImportBtn.setAttribute('aria-expanded', 'true');
+      if (importInput) {
+        importInput.focus();
+        if (typeof importInput.select === 'function') importInput.select();
+      }
+    };
+
+    const hideImportArea = () => {
+      if (!importArea) return;
+      importArea.style.display = 'none';
+      if (showImportBtn) showImportBtn.setAttribute('aria-expanded', 'false');
+    };
+
+    if (showImportBtn && importArea) {
+      showImportBtn.setAttribute('aria-expanded', isImportAreaVisible() ? 'true' : 'false');
+    }
+
     const handleImport = async () => {
       if (!importInput) return;
       const lines = importInput.value.split(/\r?\n/);
@@ -1627,7 +2277,11 @@
           .filter(Boolean);
         if (parts.length < 2) continue;
         const name = parts[0] || '(unnamed)';
-        const shape = parts[1] || '';
+        const rawShape = parts[1] || '';
+        const shape =
+          typeof window.normalizeShapeText === 'function'
+            ? window.normalizeShapeText(rawShape)
+            : rawShape;
         if (!shape) continue;
         const grp = parts[2] || '';
         // If a group hint exists, try prefix match; otherwise or on no match, use the top group.
@@ -1644,25 +2298,25 @@
         await persist('import');
         updateEmptyMsg();
       }
-      if (importArea) importArea.style.display = 'none';
+      hideImportArea();
       if (importInput) importInput.value = '';
     };
 
-    if (showImportBtn && importArea) {
+    if (showImportBtn && importArea && !showImportBtn.__importToggleWired) {
+      showImportBtn.__importToggleWired = true;
       showImportBtn.addEventListener('click', () => {
-        importArea.style.display = '';
-        if (importInput) {
-          importInput.focus();
-          if (typeof importInput.select === 'function') importInput.select();
-        }
+        if (isImportAreaVisible()) hideImportArea();
+        else showImportArea();
       });
     }
-    if (cancelImportBtn && importArea) {
+    if (cancelImportBtn && importArea && !cancelImportBtn.__importWired) {
+      cancelImportBtn.__importWired = true;
       cancelImportBtn.addEventListener('click', () => {
-        importArea.style.display = 'none';
+        hideImportArea();
       });
     }
-    if (importBtn) {
+    if (importBtn && !importBtn.__importWired) {
+      importBtn.__importWired = true;
       importBtn.addEventListener('click', handleImport);
     }
 
@@ -1771,4 +2425,63 @@
 
   // Expose for Undo/Redo DOM morphs (called after morphdom applies HTML)
   window.rewireChordUI = rewireChordUI;
+})();
+
+
+
+// === Center .chord-title exactly between .string-left and .string-right columns ===
+(function () {
+  function centerTitleForCard(card) {
+    const table = card.querySelector('.chord-diagram');
+    const title = card.querySelector('.chord-title');
+    if (!table || !title) return;
+
+    const left = table.querySelector('.string-left');
+    const rights = table.querySelectorAll('.string-right');
+    const right = rights[rights.length - 1];
+    if (!left || !right) return;
+
+    // Reset before measuring
+    title.style.transform = 'none';
+
+    const leftRect = left.getBoundingClientRect();
+    const rightRect = right.getBoundingClientRect();
+    const stringsCenter = (leftRect.left + rightRect.right) / 2;
+
+    const titleRect = title.getBoundingClientRect();
+    const titleCenter = (titleRect.left + titleRect.right) / 2;
+
+    const deltaX = stringsCenter - titleCenter;
+
+    title.style.position = 'relative';
+    title.style.left = '0px';
+    title.style.right = 'auto';
+    title.style.transform = `translateX(${deltaX}px)`;
+  }
+
+  function centerAllChordTitles() {
+    // Catch both page and modal chord-cards
+    const cards = document.querySelectorAll('.chord-card');
+    cards.forEach(centerTitleForCard);
+  }
+
+  function scheduleCentering() {
+    requestAnimationFrame(centerAllChordTitles);
+  }
+
+  // Recenter on load, resize, and after modal open
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', scheduleCentering);
+  } else {
+    scheduleCentering();
+  }
+
+  window.addEventListener('resize', scheduleCentering);
+
+  // Optionally, observe DOM for modal entry (requires MutationObserver)
+  const observer = new MutationObserver(scheduleCentering);
+  observer.observe(document.body, { childList: true, subtree: true });
+
+  // If using a framework/modal callback, also call scheduleCentering after modal open
+  window.centerAllChordTitles = scheduleCentering; // for manual hooks if needed
 })();

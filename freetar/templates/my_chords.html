@@ -5,6 +5,7 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
 <link rel="stylesheet" href="{{ url_for('static', filename='my-chords.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tooltips.css') }}">
 <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+Symbols+2&display=swap">
 
@@ -23,11 +24,57 @@
     {% endif %}
 
     <div class="d-flex align-items-center mb-3 page-title-row">
-        <h2 class="page-title flex-grow-1">{% if collection_id is defined %}{{ collection_name }}{% else %}Chord
-            Library{% endif %}</h2>
-        <button id="show-import-chords" class="btn btn-sm btn-primary title-import-btn">Import Chords</button>
-        <span id="undo-redo-wrap" class="d-flex align-items-center gap-2"></span>
+        <h2 class="page-title flex-grow-1">
+            {% if collection_id is defined %}
+            {{ collection_name }}
+            {% else %}
+            Chord Library
+            {% endif %}
+        </h2>
+        <button id="show-import-chords" class="primary-button" data-tooltip="Import chords from pasted text"
+            title="Import chords from pasted text" aria-expanded="false">
+            Import Chords
+        </button>
+        <span id="undo-redo-wrap" class="d-flex align-items-center gap-2">
+            <button type="button" class="primary-button" aria-label="Import chord library"
+                data-tooltip="Import Chords from File" data-tooltip-src="Import Chords from File"
+                title="Import Chords from File">
+                <span class="material-icons-outlined" aria-hidden="true">file_upload</span>
+            </button>
+            <button type="button" class="primary-button toolbar-export" aria-label="Export chord library"
+                data-tooltip="Export All Chords to File" data-tooltip-src="Export All Chords to File"
+                title="Export All Chords to File">
+                <span class="material-icons-outlined" aria-hidden="true">file_download</span>
+            </button>
+        </span>
+        <div class="chord-settings-wrap">
+            <button id="diagram-lock-toggle" type="button" class="lock-button" aria-label="Toggle diagram lock"
+                aria-pressed="false" data-locked="false"
+                data-tooltip="Diagram lock is OFF (diagram clicks edit immediately)"
+                title="Diagram lock is OFF (diagram clicks edit immediately)">
+                <span class="material-icons-outlined" aria-hidden="true">lock_open</span>
+            </button>
+            <button id="chord-settings-toggle" type="button" class="lock-button chord-settings-button"
+                aria-label="Chord layout settings" aria-expanded="false" data-tooltip="Chord layout settings"
+                title="Chord layout settings">
+                <span class="material-icons-outlined" aria-hidden="true">settings</span>
+            </button>
+            <div id="chord-settings-menu" class="chord-settings-menu" role="menu" aria-hidden="true">
+                <div class="chord-settings-row is-disabled" id="max-per-row-row">
+                    <label for="max-per-row-checkbox" class="chord-settings-label">
+                        <input type="checkbox" id="max-per-row-checkbox">
+                        <span>Limit chords per row</span>
+                    </label>
+                    <div class="chord-settings-value">
+                        <label for="max-per-row-input" class="chord-settings-input-label">Max</label>
+                        <input type="number" id="max-per-row-input" inputmode="numeric" min="1" max="24" value="8"
+                            aria-label="Max chords per row" disabled>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
+
 </div>
 
 {% if groups|length == 0 %}
@@ -65,10 +112,12 @@
             </div>
 
             <div class="group-buttons">
-                <button type="button" class="add-chord" aria-label="Add chord" data-tooltip="Add Chord">
+                <button type="button" class="add-chord" aria-label="Add chord" data-tooltip="Add Chord"
+                    title="Add Chord">
                     <span class="material-icons-outlined">add_circle</span>
                 </button>
-                <button type="button" class="delete-chords" aria-label="Delete chords" data-tooltip="Delete Chords">
+                <button type="button" class="delete-chords" aria-label="Delete chords" data-tooltip="Delete Chords"
+                    title="Delete Chords">
                     <span class="material-icons-outlined">remove_circle_outline</span>
                 </button>
             </div>
@@ -157,6 +206,13 @@
             </div>
             {% endfor %}
         </div>
+        <div class="group-footer-actions">
+            <button type="button" class="export-group" aria-label="Export this group to file"
+                data-tooltip="Export this Group to File" data-tooltip-src="Export this Group to File"
+                title="Export this Group to File">
+                <span class="material-icons-outlined">file_download</span>
+            </button>
+        </div>
     </div>
     {% endfor %}
 
@@ -165,6 +221,7 @@
 <script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script defer src="{{ url_for('static', filename='vendor/micromodal.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='tooltip.js') }}"></script>
 <script defer src="{{ url_for('static', filename='undoRedo.js') }}"></script>
 <script defer src="{{ url_for('static', filename='chordDiagram.js') }}"></script>
 <script>
@@ -187,8 +244,12 @@
 
             <button type="button" class="modal__close-button" aria-label="Close modal"
                 data-micromodal-close>&times;</button>
-            <div id="base-fret-modal-title">Enter a fret number (1–24) for the spot you clicked.</div>
-            <div id="base-fret-modal-value" aria-live="polite"></div>
+            <div class="base-fret-modal-content">
+                <div id="base-fret-modal-title">Pick base fret</div>
+                <div id="base-fret-modal-hint">Type a number from 1 to 24, then press Enter. Esc cancels.</div>
+                <input id="base-fret-modal-value" class="base-fret-input" type="text" aria-label="Base fret"
+                    autocomplete="off" inputmode="numeric" pattern="[0-9]*" aria-live="polite" />
+            </div>
 
         </div>
     </div>

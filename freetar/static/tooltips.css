@@ -1,0 +1,124 @@
+/* tooltips.css */
+[data-tooltip] {
+    position: relative;
+    cursor: pointer;
+}
+
+[data-tooltip]::after {
+    content: attr(data-tooltip);
+    display: none;
+    position: absolute;
+    left: 50%;
+    bottom: 120%;
+    transform: translateX(calc(-50% + var(--tooltip-offset-x, 0px))) translateY(var(--tooltip-offset-y, 0px));
+    background: rgba(20, 20, 20, 0.98);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: center;
+    white-space: pre-line;
+    text-wrap: balance;
+    line-height: 1.45;
+    z-index: 1100;
+    pointer-events: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.14), 0 1.5px 7px rgba(0, 0, 0, 0.12);
+    opacity: 0;
+    transition: opacity 0.16s cubic-bezier(0.4, 0, 0.2, 1);
+    inline-size: clamp(28ch, calc(var(--tooltip-max-ch, 36) * 1ch), 95vw);
+    max-inline-size: var(--tooltip-max-fit, clamp(28ch, calc(var(--tooltip-max-ch, 36) * 1ch), 95vw));
+    box-sizing: border-box;
+    padding-block: 12px;
+}
+
+[data-tooltip]:hover::after,
+[data-tooltip]:focus::after {
+    display: block;
+    opacity: 1;
+}
+
+/* Optional: arrow */
+/* Caret when tooltip is above the trigger (default placement) */
+[data-tooltip]::before {
+    content: "";
+    display: none;
+    position: absolute;
+    left: 50%;
+    /* Use the same baseline as the bubble (::after uses bottom: 120%) */
+    bottom: 82%;
+    /* Follow the bubble (offset-x/offset-y), then shift back toward trigger with caret-x.
+       A tiny -1px pulls the caret into the bubble to avoid a hairline gap. */
+    transform:
+        translateX(calc(-50% + var(--tooltip-offset-x, 0px) + var(--tooltip-caret-x, 0px))) translateY(calc(var(--tooltip-offset-y, 0px) - 1px));
+    border-width: 6px;
+    border-style: solid;
+    /* Arrow pointing DOWN (toward the trigger): color is on TOP side */
+    border-color: rgba(20, 20, 20, 0.98) transparent transparent transparent;
+    z-index: 1101;
+    pointer-events: none;
+}
+
+/* Caret when tooltip is below the trigger */
+[data-tooltip][data-tooltip-placement="bottom"]::before {
+    content: "";
+    display: none;
+    position: absolute;
+    left: 50%;
+    top: 120%;
+    bottom: auto;
+    /* A tiny +1px pushes the caret into the bubble for a seamless join */
+    transform:
+        translateX(calc(-50% + var(--tooltip-offset-x, 0px) + var(--tooltip-caret-x, 0px))) translateY(calc(var(--tooltip-offset-y, 0px) + 1px));
+    border-width: 6px;
+    border-style: solid;
+    /* Arrow pointing UP (toward the trigger): color is on BOTTOM side */
+    border-color: transparent transparent rgba(20, 20, 20, 0.98) transparent;
+    z-index: 1101;
+    pointer-events: none;
+}
+
+[data-tooltip]:hover::before,
+[data-tooltip]:focus::before {
+    display: block;
+}
+
+.group-insert-tooltip {
+    background: rgba(0, 0, 0, 0.82);
+    border-radius: 6px;
+    color: #ffffff;
+    display: none;
+    font-size: 1.2rem;
+    left: 0;
+    padding: 0.35rem 0.55rem;
+    position: absolute;
+    top: 0;
+    transform: translate(-50%, -120%);
+    white-space: nowrap;
+    z-index: 20;
+}
+
+.group-insert-tooltip::after {
+    border: 6px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.82);
+    content: "";
+    left: 50%;
+    position: absolute;
+    top: 100%;
+    transform: translateX(-50%);
+}
+
+/* Bubble below the trigger when JS sets data-tooltip-placement="bottom" */
+[data-tooltip][data-tooltip-placement="bottom"]::after {
+    top: 120%;
+    bottom: auto;
+    transform: translateX(calc(-50% + var(--tooltip-offset-x, 0px))) translateY(var(--tooltip-offset-y, 0px));
+}
+
+/* If you added a caret and want it to flip for bottom as well (keep if already present) */
+[data-tooltip][data-tooltip-placement="bottom"]::before {
+    top: 120%;
+    bottom: auto;
+    transform: translateX(calc(-50% + var(--tooltip-offset-x, 0px) + var(--tooltip-caret-x, 0px))) translateY(calc(var(--tooltip-offset-y, 0px) + 1px));
+    border-color: transparent transparent rgba(20, 20, 20, 0.98) transparent;
+}

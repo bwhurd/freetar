@@ -173,7 +173,12 @@
                 <div class="d-flex align-items-center justify-content-between mb-1">
                     <span class="material-icons-outlined chord-handle" style="cursor: move; font-size: 18px;">drag_indicator</span>
                     <span class="chord-title flex-grow-1 text-truncate mx-1">${label}</span>
-                    <span class="material-icons-outlined chord-edit" style="cursor: pointer; font-size: 18px;">edit</span>
+<button type="button"
+        class="chord-edit-btn"
+        aria-label="Edit chord"
+        title="Edit chord">
+    <span class="material-icons-outlined" aria-hidden="true" style="font-size: 18px;">edit</span>
+</button>
                 </div>
                 <div class="chord-edit-fields mb-2" style="display: none;">
                     <input class="form-control form-control-sm mb-1 chord-name-input" value="${label}">

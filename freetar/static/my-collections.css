@@ -50,6 +50,11 @@
     --space-3: .75rem;
     --space-4: 1rem;
     --space-5: 1.25rem;
+    --tooltip-gap: 0.65rem;
+    --tooltip-max-ch: 36;
+    --tooltip-offset-x: 0px;
+    --tooltip-offset-y: 0px;
+    --tooltip-caret-x: 0px;
     --surface-elevated: #2a282d;
     --text-on-accent: #0e1b1b;
     --text-primary: #f5f4ee;
@@ -207,46 +212,10 @@
     src: url(/static/Nunito-VariableFont_wght.ttf) format("truetype");
 }
 
-/ Button changes / .btn {
-    -webkit-appearance: none;
-    appearance: none;
-    background: #ffffff05 !important;
-    border-radius: var(--radius-pill) !important;
-    border: 1px solid var(--border-subtle) !important;
-    box-shadow: none !important;
-    color: var(--text-primary) !important;
-    font-size: var(--fz-14) !important;
-    font-weight: 600 !important;
-    letter-spacing: -.01em !important;
-    line-height: 1 !important;
-    padding: .5rem .9rem !important;
-    transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .02s ease;
-}
 
-/ Delete button reveal / .remove-group {
-    border-radius: var(--radius-pill) !important;
-    display: inline-grid !important;
-    height: 28px !important;
-    opacity: 0;
-    padding: 0 !important;
-    place-items: center !important;
-    pointer-events: none;
-    transition: opacity .18s ease, background-color .15s ease, color .15s ease, border-color .15s ease;
-    width: 28px !important;
-}
 
-/ Editable section header / .group-name.form-control {
-    background: transparent !important;
-    border-radius: var(--radius-s) !important;
-    border: 1px solid transparent !important;
-    box-shadow: none !important;
-    color: var(--text-primary) !important;
-    font-size: clamp(var(--fz-16), .95rem + .3vw, var(--fz-18)) !important;
-    font-weight: 600 !important;
-    line-height: 1.3 !important;
-    padding: .35rem 0rem !important;
-    transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
-}
+
+
 
 / Focus ring / .btn:focus {
     outline: none !important;
@@ -304,6 +273,47 @@
     border-color: rgba(0, 0, 0, 0.08);
 }
 
+.page-title-row .primary-button {
+    background: #004654;
+    color: rgb(255, 255, 255);
+    border: 1px solid #47637F;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.3em 1.2em 0.3em 1.2em;
+    height: 2.2em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.page-title-row .primary-button:hover,
+.page-title-row .primary-button:focus-visible {
+    background: #47637F;
+    border-color: #0949a7;
+    color: #fff;
+    outline: none;
+}
+
+.page-title-row .primary-button:focus-visible {
+    box-shadow: 0 0 0 0.12rem rgba(13, 110, 253, 0.35);
+}
+
+.page-title-row .primary-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.page-title-row .primary-button .material-icons-outlined {
+    color: #fff;
+    font-size: 1.25em;
+    line-height: 1;
+}
+
 .page-title {
     color: var(--text-primary);
     flex-shrink: 1;
@@ -326,8 +336,23 @@
     justify-content: flex-end;
 }
 
-.title-import-btn {
-    margin-right: clamp(1.5rem, 4vw, 4em);
+#undo-redo-wrap #undo-history-btn,
+#undo-redo-wrap #redo-history-btn {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.25rem;
+    justify-content: center;
+}
+
+#undo-redo-wrap #undo-history-btn .material-icons-outlined,
+#undo-redo-wrap #redo-history-btn .material-icons-outlined {
+    font-size: 1.2em;
+    line-height: 1;
+}
+
+
+#collections-export-btn {
+    margin-right: clamp(2rem, 4vw, 4em);
 }
 
 / Heading changes / h2.mb-3 {
@@ -1095,7 +1120,7 @@ pre {
     position: absolute;
     top: var(--space-3);
     z-index: 2;
-    color: #0a58ca;
+    color: #47637F;
     cursor: move;
     opacity: 0;
     font-size: 24px;
@@ -1108,7 +1133,7 @@ pre {
     top: var(--space-3);
     z-index: 2;
     cursor: pointer;
-    color: #0a58ca;
+    color: #47637F;
     opacity: 0;
     font-size: 24px;
     border-radius: 50%;
@@ -1327,7 +1352,8 @@ pre {
 }
 
 .group-buttons .add-chord,
-.group-buttons .delete-chords {
+.group-buttons .delete-chords,
+.group-buttons .export-group {
     align-items: center;
     background: transparent;
     border: 1px solid transparent;
@@ -1348,12 +1374,18 @@ pre {
     color: #43dfe7;
 }
 
+.group-buttons .export-group {
+    color: var(--text-primary);
+}
+
 .group-buttons .delete-chords {
     color: #f96666;
 }
 
 .group-buttons .add-chord:hover,
-.group-buttons .add-chord:focus-visible {
+.group-buttons .add-chord:focus-visible,
+.group-buttons .export-group:hover,
+.group-buttons .export-group:focus-visible {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.18);
     color: var(--accent);
@@ -1366,63 +1398,58 @@ pre {
     color: #ff6b6b;
 }
 
-.group-buttons .add-chord::after,
-.group-buttons .delete-chords::after {
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 6px;
-    color: #ffffff;
-    content: attr(data-tooltip);
-    font-size: 0.75rem;
-    left: 50%;
-    line-height: 1.1;
-    opacity: 0;
-    padding: 0.35rem 0.55rem;
-    pointer-events: none;
-    position: absolute;
-    top: -0.55rem;
-    transform: translate(-50%, -100%);
-    transition: opacity .12s ease, transform .12s ease;
-    white-space: nowrap;
-    z-index: 3;
-}
-
-.group-buttons .add-chord::before,
-.group-buttons .delete-chords::before {
-    border: 6px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.85);
-    content: "";
-    left: 50%;
-    opacity: 0;
-    position: absolute;
-    top: -0.55rem;
-    transform: translate(-50%, -45%);
-    transition: opacity .12s ease, transform .12s ease;
-    z-index: 2;
-}
-
-.group-buttons .add-chord:hover::after,
-.group-buttons .delete-chords:hover::after,
-.group-buttons .add-chord:focus-visible::after,
-.group-buttons .delete-chords:focus-visible::after {
-    opacity: 1;
-    transform: translate(-50%, -110%);
-}
-
-.group-buttons .add-chord:hover::before,
-.group-buttons .delete-chords:hover::before,
-.group-buttons .add-chord:focus-visible::before,
-.group-buttons .delete-chords:focus-visible::before {
-    opacity: 1;
-    transform: translate(-50%, -55%);
-}
-
 .group-buttons .material-icons-outlined {
     font-size: 26px;
     line-height: 1;
 }
 
+.group:hover .group-header .group-buttons .add-chord,
+.group:hover .group-header .group-buttons .delete-chords {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.group-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+    margin-right: -1.2rem;
+    margin-bottom: -0.2 rem;
+}
+
+.group-footer-actions .export-group {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-pill);
+    box-sizing: border-box;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 32px;
+    justify-content: center;
+    padding: var(--space-1);
+    transition: background-color .15s ease, color .15s ease, transform .1s ease, border-color .15s ease;
+    width: 32px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.group-footer-actions .export-group:hover,
+.group-footer-actions .export-group:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--accent);
+}
+
+.group:hover .group-footer-actions .export-group,
+.group:focus-within .group-footer-actions .export-group {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .group-handle {
-    color: #0a58ca;
+    color: #47637F;
     cursor: move;
     scale: 1.1;
     left: 0.1rem;
@@ -1484,7 +1511,7 @@ pre {
     min-width: 0;
     outline: none;
     padding-left: 0.5em !important;
-    padding-right: 0 !important;
+    padding-right: 2.5em !important;
     transition: background 0.18s, box-shadow .18s;
     width: 100%;
 }
@@ -1574,7 +1601,7 @@ pre {
 }
 
 .group-insert-tooltip {
-    background: rgba(0, 0, 0, 0.82);
+
     border-radius: 6px;
     color: #ffffff;
     display: none;
@@ -1741,4 +1768,39 @@ pre {
     font-size: 1.25rem;
     letter-spacing: 0.08em;
     min-height: 1.6em;
+}
+
+
+.btn-primary {
+    padding: 0.3em 1.2em 0.3em 1.2em !important;
+
+}
+
+#collections-import-btn,
+#collections-export-btn {
+
+    align-items: center;
+    display: inline-flex;
+    gap: 0.25rem;
+    padding: 0.3em 1.2em 0.3em 1.2em !important;
+    justify-content: center;
+    height: 1.9em !important;
+    background-color: #004654;
+    border-color: #004654;
+}
+
+
+#undo-redo-wrap #undo-history-btn,
+#undo-redo-wrap #redo-history-btn {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.25rem;
+    justify-content: center;
+    height: 2.2em !important;
+    background-color: #004654;
+    border-color: #004654;
+}
+
+h2.page-title.flex-grow-1 {
+    margin-top: 0.25em;
 }

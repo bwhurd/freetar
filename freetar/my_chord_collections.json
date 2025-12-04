@@ -1,10 +1,10 @@
 [
   {
-    "group": " ",
+    "group": "Jazz",
     "collections": [
       {
         "id": "c_1763940446587_c667",
-        "name": "Gypsy this and that"
+        "name": "Gypsy Jazz"
       },
       {
         "id": "c_1763940724644_2dee",
@@ -17,18 +17,14 @@
       {
         "id": "c_1763954991038_7dcd",
         "name": "New Collection"
-      },
-      {
-        "id": "c_1764170384299_e1ed",
-        "name": "Blank Collection"
       }
     ]
   },
   {
-    "group": " ",
+    "group": "Group Name",
     "collections": [
       {
-        "id": "c_1763940522016_23aa",
+        "id": "c_1764548643486_ef72",
         "name": "New Collection"
       }
     ]

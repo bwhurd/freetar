@@ -8,6 +8,184 @@
     const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
     const genId = () => `c_${Date.now()}_${Math.random().toString(16).slice(2, 6)}`;
+    const COLLECTIONS_EXPORT_URL = '/my-collections/export';
+    const COLLECTIONS_IMPORT_URL = '/my-collections/import';
+    const COLLECTIONS_EXPORT_GROUP_BASE = '/my-collections/export-group/';
+    const CONTROL_TOOLTIP_TEXT = {
+        undo: 'Undo (Ctrl+Z)',
+        redo: 'Redo (Ctrl+Shift+Z)',
+    };
+
+    function setControlTooltip(button, text) {
+        if (!button || !text) return;
+        button.dataset.tooltip = text;
+        button.dataset.tooltipSrc = text;
+        button.setAttribute('data-tooltip', text);
+        button.setAttribute('title', text);
+        button.title = text;
+        button.setAttribute('aria-label', text);
+    }
+
+    function ensureHistoryTooltips() {
+        setControlTooltip(document.getElementById('undo-history-btn'), CONTROL_TOOLTIP_TEXT.undo);
+        setControlTooltip(document.getElementById('redo-history-btn'), CONTROL_TOOLTIP_TEXT.redo);
+    }
+
+    function refreshGroupIndices() {
+        qsa('.group', groupsRoot).forEach((groupEl, idx) => {
+            groupEl.dataset.groupIndex = idx;
+        });
+    }
+
+    function filenameFromDisposition(disposition = '', fallback = 'collections-export.json') {
+        const match = disposition.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+        if (match && match[1]) {
+            try {
+                return decodeURIComponent(match[1].replace(/\"/g, ''));
+            } catch (e) {
+                return match[1].replace(/\"/g, '');
+            }
+        }
+        return fallback;
+    }
+
+    async function downloadExport(url, fallbackName) {
+        try {
+            const res = await fetch(url, { method: 'GET' });
+            if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+            const blob = await res.blob();
+            const disposition = res.headers.get('Content-Disposition') || '';
+            const filename = filenameFromDisposition(disposition, fallbackName);
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch (e) {
+            console.warn('[collections] export failed', e);
+        }
+    }
+
+    async function applyCollectionsHTML(html, reason = '') {
+        if (window.collectionsMorphFromHTML) {
+            await window.collectionsMorphFromHTML(html, { pushHistory: true, reason });
+            return;
+        }
+        try {
+            const doc = new DOMParser().parseFromString(html, 'text/html');
+            const newRoot = doc.getElementById('groups-root');
+            const curRoot = document.getElementById('groups-root');
+            if (!newRoot || !curRoot) throw new Error('Missing #groups-root');
+            if (typeof window.morphdom === 'function') {
+                window.morphdom(curRoot, newRoot, { childrenOnly: true });
+            } else {
+                curRoot.replaceWith(newRoot);
+            }
+            refreshGroupIndices();
+            if (window.rewireCollectionsUI) window.rewireCollectionsUI();
+        } catch (e) {
+            console.warn('[collections] Failed to morph from HTML; reloading.', e);
+            window.location.reload();
+        }
+    }
+
+    async function hydrateCollectionsFromPage(reason = '') {
+        try {
+            const res = await fetch(window.location.href, {
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'fetch' },
+            });
+            if (!res.ok) throw new Error('fetch failed');
+            const html = await res.text();
+            await applyCollectionsHTML(html, reason);
+        } catch (e) {
+            console.warn('[collections] refresh failed; reloading.', e);
+            window.location.reload();
+        }
+    }
+
+    async function handleImportText(text) {
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (e) {
+            window.alert('Import failed: invalid JSON file.');
+            return;
+        }
+        if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.groups)) {
+            window.alert('Import failed: file is not a collections export.');
+            return;
+        }
+
+        try {
+            const res = await fetch(COLLECTIONS_IMPORT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(parsed),
+            });
+            if (!res.ok) throw new Error(`Import failed: ${res.status}`);
+            const contentType = res.headers.get('Content-Type') || '';
+            if (contentType.includes('html')) {
+                const html = await res.text();
+                await applyCollectionsHTML(html, 'import');
+            } else {
+                await hydrateCollectionsFromPage('import');
+            }
+        } catch (e) {
+            console.warn('[collections] import failed', e);
+            window.alert('Import failed. Please try again.');
+        }
+    }
+
+    async function exportGroup(groupEl) {
+        if (!groupEl) return;
+        const idx = Number.parseInt(groupEl.dataset.groupIndex || '', 10);
+        if (Number.isNaN(idx)) {
+            console.warn('[collections] Missing group index for export');
+            return;
+        }
+        const nameInput = qs('.group-name', groupEl);
+        const fallback = `collection-group-${idx + 1}.json`;
+        await downloadExport(`${COLLECTIONS_EXPORT_GROUP_BASE}${idx}`, fallback);
+    }
+
+    function wireTopImportExport() {
+        const importBtn =
+            document.getElementById('collections-import-btn') || document.querySelector('.collections-import-btn');
+        const exportBtn =
+            document.getElementById('collections-export-btn') || document.querySelector('.collections-export-btn');
+        const fileInput = document.getElementById('collections-import-input');
+
+        if (importBtn && !importBtn._wired && fileInput) {
+            importBtn._wired = true;
+            importBtn.addEventListener('click', () => {
+                fileInput.value = '';
+                fileInput.click();
+            });
+        }
+
+        if (fileInput && !fileInput._wired) {
+            fileInput._wired = true;
+            fileInput.addEventListener('change', () => {
+                if (!fileInput.files || !fileInput.files.length) return;
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e?.target?.result;
+                    if (typeof text === 'string') handleImportText(text);
+                };
+                reader.readAsText(file);
+            });
+        }
+
+        if (exportBtn && !exportBtn._wired) {
+            exportBtn._wired = true;
+            exportBtn.addEventListener('click', () => downloadExport(COLLECTIONS_EXPORT_URL, 'collections-export.json'));
+        }
+    }
 
     let deleteModeGroup = null;
     let deleteModeOffHandler = null;
@@ -31,36 +209,35 @@
           transition: opacity 120ms ease-in-out;
         }
         .group .group-header .add-chord,
-        .group .group-header .delete-chords {
+        .group .group-header .delete-chords,
+        .group .group-header .export-group {
           opacity: 0;
           pointer-events: none;
           transition: opacity 120ms ease-in-out;
         }
         .group .group-header:hover .group-handle,
-        .group .group-header:focus-within .group-handle {
-          opacity: 1;
-          pointer-events: auto;
-        }
-        .group:hover .group-header .add-chord,
-        .group:hover .group-header .delete-chords,
-        .group:focus-within .group-header .add-chord,
-        .group:focus-within .group-header .delete-chords {
+        .group .group-header:hover .add-chord,
+        .group .group-header:hover .delete-chords,
+        .group .group-header:hover .export-group,
+        .group .group-header:focus-within .group-handle,
+        .group .group-header:focus-within .add-chord,
+        .group .group-header:focus-within .delete-chords,
+        .group .group-header:focus-within .export-group {
           opacity: 1;
           pointer-events: auto;
         }
         .group.insert-zone-hover .group-header .group-handle,
         .group.insert-zone-hover .group-header .add-chord,
-        .group.insert-zone-hover .group-header .delete-chords {
+        .group.insert-zone-hover .group-header .delete-chords,
+        .group.insert-zone-hover .group-header .export-group {
           opacity: 0 !important;
           pointer-events: none !important;
         }
         @media (hover: none) {
-          .group .group-header:focus-within .group-handle {
-            opacity: 1;
-            pointer-events: auto;
-          }
-          .group:focus-within .group-header .add-chord,
-          .group:focus-within .group-header .delete-chords {
+          .group .group-header:focus-within .group-handle,
+          .group .group-header:focus-within .add-chord,
+          .group .group-header:focus-within .delete-chords,
+          .group .group-header:focus-within .export-group {
             opacity: 1;
             pointer-events: auto;
           }
@@ -78,6 +255,7 @@
         qsa('.group', groupsRoot).forEach((groupEl) => {
             wireGroup(groupEl);
         });
+        refreshGroupIndices();
         if (groupDeleteModeActive) {
             if (groupDeleteModeGroup && groupsRoot.contains(groupDeleteModeGroup)) {
                 groupDeleteModeGroup.classList.add('deletable-group');
@@ -91,6 +269,8 @@
         ensureGroupSortable();
         if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
         updateEmptyMsg();
+        ensureHistoryTooltips();
+        if (window.initTooltips) window.initTooltips();
     }
 
     function buildCollectionsDataFromDOM() {
@@ -125,6 +305,7 @@
             return;
         }
         const payload = buildCollectionsDataFromDOM();
+        // Backend seeds a default chord library for new collection ids; payload stays metadata-only here.
         try {
             await fetch(url, {
                 method: 'POST',
@@ -145,6 +326,7 @@
             handle: '.group-handle',
             animation: 150,
             onEnd: () => {
+                refreshGroupIndices();
                 persistCollections('reorder-groups');
                 document.dispatchEvent(new CustomEvent('collections-reordered'));
             },
@@ -285,9 +467,6 @@
                 ev.stopPropagation();
                 if (!groupsRoot) return;
 
-                const newGroup = createGroupElement('Group Name', { append: false });
-                if (!newGroup) return;
-
                 let sibling = null;
                 if (activeMode === 'before-first') {
                     sibling = activeBeforeGroup || groupsRoot.firstElementChild;
@@ -297,17 +476,11 @@
                     sibling = activeAfterGroup ? activeAfterGroup.nextElementSibling : null;
                 }
 
-                groupsRoot.insertBefore(newGroup, sibling);
-                wireGroup(newGroup);
-                ensureGroupSortable();
-                if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
-                updateEmptyMsg();
-                await persistCollections('add-group-hover');
-                const nameInput = qs('.group-name', newGroup);
-                if (nameInput) {
-                    nameInput.focus();
-                    nameInput.select();
-                }
+                const newGroup = await createGroupWithDefaultCollection('Group Name', {
+                    sibling,
+                    persistReason: 'add-group-hover',
+                });
+                if (!newGroup) return;
                 hideInsertUI();
             });
         };
@@ -495,10 +668,33 @@
         return card;
     }
 
+    function addCollectionCardToGroup(groupEl, opts = {}) {
+        const { startEditing = true, persistReason = 'add-collection', disableDeleteMode = true } = opts || {};
+        if (!groupEl) return null;
+        const grid = qs('.chord-grid', groupEl);
+        if (!grid) return null;
+        const card = createCollectionCard();
+        grid.appendChild(card);
+        wireCollectionCard(card, groupEl);
+        if (disableDeleteMode) disableCollectionDeleteMode();
+        if (startEditing) {
+            toggleEdit(card, true);
+            const input = qs('.chord-name-input', card);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }
+        if (persistReason) persistCollections(persistReason);
+        updateEmptyMsg();
+        return card;
+    }
+
     function createGroupElement(initialName = 'Group Name', opts = {}) {
         const { append = true } = opts;
         const groupEl = document.createElement('div');
         groupEl.className = 'group mb-4';
+        groupEl.dataset.groupIndex = qsa('.group', groupsRoot).length;
         groupEl.innerHTML = `
           <div class="group-header mb-2">
             <div class="group-title-area">
@@ -506,23 +702,57 @@
               <input class="form-control form-control-sm group-name" value="${initialName}">
             </div>
             <div class="group-buttons">
-              <button type="button" class="add-chord" aria-label="Add collection" data-tooltip="Add Collection">
+              <button type="button" class="export-group" aria-label="Export this group to file" data-tooltip="Export this Group to File" data-tooltip-src="Export this Group to File" title="Export this Group to File">
+                <span class="material-icons-outlined">file_download</span>
+              </button>
+              <button type="button" class="add-chord" aria-label="Add collection" data-tooltip="Add Collection" title="Add Collection">
                 <span class="material-icons-outlined">add_circle</span>
               </button>
-              <button type="button" class="delete-chords" aria-label="Delete collections" data-tooltip="Delete Collections">
+              <button type="button" class="delete-chords" aria-label="Delete collections" data-tooltip="Delete Collections" title="Delete Collections">
                 <span class="material-icons-outlined">remove_circle_outline</span>
               </button>
             </div>
           </div>
           <div class="d-grid chord-grid"></div>
         `;
-        if (append) groupsRoot.appendChild(groupEl);
+        if (append) {
+            groupsRoot.appendChild(groupEl);
+            if (window.initTooltips) window.initTooltips();
+        }
         if (groupDeleteModeActive && groupDeleteModeGroup === groupEl) {
             groupEl.classList.add('deletable-group');
             const pill = ensureGroupDeletePill(groupEl);
             if (pill) pill.style.display = '';
         }
         if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
+        return groupEl;
+    }
+
+    async function createGroupWithDefaultCollection(initialName = 'Group Name', opts = {}) {
+        const { sibling = null, persistReason = 'add-group', focusName = true } = opts || {};
+        const groupEl = createGroupElement(initialName, { append: false });
+        if (!groupEl) return null;
+        const insertBeforeTarget = sibling || null;
+        groupsRoot.insertBefore(groupEl, insertBeforeTarget);
+        if (window.initTooltips) window.initTooltips();
+        wireGroup(groupEl);
+        addCollectionCardToGroup(groupEl, {
+            startEditing: false,
+            persistReason: null,
+            disableDeleteMode: false,
+        });
+        refreshGroupIndices();
+        ensureGroupSortable();
+        if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
+        updateEmptyMsg();
+        if (persistReason) await persistCollections(persistReason);
+        if (focusName) {
+            const nameInput = qs('.group-name', groupEl);
+            if (nameInput) {
+                nameInput.focus();
+                nameInput.select();
+            }
+        }
         return groupEl;
     }
 
@@ -648,24 +878,18 @@
         groupEl._wired = true;
         const addBtn = qs('.add-chord', groupEl);
         const deleteBtn = qs('.delete-chords', groupEl);
+        const exportBtn = qs('.export-group', groupEl);
         const nameInput = qs('.group-name', groupEl);
         const grid = qs('.chord-grid', groupEl);
 
         if (addBtn && grid) {
             addBtn.addEventListener('click', () => {
-                const card = createCollectionCard();
-                grid.appendChild(card);
-                wireCollectionCard(card, groupEl);
-                disableCollectionDeleteMode();
-                toggleEdit(card, true);
-                const input = qs('.chord-name-input', card);
-                if (input) {
-                    input.focus();
-                    input.select();
-                }
-                persistCollections('add-collection');
-                updateEmptyMsg();
+                addCollectionCardToGroup(groupEl);
             });
+        }
+
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => exportGroup(groupEl));
         }
 
         if (deleteBtn) {
@@ -719,10 +943,22 @@
         deleteGroupModal = document.getElementById('delete-group-modal');
         confirmDeleteGroupBtn = document.getElementById('confirm-delete-group');
         cancelDeleteGroupBtn = document.getElementById('cancel-delete-group');
+        if (window.setupTooltipBoundary) window.setupTooltipBoundary({ boundary: document.body });
 
         qsa('.group', groupsRoot).forEach((groupEl) => wireGroup(groupEl));
+        refreshGroupIndices();
         ensureGroupSortable();
         if (hoverGroupInsert && hoverGroupInsert.init) hoverGroupInsert.init();
+        ensureHistoryTooltips();
+        wireTopImportExport();
+
+        const addGroupBtn = document.getElementById('add-group');
+        if (addGroupBtn) {
+            addGroupBtn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                await createGroupWithDefaultCollection('Group Name', { persistReason: 'add-group' });
+            });
+        }
 
         groupsRoot.addEventListener(
             'blur',
@@ -768,6 +1004,7 @@
                 const target = deleteGroupModal._target;
                 deleteGroupModal._target = null;
                 target.remove();
+                refreshGroupIndices();
                 if (!groupsRoot.querySelector('.group')) disableGroupDeleteMode();
                 await persistCollections('delete-group');
                 updateEmptyMsg();
@@ -776,6 +1013,7 @@
         }
 
         updateEmptyMsg();
+        if (window.initTooltips) window.initTooltips();
     }
 
     if (document.readyState === 'loading') {

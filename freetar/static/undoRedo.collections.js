@@ -95,6 +95,32 @@
     // console.debug('[collections:undo] snapshot pushed:', reason);
   }
 
+  async function morphGroupsRootFromHTML(html, { pushHistory = false, reason = '' } = {}) {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const newRoot = doc.getElementById('groups-root');
+    const curRoot = document.getElementById('groups-root');
+
+    if (!newRoot || !curRoot) throw new Error('#groups-root missing in fetched HTML');
+    if (typeof window.morphdom !== 'function') throw new Error('morphdom not loaded');
+
+    window.morphdom(curRoot, newRoot, { childrenOnly: true });
+
+    if (window.rewireCollectionsUI) window.rewireCollectionsUI();
+    if (window.rewireChordUI) window.rewireChordUI(); // harmless if chords UI is present
+    if (pushHistory) pushSnapshot(reason || 'server-update');
+    updateButtons();
+  }
+
+  async function refreshFromCurrentPage(reason = '', { pushHistory = false } = {}) {
+    const res = await fetch(window.location.href, {
+      cache: 'no-store',
+      headers: { 'X-Requested-With': 'fetch' },
+    });
+    if (!res.ok) throw new Error('fetch failed: ' + res.status);
+    const html = await res.text();
+    await morphGroupsRootFromHTML(html, { pushHistory, reason });
+  }
+
   async function applySnapshotAndPersist(targetState, reason = '') {
     try {
       await fetch(ENDPOINT, {
@@ -102,26 +128,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(targetState),
       });
-
-      const res = await fetch(window.location.href, {
-        cache: 'no-store',
-        headers: { 'X-Requested-With': 'fetch' },
-      });
-      if (!res.ok) throw new Error('fetch failed: ' + res.status);
-      const html = await res.text();
-
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const newRoot = doc.getElementById('groups-root');
-      const curRoot = document.getElementById('groups-root');
-
-      if (!newRoot || !curRoot) throw new Error('#groups-root missing in fetched HTML');
-      if (typeof window.morphdom !== 'function') throw new Error('morphdom not loaded');
-
-      window.morphdom(curRoot, newRoot, { childrenOnly: true });
-
-      if (window.rewireCollectionsUI) window.rewireCollectionsUI();
-      if (window.rewireChordUI) window.rewireChordUI(); // harmless if chords UI is present
-      updateButtons();
+      await refreshFromCurrentPage(reason, { pushHistory: false });
     } catch (e) {
       console.warn('[collections:undo] Live morph failed; falling back to reload. Reason:', e);
       window.location.reload();
@@ -294,6 +301,7 @@
   reconcileOnLoad();
   installCapture();
   updateButtons();
+  window.collectionsMorphFromHTML = (html, opts = {}) => morphGroupsRootFromHTML(html, opts);
 
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_KEY) updateButtons();

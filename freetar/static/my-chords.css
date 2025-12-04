@@ -3,6 +3,7 @@
     --border-subtle: #ececf71f;
     --chord-card-height-u: 10;
     --chord-card-width-u: 6.2;
+    --chord-edit-scale: 1;
     --chords-gutter: clamp(0rem, 0.6vw, 0.35rem);
     --chords-max: 100%;
     --color-bg: #2a282d;
@@ -51,15 +52,91 @@
     --space-4: 1rem;
     --space-5: 1.25rem;
     --surface-elevated: #2a282d;
+    --bs-link-color: #00B499;
+    --tooltip-gap: 0.65rem;
+    --tooltip-max-ch: 36;
+    --tooltip-offset-x: 0px;
+    --tooltip-offset-y: 0px;
+    --tooltip-caret-x: 0px;
     --text-on-accent: #0e1b1b;
     --text-primary: #f5f4ee;
     --text-secondary: #ececf7;
+    --chord-grid-max-columns: 8;
     /Radii/--radius-s: 10px;
     /Shadows/--shadow-elevated: 0 1px 0 #ffffff05 inset, 0 10px 28px #00000059;
     /Spacing/--space-2: .5rem;
     /Surfacetext/--surface: #2a282d;
     /Typescale/--fz-12: .75rem;
 }
+
+/* Horizontal spacing map (A–E)
+A: body>.row padding-inline clamp(0.5rem, 1vw, 1.25rem) -> calc(clamp(0.5rem, 1vw, 1.25rem) * var(--space-AandE)); main.container/.container max-width 98% (plus translateX(0.4em) nudge) -> calc(98% + (2% * (1 - var(--space-AandE)))); .row max-width 99% -> calc(99% + (1% * (1 - var(--space-AandE)))).
+B: .group padding-inline defaults to 0.5em with .group.group.mb-4 overriding left/right to var(--space-4) (1rem) and @media (min-width:768px) padding 1.25rem -> padding-inline scaled by var(--space-BandD).
+C: #groups-root .chord-grid column-gap 0.12rem -> calc(0.12rem * var(--space-C)); grid justify-content:center and grid-template-columns repeat(auto-fill, minmax(min(calc(var(--diagram-u) * var(--chord-card-width-u)), 100%), 1fr)) keep cards centered with auto-fill column sizing.
+D: Mirrors B trailing edge via the same group padding-inline calc(... * var(--space-BandD)).
+E: Mirrors A via body>.row/container width controls -> same var(--space-AandE) calcs.
+*/
+
+/* Chord Grid Width Variables A–E Modifiers
+A: Viewport edge → group outer border (page/container paddings and any group margins).
+B: Group inner border → outer edge of the first chord card in the first row (group padding, grid container padding, leading gaps).
+C: Gaps between adjacent chord cards within a row (grid column-gap or card horizontal margins).
+D: Outer edge of the last chord card → group inner border (trailing gaps symmetrical to B).
+E: Group outer border → viewport edge (symmetrical to A).
+Total width = A + B + (N × C) + D + E
+*/
+
+/* Horizontal space multipliers */
+:root {
+    --space-AandE: .2;
+    /* Horizontal space between A: Viewport edge → group outer border */
+    --space-BandD: .2;
+    /* Horizontal space between B: Group inner border → outer edge of the first chord card and D: Outer edge of the last chord card → group inner border */
+    --space-C: .5;
+    /* Horizontal space between C: Gaps between adjacent chord cards within a row */
+}
+
+/* Vertical spacing map (V1–V7)
+V1: .group padding-block-end 0.5em (>=768px var(--space-5)=1.25rem) -> calc(0.5em * var(--spaceV-1)) / calc(var(--space-5) * var(--spaceV-1)).
+V2: .chord-card padding-block-end 0.12rem -> calc(0.12rem * var(--spaceV-2)).
+V3: header row .position-relative.mb-1 margin-bottom 0.25rem (Bootstrap mb-1) -> calc(0.25rem * var(--spaceV-3)).
+V4: .chord-title padding-top 2em plus chord-card padding-block-start 0.12rem -> calc(2em * var(--spaceV-4)) and calc(0.12rem * var(--spaceV-4)).
+V5: .group-header gap 2em and .group-buttons controls height 32px/padding var(--space-1) -> gap/height/padding scaled by var(--spaceV-5).
+V6: .group padding-block-start 0.5em (>=768px var(--space-5)=1.25rem) -> calc(0.5em * var(--spaceV-6)) / calc(var(--space-5) * var(--spaceV-6)).
+V7: .group.mb-4 margin-bottom 1.5rem (Bootstrap mb-4) -> calc(1.5rem * var(--spaceV-7)).
+*/
+
+/* Chord Grid Height Variables V1–V7 Modifiers
+V1: group inner bottom → card bottom
+V2: card bottom → diagram bottom
+V3: diagram top-of-nut → title bottom
+V4: title top → card top
+V5: .group-header.mb-2 height (via padding/gaps)
+V6: group inner top → header top
+V7: vertical gap between adjacent groups
+*/
+:root {
+    --spaceV-1: .8;
+    /* group inner bottom padding (or wrapper) */
+    --spaceV-2: .8;
+    /* under-diagram spacing inside card */
+    --spaceV-3: .8;
+    /* title↔diagram spacing */
+    --spaceV-4: .8;
+    /* card top interior spacing */
+    --spaceV-5: 1;
+    /* header vertical padding/gap */
+    --spaceV-6: .1;
+    /* group inner top padding (or header top margin) */
+    --spaceV-7: .05;
+    /* inter-group vertical gap */
+    --min-height-multiplier: .9;
+}
+
+.group-header {
+    margin-top: 0.8em;
+}
+
 
 :root[data-bs-theme="light"] {
     --accent: #555555;
@@ -78,7 +155,7 @@
 
 :root[data-bs-theme="light"] #add-group,
 :root[data-bs-theme="light"] .btn-primary {
-    background: #dcdcdc !important;
+    background: transparent !important;
     border-color: #c8c8c8 !important;
     color: #000000 !important;
 }
@@ -96,7 +173,7 @@
 }
 
 :root[data-bs-theme="light"] .btn {
-    background: #f5f5f5 !important;
+    background: transparent !important;
     border-color: #c8c8c8 !important;
     color: #000000 !important;
 }
@@ -109,23 +186,24 @@
 }
 
 :root[data-bs-theme="light"] .btn-success {
-    background: #4f4f4f !important;
+    background: transparent !important;
     border-color: #4f4f4f !important;
-    color: #ffffff !important;
+    color: #4f4f4f !important;
 }
 
 :root[data-bs-theme="light"] .btn-success:hover {
-    background: #5f5f5f !important;
+    background: transparent !important;
+    color: #3a3a3a !important;
 }
 
 :root[data-bs-theme="light"] .btn:hover {
-    background: #e6e6e6 !important;
+    background: transparent !important;
 }
 
 :root[data-bs-theme="light"] .chord-card {
-    background: #ffffff;
-
-    box-shadow: 0 2px 8px #00000014;
+    background: transparent;
+    border: 1px solid transparent;
+    box-shadow: none;
 }
 
 :root[data-bs-theme="light"] .chord-card .delete-chord-btn,
@@ -137,10 +215,45 @@
 }
 
 :root[data-bs-theme="light"] .chord-dot-filled,
-:root[data-bs-theme="light"] .chord-dot.root-ghost .chord-dot-mini,
 :root[data-bs-theme="light"] .chord-dot.root-played,
 :root[data-bs-theme="light"] .chord-header-root-played {
     background: #555555 !important;
+}
+
+:root[data-bs-theme="light"] .chord-dot.root-ghost .chord-dot-mini,
+:root[data-bs-theme="light"] .chord-header-root-ghost .chord-header-root-mini {
+    background: #ffffff !important;
+}
+
+:root[data-bs-theme="light"] .chord-dot.root-ghost {
+    background: #ffffff !important;
+    border-color: transparent !important;
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-header-root-ghost {
+    background: #ffffff !important;
+    border: none;
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-dot.root-ghost .chord-dot-mini,
+:root[data-bs-theme="light"] .chord-header-root-ghost .chord-header-root-mini {
+    display: none;
+}
+
+:root[data-bs-theme="light"] .chord-dot.root-ghost::after,
+:root[data-bs-theme="light"] .chord-header-root-ghost::after {
+    content: "filter_tilt_shift";
+    font-family: "Material Icons Outlined";
+    font-size: 1.05em;
+    color: #000000;
+    inset: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
 }
 
 :root[data-bs-theme="light"] .chord-header-root-ghost {
@@ -181,7 +294,7 @@
 }
 
 :root[data-bs-theme="light"] .group {
-    background: #f5f5f5;
+    background: #ffffff;
     border-color: #c8c8c8;
     box-shadow: 0 4px 12px #00000014;
 }
@@ -194,6 +307,62 @@
     background: #ffffff;
     color: #000000;
     text-shadow: none;
+}
+
+:root[data-bs-theme="light"] #groups-root,
+:root[data-bs-theme="light"] #groups-root .chord-grid {
+    background: #ffffff;
+}
+
+:root[data-bs-theme="light"] #import-chords-input.import-chords-textarea {
+    background: #ffffff;
+    color: #000000;
+}
+
+:root[data-bs-theme="light"] .chord-card::before {
+    background: transparent;
+}
+
+:root[data-bs-theme="light"] .page-title-row .primary-button,
+:root[data-bs-theme="light"] .primary-button,
+:root[data-bs-theme="light"] .lock-button {
+    background: transparent !important;
+    border-color: #b3b3b3 !important;
+    box-shadow: none !important;
+    color: #b3b3b3 !important;
+}
+
+:root[data-bs-theme="light"] .page-title-row .primary-button:hover,
+:root[data-bs-theme="light"] .page-title-row .primary-button:focus-visible,
+:root[data-bs-theme="light"] .lock-button:hover,
+:root[data-bs-theme="light"] .lock-button:focus-visible {
+    background: transparent !important;
+    border-color: #b3b3b3 !important;
+    color: #b3b3b3 !important;
+}
+
+:root[data-bs-theme="light"] .page-title-row .primary-button .material-icons-outlined,
+:root[data-bs-theme="light"] .lock-button .material-icons-outlined {
+    color: currentColor;
+}
+
+:root[data-bs-theme="light"] .page-title-row .lock-button[data-locked] .material-icons-outlined {
+    color: #b3b3b3 !important;
+}
+
+:root[data-bs-theme="light"] .page-breadcrumb a {
+    color: #b3b3b3;
+    text-decoration: underline;
+}
+
+:root[data-bs-theme="light"] .group-buttons .add-chord::after,
+:root[data-bs-theme="light"] .group-buttons .delete-chords::after {
+    z-index: 15;
+}
+
+:root[data-bs-theme="light"] .group-buttons .add-chord::before,
+:root[data-bs-theme="light"] .group-buttons .delete-chords::before {
+    z-index: 14;
 }
 
 :root[data-bs-theme="light"] h2.mb-3::after {
@@ -217,7 +386,7 @@
     color: var(--text-primary) !important;
     font-size: var(--fz-14) !important;
     font-weight: 600 !important;
-    letter-spacing: -.01em !important;
+    letter-spacing: 0em;
     line-height: 1 !important;
     padding: .5rem .9rem !important;
     transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .02s ease;
@@ -266,7 +435,11 @@
 
 /* Page header layout */
 .page-title-group {
-    margin: 1em 0 1.25rem;
+    margin: .5em 0.1em 0em 0.1em;
+}
+
+h2.page-title.flex-grow-1 {
+    margin-top: 0.25em;
 }
 
 .page-breadcrumb .breadcrumb-icon {
@@ -309,7 +482,7 @@
     flex-shrink: 1;
     font-size: clamp(var(--fz-22), 1.25rem + 1vw, var(--fz-28));
     font-weight: 600;
-    letter-spacing: -.02em;
+    letter-spacing: 0em;
     margin: 0;
     text-shadow: 0 1px 0 #00000040;
 }
@@ -326,35 +499,16 @@
     justify-content: flex-end;
 }
 
+#undo-redo-wrap .toolbar-export {
+    margin-right: 2em;
+}
+
+
+
 .title-import-btn {
     margin-right: clamp(1.5rem, 4vw, 4em);
 }
 
-/ Heading changes / h2.mb-3 {
-    color: var(--text-primary);
-    font-size: clamp(var(--fz-22), 1.25rem + 1vw, var(--fz-28));
-    font-weight: 600;
-    letter-spacing: -.02em;
-    margin: 0 0 .75rem;
-    text-shadow: 0 1px 0 #00000040;
-}
-
-/ Primary (Save) / .btn-success {
-    background: var(--accent) !important;
-    border-color: transparent !important;
-    color: var(--text-on-accent) !important;
-}
-
-/ Secondary (Add group) / #add-group,
-.btn-primary {
-    background: #ffffff08 !important;
-    border-color: var(--border-subtle) !important;
-    color: var(--text-primary) !important;
-}
-
-/ Surface changes /:root {
-    color-scheme: dark;
-}
 
 body {
     background: radial-gradient(120% 200% at 50% -80%, #3a3840 0%, var(--surface) 58%), var(--surface);
@@ -363,7 +517,7 @@ body {
     color: var(--text-primary);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
     font-size: var(--fz-14);
-    letter-spacing: -.01em;
+    letter-spacing: 0em;
     line-height: 1.6;
     margin: 0;
 }
@@ -408,7 +562,7 @@ label.form-label {
 main.container,
 .container {
     width: 100%;
-    max-width: 98%;
+
     margin-left: auto;
     margin-right: auto;
     box-sizing: border-box;
@@ -426,9 +580,6 @@ main.container,
     padding-right: 0;
 }
 
-.container {
-    transform: translateX(0.4em);
-}
 
 pre {
     display: inline-block;
@@ -556,7 +707,8 @@ h5#delete-group-modal-title {
 
     box-sizing: border-box;
     max-width: 100%;
-    min-height: calc(var(--diagram-u) * var(--chord-card-height-u));
+    min-height: calc(var(--diagram-u) * var(--chord-card-height-u) * var(--min-height-multiplier) * var(--chord-edit-scale));
+    /* min-height: calc(var(--diagram-u) * var(--chord-card-height-u) * var(--chord-edit-scale)); */
     min-width: calc(var(--diagram-u) * var(--chord-card-width-u));
     padding: 0.12rem;
     position: relative;
@@ -591,11 +743,12 @@ h5#delete-group-modal-title {
 .chord-card .chord-title {
     flex: 0 0 auto;
     font-family: "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.2em;
     padding-top: 2em;
-    margin-left: auto !important;
-    margin-right: auto !important;
+    margin-left: auto;
+    margin-right: auto;
     text-align: center;
+
 }
 
 .chord-card .delete-chord-btn {
@@ -726,7 +879,7 @@ h5#delete-group-modal-title {
     --row4-h: var(--diagram-row4-h);
     --string-gap: var(--diagram-string-gap);
     --string-width: var(--diagram-string-width);
-    --u: var(--diagram-u);
+    --u: calc(var(--diagram-u) * var(--chord-edit-scale));
     background: var(--color-bg);
     border-collapse: collapse;
     color: var(--color-fg);
@@ -959,7 +1112,7 @@ h5#delete-group-modal-title {
 .chord-edit-fields {
     display: block;
     margin-bottom: var(--space-2);
-    padding-top: 1rem;
+    padding-top: 2rem;
     transform: none;
     width: 100%;
 }
@@ -1099,9 +1252,9 @@ h5#delete-group-modal-title {
 
 .chord-title {
     color: #00d3dc;
-    font-size: 1.3em;
+    font-size: calc(1.3em * var(--chord-edit-scale, 1));
     margin-bottom: .15rem;
-    transform: translateX(1em);
+
 }
 
 .collection-body-placeholder {
@@ -1128,7 +1281,7 @@ h5#delete-group-modal-title {
     position: absolute;
     top: var(--space-3);
     z-index: 2;
-    color: #0a58ca;
+    color: #47637F;
     cursor: move;
     opacity: 0;
     font-size: 24px;
@@ -1141,7 +1294,7 @@ h5#delete-group-modal-title {
     top: var(--space-3);
     z-index: 2;
     cursor: pointer;
-    color: #0a58ca;
+    color: #47637F;
     opacity: 0;
     font-size: 24px;
     border-radius: 50%;
@@ -1359,10 +1512,12 @@ h5#delete-group-modal-title {
     top: auto;
     transform: none;
     z-index: auto;
+    transform: translateX(-1em);
 }
 
 .group-buttons .add-chord,
-.group-buttons .delete-chords {
+.group-buttons .delete-chords,
+.group-buttons .export-group {
     align-items: center;
     background: transparent;
     border: 1px solid transparent;
@@ -1384,11 +1539,17 @@ h5#delete-group-modal-title {
 }
 
 .group-buttons .delete-chords {
-    color: #f96666;
+    color: #d0a097;
+}
+
+.group-buttons .export-group {
+    color: var(--text-primary);
 }
 
 .group-buttons .add-chord:hover,
-.group-buttons .add-chord:focus-visible {
+.group-buttons .add-chord:focus-visible,
+.group-buttons .export-group:hover,
+.group-buttons .export-group:focus-visible {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.18);
     color: var(--accent);
@@ -1401,63 +1562,51 @@ h5#delete-group-modal-title {
     color: #ff6b6b;
 }
 
-.group-buttons .add-chord::after,
-.group-buttons .delete-chords::after {
-    background: rgba(0, 0, 0, 0.85);
-    border-radius: 6px;
-    color: #ffffff;
-    content: attr(data-tooltip);
-    font-size: 0.75rem;
-    left: 50%;
-    line-height: 1.1;
-    opacity: 0;
-    padding: 0.35rem 0.55rem;
-    pointer-events: none;
-    position: absolute;
-    top: -0.55rem;
-    transform: translate(-50%, -100%);
-    transition: opacity .12s ease, transform .12s ease;
-    white-space: nowrap;
-    z-index: 3;
-}
-
-.group-buttons .add-chord::before,
-.group-buttons .delete-chords::before {
-    border: 6px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.85);
-    content: "";
-    left: 50%;
-    opacity: 0;
-    position: absolute;
-    top: -0.55rem;
-    transform: translate(-50%, -45%);
-    transition: opacity .12s ease, transform .12s ease;
-    z-index: 2;
-}
-
-.group-buttons .add-chord:hover::after,
-.group-buttons .delete-chords:hover::after,
-.group-buttons .add-chord:focus-visible::after,
-.group-buttons .delete-chords:focus-visible::after {
-    opacity: 1;
-    transform: translate(-50%, -110%);
-}
-
-.group-buttons .add-chord:hover::before,
-.group-buttons .delete-chords:hover::before,
-.group-buttons .add-chord:focus-visible::before,
-.group-buttons .delete-chords:focus-visible::before {
-    opacity: 1;
-    transform: translate(-50%, -55%);
-}
-
 .group-buttons .material-icons-outlined {
     font-size: 26px;
     line-height: 1;
 }
 
+.group-footer-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-right: 0.7em;
+    margin-bottom: -.2em;
+}
+
+.group-footer-actions .export-group {
+    align-items: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    box-sizing: border-box;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    height: 32px;
+    justify-content: center;
+    padding: 1.3em;
+    transition: background-color .15s ease, color .15s ease, transform .1s ease, border-color .15s ease;
+    width: 32px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.group-footer-actions .export-group:hover,
+.group-footer-actions .export-group:focus-visible {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: var(--accent);
+}
+
+.group:hover .group-footer-actions .export-group,
+.group:focus-within .group-footer-actions .export-group {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 .group-handle {
-    color: #0a58ca;
+    color: #47637F;
     cursor: move;
     scale: 1.1;
     left: 0.1rem;
@@ -1609,30 +1758,7 @@ h5#delete-group-modal-title {
     line-height: 1;
 }
 
-.group-insert-tooltip {
-    background: rgba(0, 0, 0, 0.82);
-    border-radius: 6px;
-    color: #ffffff;
-    display: none;
-    font-size: 0.75rem;
-    left: 0;
-    padding: 0.35rem 0.55rem;
-    position: absolute;
-    top: 0;
-    transform: translate(-50%, -120%);
-    white-space: nowrap;
-    z-index: 20;
-}
 
-.group-insert-tooltip::after {
-    border: 6px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.82);
-    content: "";
-    left: 50%;
-    position: absolute;
-    top: 100%;
-    transform: translateX(-50%);
-}
 
 .group.deletable-group {
     animation: group-shake 0.3s infinite linear alternate;
@@ -1779,7 +1905,7 @@ h5#delete-group-modal-title {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
+    background: rgba(0, 0, 0, 0.85);
     pointer-events: auto;
     opacity: 0;
     transition: opacity 160ms ease-out;
@@ -1792,6 +1918,9 @@ h5#delete-group-modal-title {
 
 #chord-edit-modal .modal__overlay {
     z-index: 3000;
+    align-items: flex-start;
+    padding-top: 10vh !important;
+    /* Push modal higher for taller screens */
 }
 
 #delete-group-modal .modal__overlay {
@@ -1803,11 +1932,11 @@ h5#delete-group-modal-title {
 }
 
 .modal__container.chord-edit-modal-container {
-    max-width: 480px;
+    max-width: 600px;
     width: 100%;
     outline: none;
     border-radius: 12px;
-    padding: 1rem 1.25rem;
+    padding: 2rem 2rem;
     background: var(--surface-elevated, #18171a);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
@@ -1821,7 +1950,7 @@ h5#delete-group-modal-title {
     top: 0.5rem;
     right: 0.5rem;
     background: transparent;
-    border: none;
+    border: 1px solid transparent;
     color: var(--text-primary);
     font-size: 1.9rem;
     line-height: 1;
@@ -1829,16 +1958,40 @@ h5#delete-group-modal-title {
     width: 2.25rem;
     height: 2.25rem;
     border-radius: 50%;
+    display: grid;
+    place-items: center;
     cursor: pointer;
-    transition: background-color 120ms ease, color 120ms ease, transform 120ms ease;
+    opacity: 0.9;
+    z-index: 4;
+    padding: 0;
+    box-sizing: border-box;
+    transform: translateY(-0.04em);
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        box-shadow 120ms ease,
+        color 120ms ease,
+        transform 120ms ease;
 }
 
-.modal__close-button:hover,
+.modal__close-button:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+    color: var(--text-primary);
+    transform: translateY(-0.04em) scale(1.05);
+    opacity: 1;
+}
+
 .modal__close-button:focus-visible {
     background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.38);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.3), 0 6px 18px rgba(0, 0, 0, 0.35);
     color: var(--text-primary);
-    outline: none;
-    transform: scale(1.05);
+    outline: 2px solid var(--text-primary);
+    outline-offset: 2px;
+    transform: translateY(-0.04em) scale(1.05);
+    opacity: 1;
 }
 
 .chord-edit-modal-slot {
@@ -1849,6 +2002,10 @@ h5#delete-group-modal-title {
     transform: scale(1.05);
     opacity: 1;
     transition: transform 140ms ease-out, opacity 140ms ease-out;
+}
+
+.chord-card.chord-card-spotlight.is-editing.editing-expanded {
+    --chord-edit-scale: 1.5;
 }
 
 .chord-edit-modal-container .chord-card {
@@ -1871,29 +2028,359 @@ h5#delete-group-modal-title {
 }
 
 #base-fret-modal .base-fret-modal-box {
-    background: #2a282d;
-    color: #efeffc;
-    padding: 1.25rem 1.5rem;
-    border-radius: 8px;
-    max-width: 240px;
-    min-width: 220px;
-    text-align: center;
+    align-items: center;
+    background: var(--surface-elevated, #2a282d);
     box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+    color: var(--text-primary);
+    display: flex;
+    flex-direction: column;
+    padding: 2.75rem 2.5rem;
+    border-radius: var(--radius-xs);
+    max-width: 460px;
+    min-width: 240px;
+    text-align: center;
 }
 
-#base-fret-modal-label {
-    font-weight: 600;
-    letter-spacing: 0.04em;
+#base-fret-modal .base-fret-modal-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    width: 100%;
+}
+
+#base-fret-modal-title {
+    font-size: var(--fz-22);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+#base-fret-modal-hint {
+    color: var(--text-secondary);
+    font-size: var(--fz-14);
+    line-height: 1.5;
+    margin-top: var(--space-1);
+    max-width: 28ch;
+    text-align: center;
 }
 
 #base-fret-modal-value {
-    margin-top: 0.5rem;
-    font-size: 1.25rem;
+    margin-top: var(--space-2);
+}
+
+#base-fret-modal .base-fret-input {
+    background: var(--surface, var(--surface-elevated, #2a282d));
+    border: 1px solid var(--border-light, var(--border-subtle));
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 700;
+    height: 2rem;
     letter-spacing: 0.08em;
-    min-height: 1.6em;
+    line-height: 1.2;
+    margin-top: var(--space-2);
+    min-width: 3.2rem;
+    outline: none;
+    padding: 0.35rem 0.75rem;
+    text-align: center;
+    width: 3.2rem;
+}
+
+#base-fret-modal .base-fret-input:focus {
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 2px var(--focus-ring);
+}
+
+#base-fret-modal .base-fret-input::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.6;
+}
+
+.disabled-section .base-fret-input {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.45);
+    cursor: not-allowed;
+}
+
+:root[data-bs-theme="light"] #base-fret-modal-value {
+    background: rgba(0, 0, 0, 0.04);
 }
 
 
 .row {
     max-width: 99%;
+}
+
+.page-title-row .primary-button {
+    background: #004654;
+    border: 1px solid #47637F;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.3em 1.2em 0.3em 1.2em;
+    height: 2.2em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: none;
+    cursor: pointer;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+.page-title-row .primary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.page-title-row .primary-button .material-icons-outlined {
+    color: rgb(255, 255, 255);
+    font-size: 1.25em;
+    vertical-align: middle;
+}
+
+/* Hover and focus for primary buttons */
+.page-title-row .primary-button:hover,
+.page-title-row .primary-button:focus-visible {
+    background: #343a40;
+    /* dark gray */
+    border: 1px solid #47637F;
+    color: #fff;
+}
+
+.page-title-row .primary-button:hover .material-icons-outlined,
+.page-title-row .primary-button:focus-visible .material-icons-outlined {
+    color: #fff;
+}
+
+/* Margin-right for Import Chords and Redo buttons */
+#show-import-chords {
+    margin-right: 4em;
+}
+
+#redo-history-btn {
+    margin-right: 2em;
+}
+
+.chord-settings-wrap {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--space-2);
+    position: relative;
+}
+
+.chord-settings-menu {
+    --settings-gap: var(--space-2);
+    background: var(--surface-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    box-shadow: var(--shadow-elevated);
+    color: var(--text-primary);
+    min-width: 20rem;
+    opacity: 0;
+    padding: var(--space-3);
+    pointer-events: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--space-2));
+    transform: translateY(-4px);
+    transition: opacity 120ms ease, transform 120ms ease;
+    z-index: 24;
+}
+
+.chord-settings-menu--open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.chord-settings-row {
+    align-items: center;
+    column-gap: var(--settings-gap);
+    display: grid;
+    grid-template-columns: 1fr auto;
+}
+
+.chord-settings-label {
+    align-items: center;
+    cursor: pointer;
+    display: inline-flex;
+    gap: var(--space-2);
+    font-weight: 600;
+    margin: 0;
+}
+
+.chord-settings-label input[type="checkbox"] {
+    cursor: pointer;
+    height: 1.1em;
+    margin: 0;
+    width: 1.1em;
+}
+
+.chord-settings-value {
+    align-items: center;
+    display: inline-flex;
+    gap: var(--space-1);
+}
+
+.chord-settings-input-label {
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    margin: 0;
+    margin-right: 0.3rem;
+}
+
+#max-per-row-input {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xxs);
+    color: var(--text-primary);
+    font-weight: 600;
+    padding: 0.35rem 0.6rem;
+    width: 4.2rem;
+}
+
+.chord-settings-row.is-disabled {
+    opacity: 0.6;
+}
+
+.chord-settings-row.is-disabled .chord-settings-value {
+    cursor: not-allowed;
+}
+
+.chord-settings-row.is-disabled input[disabled] {
+    cursor: not-allowed;
+}
+
+
+/* Lock button base style */
+.page-title-row .lock-button {
+    background: #2a282d;
+    color: #fff;
+    border: 1px solid #2a282d;
+    border-radius: 4px;
+    height: 2.2em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3em 1.2em 0.1em 1.2em;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color .15s, color .15s, border-color .15s;
+}
+
+/* Hover and focus for lock button */
+.page-title-row .lock-button:hover,
+.page-title-row .lock-button:focus-visible {
+    background: #343a40;
+    border: 1px solid #47637F;
+
+}
+
+/* Lock icon size and color transitions */
+.page-title-row .lock-button .material-icons-outlined {
+    font-size: 1.4em;
+    vertical-align: middle;
+    transition: color .15s;
+}
+
+/* 8-across spacing tune */
+body>.row {
+    padding-inline: calc(clamp(0.5rem, 1vw, 1.25rem) * var(--space-AandE));
+}
+
+main.container,
+.container {
+    max-width: calc(98% + (2% * (1 - var(--space-AandE))));
+}
+
+.row {
+    max-width: calc(99% + (1% * (1 - var(--space-AandE))));
+}
+
+.group {
+    padding-inline: calc(0.5em * var(--space-BandD));
+}
+
+.group.group.mb-4 {
+    padding-inline: calc(var(--space-4) * var(--space-BandD));
+}
+
+@media (min-width: 768px) {
+    .group {
+        padding-inline: calc(var(--space-5) * var(--space-BandD));
+    }
+}
+
+#groups-root .chord-grid {
+    column-gap: calc(0.12rem * var(--space-C));
+}
+
+/* Vertical spacing tune (V1–V7) */
+.group {
+    padding-block-start: calc(0.5em * var(--spaceV-6));
+    padding-block-end: calc(0.5em * var(--spaceV-1));
+}
+
+.chord-card {
+    padding-block-start: calc(0.12rem * var(--spaceV-4));
+    padding-block-end: calc(0.12rem * var(--spaceV-2));
+}
+
+.chord-card .position-relative.mb-1 {
+    margin-bottom: calc(0.25rem * var(--spaceV-3));
+}
+
+.chord-card .chord-title {
+    padding-top: calc(2em * var(--spaceV-4));
+}
+
+.group-header {
+    gap: calc(2em * var(--spaceV-5));
+}
+
+.group-header.mb-2 {
+    margin-bottom: calc(0.5rem * var(--spaceV-5));
+}
+
+.group-buttons .add-chord,
+.group-buttons .delete-chords {
+    height: calc(32px * var(--spaceV-5));
+    padding: calc(var(--space-1) * var(--spaceV-5));
+    width: calc(32px * var(--spaceV-5));
+}
+
+.group.mb-4 {
+    margin-bottom: calc(1.5rem * var(--spaceV-7));
+}
+
+@media (min-width: 768px) {
+    .group {
+        padding-block-start: calc(var(--space-5) * var(--spaceV-6));
+        padding-block-end: calc(var(--space-5) * var(--spaceV-1));
+    }
+}
+
+/* Lock icon: unlocked = light green, locked = subtle red */
+.page-title-row .lock-button[data-locked="false"] .material-icons-outlined {
+    color: #00B499;
+}
+
+.page-title-row .lock-button[data-locked="true"] .material-icons-outlined {
+    color: #D0A097;
+}
+
+:root[data-bs-theme="light"] .chord-card:hover {
+    border: 1px solid transparent;
+}
+
+.chords-max-per-row-active #groups-root .chord-grid {
+    --chord-grid-gap: calc(0.12rem * var(--space-C));
+    --chord-grid-gap-max: calc(var(--chord-grid-gap) * 2);
+    column-gap: clamp(var(--chord-grid-gap), 1.2vw, var(--chord-grid-gap-max));
+    grid-template-columns: repeat(auto-fill, minmax(min(calc(var(--diagram-u) * var(--chord-card-width-u)), 100%), 1fr));
+    margin-inline: auto;
+    max-width: calc(var(--chord-grid-max-columns) * var(--diagram-u) * var(--chord-card-width-u) + (var(--chord-grid-max-columns) - 1) * var(--chord-grid-gap-max));
+    width: 100%;
 }

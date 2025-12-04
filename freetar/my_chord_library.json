@@ -1,19 +1,10 @@
 [
   {
-    "group": "New group",
-    "chords": [
-      {
-        "name": "...",
-        "shape": "[7]546x0"
-      }
-    ]
-  },
-  {
     "group": "Group",
     "chords": [
       {
         "name": "(new)",
-        "shape": "x00000"
+        "shape": "x40000"
       },
       {
         "name": "♯9",
@@ -41,7 +32,7 @@
       },
       {
         "name": "...",
-        "shape": "4xx000"
+        "shape": "xxx000"
       }
     ]
   },

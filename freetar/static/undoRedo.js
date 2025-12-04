@@ -71,9 +71,9 @@
     return jstr(a) === jstr(b);
   }
 
-  function pushSnapshot(reason = '') {
+  function pushSnapshot(reason = '', explicitState) {
     const hist = loadHistory();
-    const current = serializeFromDOM();
+    const current = explicitState !== undefined ? explicitState : serializeFromDOM();
     const last = hist.items[hist.items.length - 1];
 
     // If nothing changed, skip
@@ -104,8 +104,8 @@
 
   // Allow other modules (e.g., diagram clicks) to request a snapshot without leaking internals
   if (!window.freetarUndoSnapshot) {
-    window.freetarUndoSnapshot = function freetarUndoSnapshot(reason) {
-      pushSnapshot(reason || 'diagram-click');
+    window.freetarUndoSnapshot = function freetarUndoSnapshot(reason, explicitState) {
+      pushSnapshot(reason || 'diagram-click', explicitState);
     };
   }
 
@@ -195,7 +195,7 @@
     if (!btnUndo) {
       btnUndo = document.createElement('button');
       btnUndo.id = 'undo-history-btn';
-      btnUndo.className = 'btn btn-sm btn-primary';
+      btnUndo.className = 'primary-button';
       btnUndo.title = 'Undo';
       btnUndo.setAttribute('aria-label', 'Undo');
       btnUndo.innerHTML = '<span class="material-icons-outlined" aria-hidden="true">undo</span>';
@@ -210,7 +210,7 @@
     if (!btnRedo) {
       btnRedo = document.createElement('button');
       btnRedo.id = 'redo-history-btn';
-      btnRedo.className = 'btn btn-sm btn-primary';
+      btnRedo.className = 'primary-button';
       btnRedo.title = 'Redo';
       btnRedo.setAttribute('aria-label', 'Redo');
       btnRedo.innerHTML = '<span class="material-icons-outlined" aria-hidden="true">redo</span>';
@@ -220,6 +220,7 @@
       });
       wrap.appendChild(btnRedo);
     }
+
   }
 
   function updateButtons() {
@@ -296,6 +297,12 @@
     // 8) Optional: chord reorder capture (requires Sortable onEnd hook; see note below)
     document.addEventListener('chords-reordered', () => {
       pushSnapshot('reorder');
+    });
+
+    // 9) Library import (server-side merge; handled via custom event)
+    document.addEventListener('chords-imported', (e) => {
+      const state = e && e.detail && e.detail.state;
+      pushSnapshot('import', state);
     });
   }
 

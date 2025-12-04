@@ -3,13 +3,23 @@
   "private": true,
   "devDependencies": {
     "@biomejs/biome": "2.3.7",
-    "@biomejs/cli-win32-x64": "2.3.7"
+    "@biomejs/cli-win32-x64": "2.3.7",
+    "async": "^3.2.6",
+    "cssnano": "^7.1.2",
+    "csstree": "^0.0.3",
+    "csstree-validator": "^4.0.1",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "postcss-discard-comments": "^7.0.5",
+    "postcss-safe-parser": "^7.0.1",
+    "purgecss": "^7.0.2"
   },
   "dependencies": {
     "morphdom": "2.7.3",
     "undo-manager": "^1.1.1"
   },
   "scripts": {
-    "postinstall": "node scripts/copy-morphdom.js"
+    "postinstall": "node scripts/copy-morphdom.js",
+    "css:opt": "postcss tools/my-chords-cleaned-and-pretty_02.css -o tools/my-chords-final.css"
   }
 }

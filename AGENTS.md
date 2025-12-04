@@ -7,6 +7,8 @@ You are a senior full stack engineer working on the My Chord Library repository 
 Goals:
 
 - Implement the user request with the smallest correct change set that preserves existing behavior unless the user clearly asks otherwise.
+- Minimize context and token usage by touching as few files and lines as possible.
+- Assume the user has already done the planning. Do not produce long multi step plans unless the user explicitly asks for a plan. Prefer direct implementation.
 - Act as a patch generator, not a refactor bot.
 - Keep HTML, CSS, and JS accessible, responsive, and readable.
 - Work only inside `freetar/`. Do not edit build artifacts or vendor bundles.
@@ -24,6 +26,30 @@ Users can:
 - Edit chord names and shapes inline.
 - Use batch import and persistent undo and redo.
 - Organize chords into named collections and open each collection in its own chord library view.
+- Export and import chord libraries and collection groups as non destructive JSON backups.
+
+
+## Token and context discipline
+
+- Prefer the smallest context that still lets you complete the task.
+- When the user lists “Files to open” or names specific paths, treat that as the full scope of work. Do not open or edit other files unless:
+  - there is a direct reference such as an import, selector, or stack trace, or
+  - the user explicitly asks you to explore further.
+- Do not scan the entire repository or run broad searches over `freetar/` by default. Use targeted greps on specific identifiers when you need to find code.
+- Avoid running tests, linters, or build commands for tasks that only change HTML or CSS unless the user asks for verification.
+- Start with a single focused pass that implements the requested change. Escalate to multi step investigation only when the request is ambiguous or failing.
+
+
+## Editing and patch discipline
+
+- Work only inside `freetar/` and never under `freetar/static/vendor` or in minified or generated bundles.
+- Read the current file contents before editing.
+- Make minimal, surgical edits. Touch as few lines as possible and express changes as small diffs or patches, not full file rewrites. Do not regenerate an entire file unless the user explicitly asks.
+- Keep each patch focused within one area rather than doing cross file refactors. Avoid opportunistic cleanups or style changes that are unrelated to the request.
+- Preserve existing file structure and ordering unless the user asks to reorganize.
+- Favor explicit, readable code even if it adds a few extra lines.
+- Add comments only for non obvious interactions, especially around morphdom, undo and redo, hover based Add Group overlays, drag and drop, and diagram click wiring.
+
 
 ## Tech stack and layout
 
@@ -63,18 +89,28 @@ Key JavaScript
   - Enforce the one note per string model.
   - Surface clickable header elements via `.chord-header-label`.
 
-- `freetar/static/my-chords.page.js`  
+- Chord_interactions.md
+Interaction and invariants spec for chord diagrams; treat as reference for changes to `chordDiagram.js` and `my-chords.page.js`. 
+Review this document when: 
+  - Changing shape grammar,`{ tokens, roots }`invariants, or the parse/serialize helpers.
+  - Modifying`.chord-diagram`structure, header/footer cells, or click-target classes.
+  - Touching base fret logic, rebasing math,`card.dataset.baseFret`, or the “Fret #?” modal helper.
+  - Editing click or keybinding behavior (plain / Shift / Alt / Ctrl, Ctrl+Enter),`persist`rules, or`event.stopPropagation`.
+  - Adjusting view vs edit mode flows,`currentEditingCard`usage, or enforcing the one-note-per-string guardrail.
+  - Diagram lock and chord layout settings popover, including the “limit chords per row” checkbox and max value, persisted via `my_chords_settings` and applied through `body.chords-max-per-row-active` and `--chord-grid-max-columns`.
+
+
+- `freetar/static/my-chords.page.js`
   Main controller for My Chords. Responsibilities:
-  - Group and card wiring under `#groups-root`.
-  - Inline editing via `.chord-edit-section` and `.chord-edit-fields`.
-  - Chord symbol palette in `.chord-symbols-toolbar`.
-  - Batch import from `#import-chords-area`.
-  - Drag and drop for groups and chords.
-  - Delete modes for chords and groups with red pills and a confirmation modal.
-  - Hover based Add Group behavior via `hoverGroupInsert` and `.group-insert-zone` overlays.
-  - Auto save through `buildDataFromDOM()` and `persist(reason)`.
-  - Idempotent `rewireChordUI()` exposed as `window.rewireChordUI`.
-  - Diagram click handling for header, fret cells, and fret labels.
+  - Manage groups and chord cards under `#groups-root` with SortableJS, emitting `chords-reordered` on reorders.
+  - Inline edit flow via `#chord-edit-modal` spotlight clone, `.chord-edit-section` and `.chord-edit-fields`, using `beginEditing` / `finishEditing`, click-away commit, Esc cancel, Ctrl+Enter commit, and Ctrl click commit.
+  - Diagram click handling for header, fret cells, and fret labels, including base fret prompt wiring, delegation to `chordDiagram.js` helpers, and the diagram lock toggle driven by `#diagram-lock-toggle` and `my_chords_settings`.
+  - Chord symbol palette in `.chord-symbols-toolbar` plus shape keybindings (Alt/Shift/Ctrl combinations) to wrap selections into root encodings.
+  - Batch import via `#import-chords-area`, using `normalizeShapeText` and optional group hints (first word prefix match) to route chords into groups.
+  - Chord and group delete modes via `.delete-chords`, `.delete-chord-btn`, `.delete-group-pill`, and the `#delete-group-modal` confirmation flow.
+  - Hover Add Group affordance via `hoverGroupInsert` and `.group-insert-zone` overlays for before/after/between insertion.
+  - Auto save and history integration through `buildDataFromDOM()`, `persist(reason)`, `pendingEditSnapshots`, and `window.freetarUndoSnapshot`.
+  - Idempotent `rewireChordUI()` exposed as `window.rewireChordUI` to reattach diagrams, Sortable, and toolbars after DOM morphs.
 
 - `freetar/static/my-collections.page.js`  
   Controller for `my_collections.html`. Mirrors My Chords behavior for groups, tiles, delete mode, hover Add Group, and persistence.
@@ -156,6 +192,7 @@ DOM and events:
   - Updates `.chord-title` using `prettifyChordName` for display only.
   - Calls `renderCardDiagram(card)`.
   - Calls `persist('edit-commit')`.
+- UI preferences like `diagramLockEnabled`, `maxChordsPerRowEnabled`, and `maxChordsPerRow` live in a `my_chords_settings` JSON blob and must be loaded on init so lock state and layout match persisted values.
 - `prettifyChordName` must not change the stored name or backend payload.
 - Reordering persists on Sortable `onEnd` and dispatches `chords-reordered`.
 - Deletions persist once when exiting delete mode, not per click.
@@ -168,6 +205,8 @@ DOM and events:
 - The chord symbol palette must remain usable without stealing focus from the name input.
 
 ### Chord diagram invariants
+
+TLDR: One note per string. Do not change click semantics (plain / Shift / Alt / Ctrl), base fret behavior, or shape encoding unless the user explicitly asks. See details below.
 
 Treat the current chord diagram semantics as a spec. Do not change them unless the user clearly asks.
 
@@ -213,6 +252,12 @@ You do not need to re describe the full click sequence in every change. When adj
   - Fallback is an existing group or a new blank group.
 - Each imported chord is added via a helper like `addChordToGrid`, followed by a single `persist('import')`.
 
+### Library backup import and export
+
+- My Chords and My Collections expose JSON backup import and export that operate at the group and library level and are separate from batch import.
+- Export payloads contain all groups and their chords or tiles for the active context and are versioned. Import must be non destructive and always adds new groups at the top.
+- When importing, name collisions for groups are resolved by auto numbering with `-NN` suffixes so no existing group or collection is overwritten.
+
 ### Delete modes and collections
 
 - Group level delete mode:
@@ -227,24 +272,6 @@ You do not need to re describe the full click sequence in every change. When adj
 - Sortable emits `chords-reordered` which `undoRedo.js` consumes.
 - Undo and redo use local history, server persistence, and morphdom.
 - After morphdom, `window.rewireChordUI()` must be called to rewire listeners and diagrams.
-
-## Editing protocol for the code agent
-
-Use structured editing when available.
-
-- Read the current file contents before proposing changes.
-- Generate a small unified diff per file or a clearly scoped textual patch.
-- Avoid full file rewrites unless the user explicitly asks.
-- Keep each patch focused. Prefer several small patches over one large refactor.
-- If a patch fails to apply, stop and report the mismatch rather than guessing.
-
-When editing:
-
-- Change only what is needed for the current request.
-- Keep existing file structure and ordering unless asked to reorganize.
-- Do not edit files outside `freetar/` or any vendor or minified bundles.
-- Favor explicit, readable code even if it is a few lines longer.
-- Comment only non obvious interactions, especially around morphdom, undo and redo, hover based Add Group overlays, drag and drop, and diagram click wiring.
 
 ## Response format
 

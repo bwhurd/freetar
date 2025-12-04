@@ -8,5 +8,6 @@
         "**/CVS": true
     },
     "hide-files.files": [],
-    "chatgpt.openOnStartup": true
+    "chatgpt.openOnStartup": true,
+    "chatgpt.runCodexInWindowsSubsystemForLinux": true
 }

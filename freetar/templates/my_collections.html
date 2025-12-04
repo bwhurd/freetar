@@ -5,6 +5,7 @@
 
 <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
 <link rel="stylesheet" href="{{ url_for('static', filename='my-collections.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='tooltips.css') }}">
 <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+Symbols+2&display=swap">
 <div style="max-width: 100%;">
@@ -17,7 +18,19 @@
 
         <div class="d-flex align-items-center mb-3 page-title-row">
             <h2 class="page-title flex-grow-1">My Chords</h2>
-            <span id="undo-redo-wrap" class="d-flex align-items-center gap-2"></span>
+            <span id="undo-redo-wrap" class="d-flex align-items-center gap-2">
+                <button type="button" class="primary-button" id="collections-import-btn"
+                    aria-label="Import collections" data-tooltip="Import Collections from File"
+                    data-tooltip-src="Import Collections from File" title="Import Collections from File">
+                    <span class="material-icons-outlined">file_upload</span>
+                </button>
+                <button type="button" class="primary-button" id="collections-export-btn"
+                    aria-label="Export collections" data-tooltip="Export All Collections to File"
+                    data-tooltip-src="Export All Collections to File" title="Export All Collections to File">
+                    <span class="material-icons-outlined">file_download</span>
+                </button>
+            </span>
+            <input type="file" id="collections-import-input" accept="application/json" style="display:none;">
         </div>
     </div>
 
@@ -28,7 +41,7 @@
 
     <div id="groups-root">
         {% for group in groups %}
-        <div class="group mb-4{% if group.deletable %} deletable-group{% endif %}">
+        <div class="group mb-4{% if group.deletable %} deletable-group{% endif %}" data-group-index="{{ loop.index0 }}">
 
             <div class="group-header mb-2">
                 <div class="group-title-area">
@@ -37,11 +50,12 @@
                 </div>
 
                 <div class="group-buttons">
-                    <button type="button" class="add-chord" aria-label="Add collection" data-tooltip="Add Collection">
+                    <button type="button" class="add-chord" aria-label="Add collection" data-tooltip="Add Collection"
+                        title="Add Collection">
                         <span class="material-icons-outlined">add_circle</span>
                     </button>
                     <button type="button" class="delete-chords" aria-label="Delete collections"
-                        data-tooltip="Delete Collections">
+                        data-tooltip="Delete Collections" title="Delete Collections">
                         <span class="material-icons-outlined">remove_circle_outline</span>
                     </button>
                 </div>
@@ -66,6 +80,13 @@
 
                 {% endfor %}
             </div>
+            <div class="group-footer-actions">
+                <button type="button" class="export-group" aria-label="Export this group to file"
+                    data-tooltip="Export this Group to File" data-tooltip-src="Export this Group to File"
+                    title="Export this Group to File">
+                    <span class="material-icons-outlined">file_download</span>
+                </button>
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -89,6 +110,7 @@
 <script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script defer src="{{ url_for('static', filename='vendor/micromodal.min.js') }}"></script>
+<script defer src="{{ url_for('static', filename='tooltip.js') }}"></script>
 <script defer src="{{ url_for('static', filename='undoRedo.collections.js') }}"></script>
 <script>
     window.MY_COLLECTIONS_EDIT_URL = "{{ url_for('my_collections_edit') }}";

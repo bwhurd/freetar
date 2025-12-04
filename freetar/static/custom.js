@@ -231,27 +231,25 @@ document.querySelectorAll('.favorite').forEach(item => {
 })
 
 async function exportFavorites() {
+  let favorites = {};
   try {
-    const favorites = JSON.parse(localStorage.getItem("favorites")) || {};
-    const response = await fetch("/advanced/export-settings");
-    if (!response.ok) {
-      throw new Error("Unable to fetch chord settings");
+    const storedFavorites = localStorage.getItem("favorites");
+    if (storedFavorites) {
+      const parsed = JSON.parse(storedFavorites);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        favorites = parsed;
+      }
     }
-    const settings = await response.json();
-    const backup = {
-      version: settings.version || "1",
-      favorites,
-      chords: settings.chords || [],
-    };
-    if (Object.prototype.hasOwnProperty.call(settings, "collections")) {
-      backup.collections = settings.collections;
-    }
+  } catch (err) {
+    console.error("Failed to parse favorites from localStorage", err);
+  }
 
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+  try {
+    const blob = new Blob([JSON.stringify(favorites, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "freetar-backup.json";
+    a.download = "freetar-favorites-backup.json";
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -262,15 +260,23 @@ async function exportFavorites() {
   }
 }
 
-function isLegacyFavoritesBackup(payload) {
-  return (
-    payload &&
-    typeof payload === "object" &&
-    !Array.isArray(payload) &&
-    !("favorites" in payload) &&
-    !("chords" in payload) &&
-    !("collections" in payload)
-  );
+function extractFavoritesFromPayload(payload) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+
+  if ("favorites" in payload) {
+    if (payload.favorites && typeof payload.favorites === "object" && !Array.isArray(payload.favorites)) {
+      return payload.favorites;
+    }
+    return null;
+  }
+
+  if ("chords" in payload || "collections" in payload) {
+    return null;
+  }
+
+  return payload;
 }
 
 function readFileAsText(file) {
@@ -290,44 +296,22 @@ async function importFavorites(input) {
 
   try {
     const content = await readFileAsText(file);
-    const parsed = JSON.parse(content);
-
-    if (isLegacyFavoritesBackup(parsed)) {
-      localStorage.setItem("favorites", JSON.stringify(parsed));
-      alert("Favorites imported.");
-      window.location.reload();
-      return;
-    }
-
-    if (!parsed || typeof parsed !== "object") {
+    let parsed;
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
       alert("Import failed: backup file is not valid JSON data.");
       return;
     }
 
-    if (parsed.favorites && typeof parsed.favorites === "object") {
-      localStorage.setItem("favorites", JSON.stringify(parsed.favorites));
+    const favoritesData = extractFavoritesFromPayload(parsed);
+    if (!favoritesData) {
+      alert("Import failed: backup does not contain favorites data.");
+      return;
     }
 
-    const settingsPayload = {};
-    if (Array.isArray(parsed.chords)) {
-      settingsPayload.chords = parsed.chords;
-    }
-    if (parsed.collections && typeof parsed.collections === "object") {
-      settingsPayload.collections = parsed.collections;
-    }
-
-    if (Object.keys(settingsPayload).length > 0) {
-      const response = await fetch("/advanced/import-settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settingsPayload),
-      });
-      if (!response.ok) {
-        throw new Error("Server rejected import payload");
-      }
-    }
-
-    alert("Backup imported. Reloading to apply changes.");
+    localStorage.setItem("favorites", JSON.stringify(favoritesData));
+    alert("Favorites imported.");
     window.location.reload();
   } catch (err) {
     console.error("Failed to import backup", err);
