@@ -1,0 +1,36 @@
+[
+  {
+    "group": "Group 1",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "Dm",
+            "shape": "x57765"
+          },
+          {
+            "name": "Am",
+            "shape": "x02210"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "Group 2",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "G",
+            "shape": "320033"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          }
+        ]
+      }
+    ]
+  }
+]

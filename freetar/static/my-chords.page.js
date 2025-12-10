@@ -5,6 +5,54 @@
    - SortableJS available as global Sortable
    - renderCardDiagram(card) global function
 */
+
+function computeChordTitlePlacement(card) {
+  if (!card) return null;
+  const table = card.querySelector('.chord-diagram');
+  const title = card.querySelector('.chord-title');
+  if (!table || !title) return null;
+
+  const left = table.querySelector('.string-left');
+  const rights = table.querySelectorAll('.string-right');
+  const right = rights[rights.length - 1];
+  if (!left || !right) return null;
+
+  const prevTransform = title.style.transform;
+  title.style.transform = 'none';
+
+  const leftRect = left.getBoundingClientRect();
+  const rightRect = right.getBoundingClientRect();
+  const stringsCenter = (leftRect.left + rightRect.right) / 2;
+  const titleRect = title.getBoundingClientRect();
+  const titleCenter = (titleRect.left + titleRect.right) / 2;
+  const deltaX = stringsCenter - titleCenter;
+
+  // Restore any previous inline transform while caller decides what to apply
+  title.style.transform = prevTransform;
+
+  return {
+    deltaX,
+    stringsCenter,
+    titleCenter,
+    titleRect,
+    leftRect,
+    rightRect,
+    containerRect: (title.parentElement || card).getBoundingClientRect(),
+  };
+}
+
+function centerTitleForCard(card) {
+  const data = computeChordTitlePlacement(card);
+  if (!data) return null;
+  const title = card.querySelector('.chord-title');
+  if (!title) return null;
+  title.style.position = 'relative';
+  title.style.left = '0px';
+  title.style.right = 'auto';
+  title.style.transform = `translateX(${data.deltaX}px)`;
+  return data;
+}
+
 (() => {
   'use strict';
 
@@ -25,11 +73,15 @@
   let groupDeleteModeActive = false;
   let groupDeleteModeGroup = null;
   let hoverGroupInsert;
+  let hoverRowInsert;
   let libraryFileInput = null;
   let suppressModalOnClose = false;
   let currentEditingSourceCard = null;
   let currentEditingSpotlightCard = null;
   let pendingEditSnapshots = [];
+  let inlineNameEditState = null;
+  let inlineNameInputEl = null;
+  let inlineNameOutsideHandler = null;
   let diagramLockEnabled = true;
   let diagramLockToggleBtn = null;
   let chordSettingsMenu = null;
@@ -40,6 +92,18 @@
   let settingsOutsideHandler = null;
   let maxChordsPerRowEnabled = false;
   let maxChordsPerRow = 8;
+  let activeAltChordDrag = null;
+  const ghostRowState = {
+    group: null,
+    ghostRow: null,
+    placeholder: null,
+    hideTimer: null,
+    lastHover: null,
+  };
+  let rowHandleHoverFrame = null;
+  let lastRowHandlePointer = null;
+  let rowHandleHoverListenerAttached = false;
+  let dragMoveHandlerAttached = false;
   const MODAL_BASE_Z = 3000;
   const MODAL_Z_STEP = 20;
   const modalStack = [];
@@ -419,6 +483,201 @@
 
     return out;
   }
+
+  function parseChordNameNote(rawName) {
+    const raw = rawName == null ? '' : String(rawName);
+    const closeIdx = raw.lastIndexOf('}');
+    if (closeIdx === -1) return { baseName: raw, noteText: '' };
+    const openIdx = raw.lastIndexOf('{', closeIdx);
+    if (openIdx === -1) return { baseName: raw, noteText: '' };
+
+    const noteText = raw.slice(openIdx + 1, closeIdx).trim();
+    if (!noteText) return { baseName: raw, noteText: '' };
+
+    const baseName = raw.slice(0, openIdx).trim();
+    return { baseName, noteText };
+  }
+
+  function updateChordTitleFromName(card, rawName) {
+    if (!card) return;
+    const titleEl = card.querySelector('.chord-title');
+    if (!titleEl) return;
+
+    const { baseName, noteText } = parseChordNameNote(rawName);
+    const displayName = baseName ? baseName : '(unnamed)';
+    titleEl.innerHTML = prettifyChordName(displayName);
+
+    if (noteText) {
+      titleEl.dataset.tooltip = noteText;
+      titleEl.setAttribute('data-tooltip', noteText);
+    } else {
+      delete titleEl.dataset.tooltip;
+      titleEl.removeAttribute('data-tooltip');
+    }
+  }
+
+  function copyNameInputAttributes(source, target) {
+    if (!source || !target) return;
+    const mirrorAttrs = ['placeholder', 'inputmode', 'aria-label', 'title', 'pattern', 'autocomplete'];
+    mirrorAttrs.forEach((attr) => {
+      if (source.hasAttribute && source.hasAttribute(attr)) {
+        target.setAttribute(attr, source.getAttribute(attr));
+      }
+    });
+    if (source.maxLength && source.maxLength > 0) {
+      target.maxLength = source.maxLength;
+    }
+  }
+
+  function positionInlineNameInput(card, container) {
+    if (!card || !container || !inlineNameInputEl) return false;
+    const placement = computeChordTitlePlacement(card);
+    if (!placement) return false;
+    const containerRect = placement.containerRect;
+    const stringsWidth = placement.rightRect.right - placement.leftRect.left;
+    const idealWidth = Math.max(placement.titleRect.width, 120);
+    const clampedMax = Math.max(60, Math.min(containerRect.width - 8, stringsWidth - 8));
+    const width = Math.min(clampedMax, Math.max(80, Math.min(idealWidth, clampedMax)));
+    const finalCenter = placement.titleCenter + placement.deltaX;
+    const proposedLeft = finalCenter - width / 2 - containerRect.left;
+    const maxLeft = Math.max(0, containerRect.width - width - 4);
+    const left = Math.max(4, Math.min(maxLeft, proposedLeft));
+    const top = placement.titleRect.top - containerRect.top;
+
+    inlineNameInputEl.style.left = `${left}px`;
+    inlineNameInputEl.style.top = `${top}px`;
+    inlineNameInputEl.style.width = `${width}px`;
+    return true;
+  }
+
+  function detachInlineNameOutsideHandlers() {
+    if (inlineNameOutsideHandler) {
+      document.removeEventListener('mousedown', inlineNameOutsideHandler, true);
+      document.removeEventListener('touchstart', inlineNameOutsideHandler, true);
+      inlineNameOutsideHandler = null;
+    }
+  }
+
+  function finishInlineNameEdit(card, { commit = false } = {}) {
+    const state = inlineNameEditState;
+    if (!state) return;
+    if (card && state.card !== card) return;
+
+    detachInlineNameOutsideHandlers();
+
+    const { titleEl, nameInput, originalName, originalVisibility } = state;
+    const input = inlineNameInputEl;
+    const nextName = commit && input ? (input.value || '').trim() : originalName;
+    inlineNameEditState = null;
+
+    if (input && input.parentElement && input.parentElement.contains(input)) {
+      input.parentElement.removeChild(input);
+      input.style.display = 'none';
+    }
+    if (titleEl) {
+      titleEl.style.visibility = originalVisibility || '';
+    }
+    if (state.card) state.card.classList.remove('is-inline-name-editing');
+    if (!state.card || !nameInput || !titleEl) return;
+
+    nameInput.value = nextName;
+    updateChordTitleFromName(state.card, nextName);
+    centerTitleForCard(state.card);
+    if (commit) {
+      if (window.freetarUndoSnapshot) {
+        window.freetarUndoSnapshot('inline-name-edit', buildDataFromDOM());
+      }
+      persist('inline-name-edit');
+    }
+  }
+
+  function beginInlineNameEdit(card) {
+    if (!card) return;
+    centerTitleForCard(card);
+    if (inlineNameEditState && inlineNameEditState.card === card) {
+      if (inlineNameInputEl) {
+        inlineNameInputEl.focus({ preventScroll: true });
+        inlineNameInputEl.select();
+      }
+      return;
+    }
+    if (inlineNameEditState) {
+      finishInlineNameEdit(inlineNameEditState.card, { commit: true });
+    }
+    const titleEl = card.querySelector('.chord-title');
+    const nameInput = card.querySelector('.chord-name-input');
+    if (!titleEl || !nameInput) return;
+
+    const container = titleEl.parentElement || card;
+
+    if (!inlineNameInputEl) {
+      inlineNameInputEl = document.createElement('input');
+      inlineNameInputEl.type = 'text';
+      inlineNameInputEl.className = 'chord-name-inline-input';
+      inlineNameInputEl.setAttribute('aria-live', 'off');
+      inlineNameInputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          finishInlineNameEdit(inlineNameEditState?.card, { commit: false });
+        } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          finishInlineNameEdit(inlineNameEditState?.card, { commit: true });
+        } else if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+          e.preventDefault();
+          finishInlineNameEdit(inlineNameEditState?.card, { commit: true });
+        }
+      });
+      inlineNameInputEl.addEventListener('blur', (e) => {
+        const state = inlineNameEditState;
+        if (!state) return;
+        const nextTarget = e.relatedTarget;
+        if (nextTarget && state.card && state.card.contains(nextTarget)) return;
+        finishInlineNameEdit(state.card, { commit: true });
+      });
+    }
+
+    copyNameInputAttributes(nameInput, inlineNameInputEl);
+    inlineNameInputEl.value = nameInput.value || '';
+
+    const positioned = positionInlineNameInput(card, container);
+    if (!positioned) return;
+    inlineNameInputEl.style.display = 'block';
+
+    const originalVisibility = titleEl.style.visibility;
+    titleEl.style.visibility = 'hidden';
+    container.appendChild(inlineNameInputEl);
+
+    inlineNameEditState = {
+      card,
+      titleEl,
+      nameInput,
+      originalName: nameInput.value || '',
+      originalVisibility,
+    };
+    card.classList.add('is-inline-name-editing');
+
+    if (!inlineNameOutsideHandler) {
+      inlineNameOutsideHandler = (ev) => {
+        if (!inlineNameEditState) return;
+        const t = ev.target;
+        if (inlineNameInputEl && (t === inlineNameInputEl || inlineNameInputEl.contains(t))) return;
+        finishInlineNameEdit(inlineNameEditState.card, { commit: true });
+      };
+      document.addEventListener('mousedown', inlineNameOutsideHandler, true);
+      document.addEventListener('touchstart', inlineNameOutsideHandler, true);
+    }
+
+    inlineNameInputEl.focus({ preventScroll: true });
+    inlineNameInputEl.select();
+  }
+
+  window.addEventListener('resize', () => {
+    if (!inlineNameEditState || !inlineNameInputEl) return;
+    const card = inlineNameEditState.card;
+    const container =
+      (inlineNameEditState.titleEl && inlineNameEditState.titleEl.parentElement) || card;
+    positionInlineNameInput(card, container);
+  });
 
   // ---------- Symbol toolbar (appears above name input while editing) ----------
   function insertTokenIntoNameInput(card, token) {
@@ -909,9 +1168,13 @@
     }, 0);
   }
 
-  function handleFretLabelClick(card) {
+  function handleFretLabelClick(card, rowIndex, currentLabel) {
+    const safeRowIndex = Number.isInteger(rowIndex) && rowIndex >= 0 ? rowIndex : 0;
+    const currentLabelNum = Number.isFinite(currentLabel) ? currentLabel : null;
     if (typeof promptForBaseFret !== 'function') return;
-    promptForBaseFret(card, (newBase) => {
+    promptForBaseFret(card, (newFret) => {
+      const targetFret = parseInt(newFret, 10);
+      if (!Number.isFinite(targetFret) || targetFret <= 0) return;
       const shapeInput = card.querySelector('.chord-shape-input');
       const oldShape = shapeInput ? shapeInput.value || '' : '';
       const parsedShape =
@@ -922,40 +1185,46 @@
         !parsedShape ||
         !Array.isArray(parsedShape.tokens) ||
         !Array.isArray(parsedShape.roots) ||
-        typeof buildShapeFromTokensAndRoots !== 'function'
+        typeof buildShapeFromTokensAndRootKinds !== 'function'
       )
         return;
 
       const tokens = parsedShape.tokens.slice();
       const roots = parsedShape.roots.slice();
 
-      let currentTop = null;
-      const baseAttr = card?.dataset?.baseFret;
-      if (baseAttr) {
-        const parsedBase = parseInt(baseAttr, 10);
-        if (Number.isFinite(parsedBase) && parsedBase > 0) currentTop = parsedBase;
-      }
-      if (!currentTop) {
-        let minFret = Infinity;
+      const currentBase = (() => {
+        const baseAttr = card?.dataset?.baseFret;
+        if (baseAttr) {
+          const parsedBase = parseInt(baseAttr, 10);
+          if (Number.isFinite(parsedBase) && parsedBase > 0) return parsedBase;
+        }
+        if (currentLabelNum != null) {
+          const derived = currentLabelNum - safeRowIndex;
+          if (Number.isFinite(derived) && derived > 0) return derived;
+        }
+        let maxFret = -Infinity;
         tokens.forEach((t) => {
-          if (typeof t === 'number' && t > 0 && t < minFret) minFret = t;
+          if (typeof t === 'number' && t > 0 && t > maxFret) maxFret = t;
         });
-        currentTop = Number.isFinite(minFret) && minFret !== Infinity ? minFret : 1;
-      }
+        if (Number.isFinite(maxFret) && maxFret !== -Infinity) return Math.max(1, maxFret - 3);
+        return 1;
+      })();
 
-      const F = parseInt(newBase, 10);
-      if (!Number.isFinite(F) || F <= 0) return;
-      const delta = F - currentTop;
+      let newBase = targetFret - safeRowIndex;
+      if (!Number.isFinite(newBase)) newBase = currentBase;
+      if (newBase < 1) newBase = 1;
+
+      const delta = newBase - currentBase;
 
       for (let i = 0; i < tokens.length; i += 1) {
         const t = tokens[i];
         if (typeof t === 'number' && t > 0) tokens[i] = t + delta;
       }
 
-      const newShape = buildShapeFromTokensAndRoots(tokens, roots);
+      const newShape = buildShapeFromTokensAndRootKinds(tokens, roots);
       const shapeChanged = newShape !== oldShape;
 
-      card.dataset.baseFret = String(F);
+      card.dataset.baseFret = String(newBase);
       if (shapeInput) shapeInput.value = newShape;
       renderCardDiagram(card);
       const isEditing = currentEditingCard === card;
@@ -979,17 +1248,28 @@
     groupsRoot.querySelectorAll('.group').forEach((groupEl) => {
       const rawGroupName = groupEl.querySelector('.group-name')?.value || '';
       const gName = rawGroupName.trim();
-      const chords = [];
-      groupEl.querySelectorAll('.chord-card').forEach((card) => {
-        const nameInput = card.querySelector('.chord-name-input');
-        const shapeInput = card.querySelector('.chord-shape-input');
-        const titleEl = card.querySelector('.chord-title');
-        const name = (nameInput?.value || titleEl?.textContent || '').trim();
-        const shape = shapeInput?.value.trim() || '';
-        if (!shape) return;
-        chords.push({ name: name || '(unnamed)', shape });
+      const rowEls = Array.from(groupEl.querySelectorAll('.chord-grid'));
+      const rows = rowEls.map((grid) => {
+        const chords = [];
+        grid.querySelectorAll('.chord-card').forEach((card) => {
+          if (card.classList.contains('chord-card-placeholder')) return;
+          const nameInput = card.querySelector('.chord-name-input');
+          const shapeInput = card.querySelector('.chord-shape-input');
+          const titleEl = card.querySelector('.chord-title');
+          const name = (nameInput?.value || titleEl?.textContent || '').trim();
+          const shape = shapeInput?.value.trim() || '';
+          if (!shape) return;
+          chords.push({ name: name || '(unnamed)', shape });
+        });
+        return { chords };
       });
-      groups.push({ group: gName || '\u00A0', chords });
+      let prunedRows = rows;
+      if (rowEls.length > 1) {
+        prunedRows = rows.filter((row) => Array.isArray(row.chords) && row.chords.length > 0);
+        if (!prunedRows.length) prunedRows = [{ chords: [] }];
+      }
+      if (!prunedRows.length) prunedRows = [{ chords: [] }];
+      groups.push({ group: gName || '\u00A0', rows: prunedRows });
     });
     return groups;
   }
@@ -1025,10 +1305,6 @@
     const groupIndex = groups.indexOf(sourceGroup);
     if (groupIndex < 0 || groupIndex >= baseline.length) return baseline;
 
-    const cardsInGroup = Array.from(sourceGroup.querySelectorAll('.chord-card'));
-    const chordIndex = cardsInGroup.indexOf(currentEditingSourceCard);
-    if (chordIndex < 0) return baseline;
-
     const editCard = currentEditingSpotlightCard || currentEditingCard;
     const nameInput = editCard?.querySelector('.chord-name-input');
     const shapeInput = editCard?.querySelector('.chord-shape-input');
@@ -1038,20 +1314,31 @@
     const shape = (shapeInput.value || '').trim();
 
     const targetGroup = baseline[groupIndex];
-    if (!targetGroup || !Array.isArray(targetGroup.chords)) return baseline;
+    if (!targetGroup || !Array.isArray(targetGroup.rows)) return baseline;
+
+    const rowEls = Array.from(sourceGroup.querySelectorAll('.chord-grid'));
+    const rowEl = currentEditingSourceCard.closest('.chord-grid');
+    const rowIndex = rowEls.indexOf(rowEl);
+    if (rowIndex < 0 || rowIndex >= targetGroup.rows.length) return baseline;
+    const targetRow = targetGroup.rows[rowIndex];
+    if (!targetRow || !Array.isArray(targetRow.chords)) return baseline;
+
+    const chordsInRow = Array.from(rowEl.querySelectorAll('.chord-card'));
+    const chordIndex = chordsInRow.indexOf(currentEditingSourceCard);
+    if (chordIndex < 0) return baseline;
 
     if (!shape) {
-      if (chordIndex < targetGroup.chords.length) {
-        targetGroup.chords.splice(chordIndex, 1);
+      if (chordIndex < targetRow.chords.length) {
+        targetRow.chords.splice(chordIndex, 1);
       }
       return baseline;
     }
 
     const entry = { name: name || '(unnamed)', shape };
-    if (chordIndex < targetGroup.chords.length) {
-      targetGroup.chords[chordIndex] = entry;
+    if (chordIndex < targetRow.chords.length) {
+      targetRow.chords[chordIndex] = entry;
     } else {
-      targetGroup.chords.push(entry);
+      targetRow.chords.push(entry);
     }
     return baseline;
   }
@@ -1086,6 +1373,9 @@
   function beginEditing(sourceCard) {
     const resolvedSource = sourceCard && sourceCard.__sourceCard ? sourceCard.__sourceCard : sourceCard;
     if (!resolvedSource) return;
+    if (inlineNameEditState) {
+      finishInlineNameEdit(inlineNameEditState.card, { commit: true });
+    }
     if (currentEditingSourceCard === resolvedSource) {
       if (currentEditingCard) {
         const existingInput = currentEditingCard.querySelector('.chord-name-input');
@@ -1185,7 +1475,7 @@
       } else {
         delete sourceCard.dataset.baseFret;
       }
-      title.innerHTML = prettifyChordName(newName || '(unnamed)');
+      updateChordTitleFromName(sourceCard, newName);
       renderCardDiagram(sourceCard);
       persist('edit-commit');
       if (pendingEditSnapshots.length && window.freetarUndoSnapshot) {
@@ -1199,7 +1489,7 @@
       const originalShape = spotlight.dataset.originalShape || '';
       sourceNameInput.value = originalName;
       sourceShapeInput.value = originalShape;
-      title.textContent = originalName || '(unnamed)';
+      updateChordTitleFromName(sourceCard, originalName);
       renderCardDiagram(sourceCard);
       clearPendingEditSnapshots();
     }
@@ -1243,7 +1533,30 @@
     const editBtn = card.querySelector('.chord-edit');
     const nameInput = card.querySelector('.chord-name-input');
     const shapeInput = card.querySelector('.chord-shape-input');
+    const titleEl = card.querySelector('.chord-title');
     if (!editBtn || !nameInput || !shapeInput) return;
+
+    if (titleEl && !titleEl.__inlineNameWired) {
+      titleEl.__inlineNameWired = true;
+      titleEl.addEventListener('click', (e) => {
+        if (diagramLockEnabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const editingThisCard =
+          currentEditingCard === card ||
+          currentEditingSourceCard === card ||
+          (currentEditingSpotlightCard && currentEditingSpotlightCard === card) ||
+          (currentEditingSpotlightCard && currentEditingSpotlightCard.__sourceCard === card);
+        if (editingThisCard) return;
+        if (currentEditingCard) {
+          finishEditing(true);
+        }
+        if (inlineNameEditState && inlineNameEditState.card && inlineNameEditState.card !== card) {
+          finishInlineNameEdit(inlineNameEditState.card, { commit: true });
+        }
+        beginInlineNameEdit(card);
+      });
+    }
 
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1393,21 +1706,19 @@
       const t = tokens[stringIndex];
       const r = roots[stringIndex];
 
-      if (t !== fret) {
+      const isOnClickedFret = t === fret;
+
+      if (!isOnClickedFret) {
         tokens[stringIndex] = fret;
+        roots[stringIndex] = 'played';
+      } else if (r === 'played') {
+        roots[stringIndex] = 'ghost';
+      } else if (r === 'ghost') {
+        tokens[stringIndex] = null;
         roots[stringIndex] = null;
-      } else if (t === fret) {
-        if (r === null) {
-          roots[stringIndex] = 'played';
-        } else if (r === 'played') {
-          roots[stringIndex] = 'ghost';
-        } else if (r === 'ghost') {
-          tokens[stringIndex] = null;
-          roots[stringIndex] = null;
-        } else {
-          tokens[stringIndex] = fret;
-          roots[stringIndex] = null;
-        }
+      } else {
+        tokens[stringIndex] = fret;
+        roots[stringIndex] = 'played';
       }
 
       applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
@@ -1458,7 +1769,13 @@
       }
       const fretLabel = event.target.closest('.chord-fret-label');
       if (fretLabel) {
-        handleFretLabelClick(card);
+        const fretRowEl = fretLabel.closest('tr[data-fret]');
+        const fretRows = Array.from(card.querySelectorAll('tbody tr[data-fret]'));
+        const rowIndex = fretRowEl ? fretRows.indexOf(fretRowEl) : -1;
+        const currentLabel = fretRowEl
+          ? parseInt(fretRowEl.getAttribute('data-fret') || '', 10)
+          : NaN;
+        handleFretLabelClick(card, rowIndex, currentLabel);
         return;
       }
 
@@ -1480,6 +1797,13 @@
 
       const rowEl = targetCell.parentElement;
       if (!rowEl) return;
+      const fretRowEl = rowEl.closest('tr[data-fret]');
+      const fretRows = Array.from(card.querySelectorAll('tbody tr[data-fret]'));
+      const rowIndex = fretRowEl ? fretRows.indexOf(fretRowEl) : -1;
+      const rowFretLabel =
+        fretRowEl && fretRowEl.getAttribute('data-fret')
+          ? parseInt(fretRowEl.getAttribute('data-fret'), 10)
+          : NaN;
 
       if (headerCell && !bodyCell) {
         clickedHeader = true;
@@ -1501,8 +1825,10 @@
       const needsBaseFretPrompt =
         !clickedHeader && isAllOpenOrMuted(oldShape) && !card.dataset.baseFret;
       if (needsBaseFretPrompt) {
+        const targetRowIndex = Number.isInteger(rowIndex) && rowIndex >= 0 ? rowIndex : 0;
         promptForBaseFret(card, (baseFret) => {
-          card.dataset.baseFret = String(baseFret);
+          const fretValue = parseInt(baseFret, 10);
+          if (!Number.isFinite(fretValue) || fretValue <= 0) return;
           let newShape = oldShape;
           if (typeof parseTokensAndRootKinds === 'function') {
             const parsedPrompt = parseTokensAndRootKinds(oldShape);
@@ -1513,14 +1839,20 @@
             ) {
               const tokensP = parsedPrompt.tokens.slice();
               const rootsP = parsedPrompt.roots.slice();
-              if (tokensP[stringIndex] == null || tokensP[stringIndex] === 0) {
-                tokensP[stringIndex] = baseFret;
-                rootsP[stringIndex] = null;
-                newShape = buildShapeFromTokensAndRoots(tokensP, rootsP);
-              }
+              tokensP[stringIndex] = fretValue;
+              rootsP[stringIndex] = null;
+              newShape = buildShapeFromTokensAndRootKinds(tokensP, rootsP);
             }
           }
           const shapeChanged = newShape !== oldShape;
+          const hasRowContext =
+            Number.isFinite(rowFretLabel) && Number.isInteger(targetRowIndex) && targetRowIndex >= 0;
+          const currentBase = hasRowContext ? rowFretLabel - targetRowIndex : 1;
+          const baseStart = Math.max(
+            1,
+            hasRowContext ? currentBase + (fretValue - rowFretLabel) : fretValue - targetRowIndex,
+          );
+          card.dataset.baseFret = String(baseStart);
           shapeInput.value = newShape;
           renderCardDiagram(card);
           // Ensure the freshly rendered diagram remains interactive
@@ -1578,13 +1910,12 @@
 
   function addChordToGrid(grid, name = '...', shape = '000000', opts = {}) {
     const { silent = false, prepend = false } = opts || {};
-    const prettyTitle = prettifyChordName(name);
     const card = document.createElement('div');
     card.className = 'text-center chord-card mb-3';
     card.innerHTML = `
     <div class="d-flex align-items-center justify-content-between mb-1 position-relative">
       <span class="material-icons-outlined chord-handle">drag_indicator</span>
-      <span class="chord-title flex-grow-1 text-truncate mx-1">${prettyTitle}</span>
+      <span class="chord-title flex-grow-1 text-truncate mx-1" aria-live="polite"></span>
       <span class="material-icons-outlined chord-edit" style="cursor: pointer; font-size: 18px;">edit</span>
       <button class="delete-chord-btn" type="button" title="Delete chord" tabindex="-1" style="display:none;">&#8722;</button>
     </div>
@@ -1600,39 +1931,593 @@
     </div>`;
     const insertBeforeNode = prepend ? grid.firstElementChild : null;
     grid.insertBefore(card, insertBeforeNode);
+    const nameInput = card.querySelector('.chord-name-input');
+    updateChordTitleFromName(card, nameInput ? nameInput.value : name);
     wireChordCard(card);
     renderCardDiagram(card);
+    updateRowHandlePosition(grid);
     if (!silent) persist('add-chord'); // skip per-card save during batch import
     return card;
   }
 
+  function pointerElementFromEvent(evt) {
+    const oe = evt?.originalEvent;
+    if (!oe || typeof document === 'undefined') return null;
+    const touchPoint = (oe.touches && oe.touches[0]) || (oe.changedTouches && oe.changedTouches[0]);
+    const point = touchPoint || oe;
+    const { clientX, clientY } = point || {};
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+    return document.elementFromPoint(clientX, clientY);
+  }
+
+  function getGhostTargetFromEl(el) {
+    if (!el) return null;
+    const placeholder = el.closest('.chord-card-placeholder');
+    const ghostRow = el.closest('.group-ghost-row');
+    const footer = el.closest('.group-footer-actions');
+    const host = placeholder || ghostRow || footer;
+    if (!host) return null;
+    const group = host.closest('.group');
+    if (!group) return null;
+    return { group, overPlaceholder: !!placeholder };
+  }
+
+  function ensureGhostRowForGroup(groupEl) {
+    if (!groupEl) return null;
+    if (ghostRowState.group && ghostRowState.group !== groupEl) {
+      clearGhostRow(true);
+    }
+    if (ghostRowState.hideTimer) {
+      clearTimeout(ghostRowState.hideTimer);
+      ghostRowState.hideTimer = null;
+    }
+    if (ghostRowState.group === groupEl && ghostRowState.ghostRow) {
+      ghostRowState.ghostRow.classList.add('is-visible');
+      return ghostRowState.ghostRow;
+    }
+    const footer = groupEl.querySelector('.group-footer-actions');
+    if (!footer) return null;
+    const ghostRow = document.createElement('div');
+    ghostRow.className = 'group-ghost-row chord-grid d-grid';
+    const placeholder = document.createElement('div');
+    placeholder.className = 'chord-card-placeholder';
+    ghostRow.appendChild(placeholder);
+    footer.parentElement.insertBefore(ghostRow, footer);
+    ghostRowState.group = groupEl;
+    ghostRowState.ghostRow = ghostRow;
+    ghostRowState.placeholder = placeholder;
+    ghostRow.classList.add('is-visible');
+    return ghostRow;
+  }
+
+  function setGhostRowActive(isActive) {
+    if (ghostRowState.placeholder) ghostRowState.placeholder.classList.toggle('is-active', !!isActive);
+  }
+
+  function scheduleGhostRowRemoval(delay = 140) {
+    if (!ghostRowState.ghostRow) return;
+    if (ghostRowState.hideTimer) clearTimeout(ghostRowState.hideTimer);
+    ghostRowState.hideTimer = window.setTimeout(() => {
+      clearGhostRow(true);
+    }, delay);
+  }
+
+  function clearGhostRow(immediate = false) {
+    void immediate;
+    if (ghostRowState.hideTimer) {
+      clearTimeout(ghostRowState.hideTimer);
+      ghostRowState.hideTimer = null;
+    }
+    if (ghostRowState.ghostRow) ghostRowState.ghostRow.classList.remove('is-visible');
+    if (ghostRowState.placeholder) ghostRowState.placeholder.classList.remove('is-active');
+    if (ghostRowState.ghostRow?.parentElement) {
+      ghostRowState.ghostRow.parentElement.removeChild(ghostRowState.ghostRow);
+    }
+    ghostRowState.group = null;
+    ghostRowState.ghostRow = null;
+    ghostRowState.placeholder = null;
+    ghostRowState.lastHover = null;
+  }
+
+  function detachDragMoveHandler() {
+    if (!dragMoveHandlerAttached) return;
+    document.removeEventListener('pointermove', handleGlobalDragMove, true);
+    document.removeEventListener('touchmove', handleGlobalDragMove, true);
+    dragMoveHandlerAttached = false;
+  }
+
+  function handleGlobalDragMove(ev) {
+    updateGhostRowHover({ originalEvent: ev });
+  }
+
+  function ensureDragMoveHandler() {
+    if (dragMoveHandlerAttached) return;
+    document.addEventListener('pointermove', handleGlobalDragMove, true);
+    document.addEventListener('touchmove', handleGlobalDragMove, true);
+    dragMoveHandlerAttached = true;
+  }
+
+  function updateGhostRowHover(evt) {
+    const el = pointerElementFromEvent(evt);
+    const targetInfo = getGhostTargetFromEl(el);
+    if (!targetInfo) {
+      setGhostRowActive(false);
+      ghostRowState.lastHover = null;
+      scheduleGhostRowRemoval(160);
+      return null;
+    }
+    const ghostRow = ensureGhostRowForGroup(targetInfo.group);
+    if (!ghostRow) return null;
+    setGhostRowActive(targetInfo.overPlaceholder);
+    ghostRowState.lastHover = targetInfo;
+    return targetInfo;
+  }
+
+  function getGhostDropTarget(evt) {
+    const el = pointerElementFromEvent(evt);
+    const target = getGhostTargetFromEl(el);
+    if (target) return target;
+    if (ghostRowState.lastHover && ghostRowState.group?.isConnected) return ghostRowState.lastHover;
+    return null;
+  }
+
+  function normalizeRowIndices(groupEl) {
+    if (!groupEl) return;
+    const grids = Array.from(groupEl.querySelectorAll('.chord-grid'));
+    grids.forEach((grid, idx) => {
+      grid.dataset.rowIndex = String(idx);
+    });
+  }
+
+  function updateRowHandlePosition(grid) {
+    if (!grid) return;
+    const handle = grid.querySelector('.row-drag-handle');
+    if (!handle) return;
+    const firstCard = grid.querySelector('.chord-card:not(.chord-card-placeholder)');
+    if (!firstCard) {
+      handle.style.top = '';
+      handle.style.left = '';
+      return;
+    }
+    const gridRect = grid.getBoundingClientRect();
+    const firstRect = firstCard.getBoundingClientRect();
+    const groupRect = grid.closest('.group')?.getBoundingClientRect();
+    if (!gridRect || !firstRect) return;
+    const handleHeight = handle.offsetHeight || 0;
+    const handleWidth = handle.offsetWidth || 0;
+    const firstCenterY = firstRect.top + firstRect.height / 2;
+    const top = firstCenterY - gridRect.top - handleHeight / 2;
+    const groupLeft = groupRect ? groupRect.left : gridRect.left;
+    const midX = groupLeft + (firstRect.left - groupLeft) / 2;
+    const left = midX - gridRect.left - handleWidth / 2;
+    if (Number.isFinite(top)) handle.style.top = `${top}px`;
+    if (Number.isFinite(left)) handle.style.left = `${left}px`;
+  }
+
+  function updateAllRowHandles(scope = groupsRoot) {
+    if (!scope) return;
+    scope.querySelectorAll('.chord-grid').forEach(updateRowHandlePosition);
+    updateRowHandleHoverState();
+  }
+
+  function clearRowHandleHoverState(scope = groupsRoot) {
+    if (!scope) return;
+    scope.querySelectorAll('.chord-grid.row-handle-active').forEach((grid) => {
+      grid.classList.remove('row-handle-active');
+    });
+  }
+
+  function updateRowHandleHoverState() {
+    if (!groupsRoot || !lastRowHandlePointer) {
+      clearRowHandleHoverState();
+      return;
+    }
+    const { x, y } = lastRowHandlePointer;
+    let activated = false;
+    groupsRoot.querySelectorAll('.chord-grid').forEach((grid) => {
+      const firstCard = grid.querySelector('.chord-card:not(.chord-card-placeholder)');
+      if (!firstCard) {
+        grid.classList.remove('row-handle-active');
+        return;
+      }
+      const rect = firstCard.getBoundingClientRect();
+      const withinVertical = y >= rect.top && y <= rect.bottom;
+      const withinCard = withinVertical && x >= rect.left && x <= rect.right;
+      const withinLeft = withinVertical && x >= 0 && x <= rect.left;
+      const isActive = !activated && (withinCard || withinLeft);
+      grid.classList.toggle('row-handle-active', isActive);
+      if (isActive) activated = true;
+    });
+    if (!activated) clearRowHandleHoverState();
+  }
+
+  function scheduleRowHandleHoverUpdate() {
+    if (rowHandleHoverFrame) return;
+    rowHandleHoverFrame = requestAnimationFrame(() => {
+      rowHandleHoverFrame = null;
+      updateRowHandleHoverState();
+    });
+  }
+
+  function handleRowHandlePointerMove(ev) {
+    if (!ev) return;
+    const { clientX, clientY } = ev;
+    if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+    lastRowHandlePointer = { x: clientX, y: clientY };
+    scheduleRowHandleHoverUpdate();
+  }
+
+  function handleRowHandlePointerLeave() {
+    lastRowHandlePointer = null;
+    clearRowHandleHoverState();
+  }
+
+  function ensureRowHandleHoverListener() {
+    if (rowHandleHoverListenerAttached) return;
+    window.addEventListener('pointermove', handleRowHandlePointerMove, { passive: true });
+    window.addEventListener('pointerleave', handleRowHandlePointerLeave, { passive: true });
+    rowHandleHoverListenerAttached = true;
+  }
+
+  function cleanupEmptyChordGrids(groupEl) {
+    if (!groupEl) return;
+    const grids = Array.from(groupEl.querySelectorAll('.chord-grid')).filter(
+      (grid) => !grid.classList.contains('group-ghost-row'),
+    );
+    if (grids.length > 1) {
+      const hasChords = (grid) => grid.querySelector('.chord-card:not(.chord-card-placeholder)');
+      const nonEmpty = grids.filter(hasChords);
+      const empty = grids.filter((grid) => !hasChords(grid));
+      const removable = nonEmpty.length ? empty : empty.slice(1);
+      removable.forEach((grid) => {
+        if (grid.parentElement) grid.parentElement.removeChild(grid);
+      });
+    }
+    if (!groupEl.querySelector('.chord-grid')) ensureBottomChordGrid(groupEl);
+    normalizeRowIndices(groupEl);
+    updateAllRowHandles(groupEl);
+  }
+
+  function ensureBottomChordGrid(groupEl) {
+    if (!groupEl) return null;
+    const grids = Array.from(groupEl.querySelectorAll('.chord-grid'));
+    const lastGrid = grids[grids.length - 1];
+    if (lastGrid && !lastGrid.querySelector('.chord-card')) {
+      wireChordGrid(lastGrid, groupEl);
+      ensureRowHandle(lastGrid);
+      updateRowHandlePosition(lastGrid);
+      return lastGrid;
+    }
+    const footer = groupEl.querySelector('.group-footer-actions');
+    const anchor =
+      ghostRowState.group === groupEl && ghostRowState.ghostRow ? ghostRowState.ghostRow : footer;
+    const newGrid = document.createElement('div');
+    newGrid.className = 'd-grid chord-grid';
+    newGrid.dataset.rowIndex = String(grids.length);
+    if (anchor && anchor.parentElement === groupEl) {
+      groupEl.insertBefore(newGrid, anchor);
+    } else {
+      groupEl.appendChild(newGrid);
+    }
+    wireChordGrid(newGrid, groupEl);
+    ensureRowHandle(newGrid);
+    updateRowHandlePosition(newGrid);
+    normalizeRowIndices(groupEl);
+    return newGrid;
+  }
+
+  function ensureRowHandle(grid) {
+    if (!grid) return null;
+    let handle = grid.querySelector('.row-drag-handle');
+    if (handle) return handle;
+    handle = document.createElement('span');
+    handle.className = 'row-drag-handle material-icons-outlined';
+    handle.textContent = 'drag_indicator';
+    handle.title = 'Drag row';
+    handle.setAttribute('aria-label', 'Drag row');
+    handle.style.cursor = 'grab';
+    grid.insertBefore(handle, grid.firstChild);
+    requestAnimationFrame(() => updateRowHandlePosition(grid));
+    return handle;
+  }
+
+  function addRowToGroup(groupEl) {
+    if (!groupEl) return;
+    const footer = groupEl.querySelector('.group-footer-actions');
+    const newGrid = document.createElement('div');
+    const nextIndex = groupEl.querySelectorAll('.chord-grid').length;
+    newGrid.className = 'd-grid chord-grid';
+    newGrid.dataset.rowIndex = String(nextIndex);
+    if (footer && footer.parentElement === groupEl) {
+      groupEl.insertBefore(newGrid, footer);
+    } else {
+      groupEl.appendChild(newGrid);
+    }
+    ensureRowHandle(newGrid);
+    wireChordGrid(newGrid, groupEl);
+    addChordToGrid(newGrid, '...', '000000', { silent: true });
+    updateRowHandlePosition(newGrid);
+    normalizeRowIndices(groupEl);
+    if (typeof rewireChordUI === 'function') rewireChordUI();
+    persist('add-row');
+    document.dispatchEvent(new CustomEvent('rows-reordered'));
+  }
+
+  hoverRowInsert = (() => {
+    let plusEl = null;
+    let activeFooter = null;
+    let activeGroup = null;
+    let hoveringPlus = false;
+
+    const hide = () => {
+      if (hoveringPlus) return;
+      activeFooter = null;
+      activeGroup = null;
+      if (plusEl) plusEl.style.display = 'none';
+    };
+
+    const ensureElements = () => {
+      if (plusEl) return;
+      plusEl = document.createElement('span');
+      plusEl.className = 'row-insert-plus material-icons-outlined';
+      plusEl.textContent = 'add_circle';
+      plusEl.setAttribute('data-tooltip', 'Insert Row');
+      plusEl.setAttribute('data-tooltip-src', 'Insert Row');
+      plusEl.title = 'Insert Row';
+      plusEl.setAttribute('aria-label', 'Insert Row');
+      plusEl.style.display = 'none';
+      plusEl.style.color = '#0d6efd';
+      if (window.initTooltips) window.initTooltips();
+
+      plusEl.addEventListener('mouseenter', () => {
+        hoveringPlus = true;
+      });
+
+      plusEl.addEventListener('mouseleave', (ev) => {
+        hoveringPlus = false;
+        const to = ev?.relatedTarget;
+        if (activeFooter && (to === activeFooter || activeFooter.contains(to))) return;
+        hide();
+      });
+
+      plusEl.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        if (activeGroup) addRowToGroup(activeGroup);
+        hide();
+      });
+    };
+
+    const showAt = (footer, { group = null } = {}) => {
+      ensureElements();
+      if (!footer) return;
+      activeGroup = group;
+      activeFooter = footer;
+      if (plusEl.parentElement !== footer) footer.appendChild(plusEl);
+      plusEl.style.left = '50%';
+      plusEl.style.top = '50%';
+      plusEl.style.position = 'absolute';
+      plusEl.style.display = 'flex';
+    };
+
+    const handleFooterLeave = (footer, ev) => {
+      const to = ev?.relatedTarget;
+      if (plusEl && (to === plusEl || plusEl.contains(to))) return;
+      if (footer && activeFooter && footer !== activeFooter) return;
+      hide();
+    };
+
+    return {
+      showAt,
+      hide,
+      handleFooterLeave,
+      ensureElements,
+    };
+  })();
+
+  function wireAddRowHover(groupEl) {
+    if (!groupEl) return;
+    const footer = groupEl.querySelector('.group-footer-actions');
+    if (!footer || footer.__rowHoverWired) return;
+    footer.__rowHoverWired = true;
+    const show = () => {
+      if (!hoverRowInsert || !hoverRowInsert.showAt) return;
+      hoverRowInsert.showAt(footer, { group: groupEl });
+    };
+    const hide = (ev) => {
+      if (hoverRowInsert && hoverRowInsert.handleFooterLeave) {
+        hoverRowInsert.handleFooterLeave(footer, ev);
+      }
+    };
+    footer.addEventListener('mouseenter', show);
+    footer.addEventListener('mouseleave', hide);
+    footer.addEventListener('focusin', show);
+    footer.addEventListener('focusout', hide);
+  }
+
+  function handleAltChordDuplicate(evt, dragMeta, targetContainer = null, targetIndex = null) {
+    const { item, from, nextSibling } = dragMeta || {};
+    const to = targetContainer || evt?.to;
+    const rawIndex = Number.isInteger(targetIndex)
+      ? targetIndex
+      : Number.isInteger(evt?.newIndex)
+        ? evt.newIndex
+        : null;
+    if (!item || !from || !to) return false;
+
+    const dropSiblings = Array.from(to.querySelectorAll('.chord-card')).filter((card) => card !== item);
+    const dropIndex = Number.isInteger(rawIndex) && rawIndex >= 0 ? rawIndex : dropSiblings.length;
+    const dropNext = dropSiblings[dropIndex] || null;
+
+    // Restore the original card to its source slot
+    if (nextSibling && nextSibling.parentElement === from) {
+      from.insertBefore(item, nextSibling);
+    } else {
+      from.appendChild(item);
+    }
+
+    const duplicateCard = item.cloneNode(true);
+    wireChordCard(duplicateCard);
+    try {
+      renderCardDiagram(duplicateCard);
+    } catch (_) {
+      /* noop */
+    }
+
+    if (dropNext && dropNext.parentElement === to) {
+      to.insertBefore(duplicateCard, dropNext);
+    } else {
+      to.appendChild(duplicateCard);
+    }
+
+    if (deleteModeGroup && deleteModeGroup.contains(duplicateCard)) {
+      duplicateCard.classList.add('deletable');
+      const btn = duplicateCard.querySelector('.delete-chord-btn');
+      if (btn) btn.style.display = 'block';
+    }
+
+    persist('duplicate-chord-drag');
+    document.dispatchEvent(new CustomEvent('chords-reordered'));
+    return true;
+  }
+
+  function wireChordGrid(grid, groupEl = grid?.closest('.group')) {
+    if (!grid || grid.__chordSortable) return;
+    const parentGroup = groupEl || grid.closest('.group');
+    const sortable = Sortable.create(grid, {
+      group: 'chords',
+      handle: '.chord-handle',
+      animation: 150,
+      // Enable and tune autoscroll so long chord lists remain scrollable while dragging
+      scroll: true, // page or nearest scroll container will scroll
+      bubbleScroll: true, // allow parent containers/window to scroll
+      scrollSensitivity: 60, // px from edge to start scrolling (default ~30)
+      scrollSpeed: 20, // px/frame scroll speed (default ~10)
+      onStart: (evt) => {
+        clearGhostRow();
+        ghostRowState.lastHover = null;
+        ensureDragMoveHandler();
+        const isAltDrag = !!(evt?.originalEvent?.altKey);
+        if (isAltDrag) {
+          activeAltChordDrag = {
+            item: evt.item,
+            from: evt.from,
+            nextSibling: evt.item ? evt.item.nextElementSibling : null,
+          };
+        } else {
+          activeAltChordDrag = null;
+        }
+      },
+      onMove: (evt) => {
+        updateGhostRowHover(evt);
+      },
+      onEnd: (evt) => {
+        const ghostDrop = getGhostDropTarget(evt);
+        const ghostGroup = ghostDrop?.group || null;
+        const ghostGrid =
+          ghostGroup && ghostDrop?.overPlaceholder ? ensureBottomChordGrid(ghostGroup) : null;
+        const ghostInsertionIndex = ghostGrid
+          ? ghostGrid.querySelectorAll('.chord-card').length
+          : null;
+        const handledAlt =
+          activeAltChordDrag &&
+          activeAltChordDrag.item === evt.item &&
+          handleAltChordDuplicate(evt, activeAltChordDrag, ghostGrid, ghostInsertionIndex);
+        activeAltChordDrag = null;
+        const sourceGroup = evt.from?.closest('.group');
+        const destGroup = evt.to?.closest('.group');
+
+        if (handledAlt) {
+          clearGhostRow(true);
+          cleanupEmptyChordGrids(sourceGroup);
+          cleanupEmptyChordGrids(destGroup);
+          if (ghostGroup) cleanupEmptyChordGrids(ghostGroup);
+          detachDragMoveHandler();
+          updateEmptyMsg();
+          updateRowHandlePosition(evt.from);
+          updateRowHandlePosition(evt.to);
+          if (ghostGrid) updateRowHandlePosition(ghostGrid);
+          return;
+        }
+
+        if (ghostDrop && ghostGroup && ghostGrid && ghostDrop.overPlaceholder) {
+          ghostGrid.appendChild(evt.item);
+          clearGhostRow(true);
+          cleanupEmptyChordGrids(sourceGroup);
+          cleanupEmptyChordGrids(destGroup);
+          cleanupEmptyChordGrids(ghostGroup);
+          persist('reorder-chords');
+          document.dispatchEvent(new CustomEvent('chords-reordered'));
+          detachDragMoveHandler();
+          updateEmptyMsg();
+          updateRowHandlePosition(evt.from);
+          updateRowHandlePosition(evt.to);
+          updateRowHandlePosition(ghostGrid);
+          return;
+        }
+
+        clearGhostRow(true);
+        cleanupEmptyChordGrids(sourceGroup);
+        cleanupEmptyChordGrids(destGroup);
+        persist('reorder-chords');
+        document.dispatchEvent(new CustomEvent('chords-reordered'));
+        detachDragMoveHandler();
+        updateEmptyMsg();
+        updateRowHandlePosition(evt.from);
+        updateRowHandlePosition(evt.to);
+      },
+    });
+    grid.__chordSortable = sortable;
+    grid.dataset.sortable = '1';
+  }
+
+  function wireRowSortable(groupEl) {
+    if (!groupEl || groupEl.dataset.rowSortable) return;
+    Sortable.create(groupEl, {
+      draggable: '.chord-grid',
+      handle: '.row-drag-handle',
+      animation: 150,
+      group: 'chord-rows',
+      onEnd: (evt) => {
+        const sourceGroup = evt.from?.closest('.group');
+        const targetGroup = evt.to?.closest('.group');
+        if (sourceGroup && !sourceGroup.querySelector('.chord-grid')) {
+          ensureBottomChordGrid(sourceGroup);
+        }
+        if (targetGroup && !targetGroup.querySelector('.chord-grid')) {
+          ensureBottomChordGrid(targetGroup);
+        }
+        normalizeRowIndices(sourceGroup);
+        if (targetGroup && targetGroup !== sourceGroup) {
+          normalizeRowIndices(targetGroup);
+        }
+        updateRowHandlePosition(evt.from);
+        updateRowHandlePosition(evt.to);
+        persist('rows-reordered');
+        document.dispatchEvent(new CustomEvent('rows-reordered'));
+      },
+    });
+    groupEl.dataset.rowSortable = '1';
+  }
+
   function wireGroup(groupEl) {
     const addChordBtn = groupEl.querySelector('.add-chord');
-    const grid = groupEl.querySelector('.chord-grid');
+    const primaryGrid = groupEl.querySelector('.chord-grid');
     wireGroupExportButton(groupEl);
 
-    if (addChordBtn && grid && !addChordBtn.__wired) {
-      addChordBtn.addEventListener('click', () => addChordToGrid(grid, '...', '000000', { prepend: true }));
+    if (addChordBtn && primaryGrid && !addChordBtn.__wired) {
+      addChordBtn.addEventListener('click', () => addChordToGrid(primaryGrid, '...', '000000', { prepend: true }));
       addChordBtn.__wired = true;
     }
 
-    if (grid && !grid.dataset.sortable) {
-      Sortable.create(grid, {
-        group: 'chords',
-        handle: '.chord-handle',
-        animation: 150,
-        // Enable and tune autoscroll so long chord lists remain scrollable while dragging
-        scroll: true, // page or nearest scroll container will scroll
-        bubbleScroll: true, // allow parent containers/window to scroll
-        scrollSensitivity: 60, // px from edge to start scrolling (default ~30)
-        scrollSpeed: 20, // px/frame scroll speed (default ~10)
-        onEnd: () => {
-          persist('reorder-chords');
-          document.dispatchEvent(new CustomEvent('chords-reordered'));
-        },
-      });
-      grid.dataset.sortable = '1';
-    }
+    groupEl.querySelectorAll('.chord-grid').forEach((grid) => {
+      ensureRowHandle(grid);
+      wireChordGrid(grid, groupEl);
+      updateRowHandlePosition(grid);
+    });
+    normalizeRowIndices(groupEl);
+    wireRowSortable(groupEl);
+    wireAddRowHover(groupEl);
   }
 
   // Ensure top-level Sortable for groups is attached once
@@ -1679,6 +2564,11 @@
       </div>
 
       <div class="d-grid chord-grid"></div>
+      <div class="group-footer-actions" aria-label="Group actions and drop target">
+        <button type="button" class="export-group" aria-label="Export this group to file" data-tooltip="Export this Group to File" data-tooltip-src="Export this Group to File" title="Export this Group to File">
+          <span class="material-icons-outlined">file_download</span>
+        </button>
+      </div>
     `;
 
     if (append) {
@@ -1709,6 +2599,16 @@
   }
 
   function rewireChordUI() {
+    clearGhostRow(true);
+    if (inlineNameEditState && inlineNameEditState.card && !groupsRoot.contains(inlineNameEditState.card)) {
+      detachInlineNameOutsideHandlers();
+      if (inlineNameInputEl && inlineNameInputEl.parentElement) {
+        inlineNameInputEl.parentElement.removeChild(inlineNameInputEl);
+        inlineNameInputEl.style.display = 'none';
+      }
+      inlineNameEditState.card.classList.remove('is-inline-name-editing');
+      inlineNameEditState = null;
+    }
     // Rewire cards and ensure diagrams render
     groupsRoot.querySelectorAll('.chord-card').forEach((card) => {
       wireChordCard(card);
@@ -1717,11 +2617,12 @@
       } catch (e) {
         /* noop */
       }
-    });
-
-    // Prettify server-rendered titles for display (idempotent; uses textContent as source)
-    groupsRoot.querySelectorAll('.chord-card .chord-title').forEach((el) => {
-      el.innerHTML = prettifyChordName(el.textContent);
+      const nameInput = card.querySelector('.chord-name-input');
+      const rawName =
+        (nameInput && nameInput.value != null ? nameInput.value : '') ||
+        card.querySelector('.chord-title')?.textContent ||
+        '';
+      updateChordTitleFromName(card, rawName);
     });
 
     groupsRoot.querySelectorAll('.group').forEach((groupEl) => {
@@ -1740,6 +2641,7 @@
     }
     ensureGroupSortable();
     if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
+    updateAllRowHandles();
     updateEmptyMsg();
     ensureHistoryTooltips();
     if (window.initTooltips) window.initTooltips();
@@ -2087,6 +2989,7 @@
     ensureGroupHoverCSS(); // make group tools appear only on hover/focus-within
     groupsRoot = document.getElementById('groups-root');
     if (!groupsRoot) return console.warn('my-chords.page.js: #groups-root not found.');
+    ensureRowHandleHoverListener();
     if (window.setupTooltipBoundary) window.setupTooltipBoundary({ boundary: document.body });
     deleteGroupModal = document.getElementById('delete-group-modal');
     confirmDeleteGroupBtn = document.getElementById('confirm-delete-group');
@@ -2174,6 +3077,9 @@
         diagramLockEnabled = !diagramLockEnabled;
         updateDiagramLockButtonUI();
         saveDiagramLockSetting(diagramLockEnabled);
+        if (diagramLockEnabled && inlineNameEditState) {
+          finishInlineNameEdit(inlineNameEditState.card, { commit: true });
+        }
       });
     }
     if (chordSettingsToggleBtn && chordSettingsMenu && !chordSettingsToggleBtn.__settingsWired) {
@@ -2352,8 +3258,13 @@
       if (deleteChordBtn) {
         const card = deleteChordBtn.closest('.chord-card');
         if (card) {
+          const group = card.closest('.group');
+          const grid = card.closest('.chord-grid');
           card.remove();
           deleteModeDirty = true;
+          cleanupEmptyChordGrids(group);
+          updateEmptyMsg();
+          updateRowHandlePosition(grid);
         }
         e.preventDefault();
         e.stopPropagation();
@@ -2423,6 +3334,10 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
+  window.addEventListener('resize', () => {
+    updateAllRowHandles();
+    updateRowHandleHoverState();
+  });
   // Expose for Undo/Redo DOM morphs (called after morphdom applies HTML)
   window.rewireChordUI = rewireChordUI;
 })();
@@ -2431,34 +3346,6 @@
 
 // === Center .chord-title exactly between .string-left and .string-right columns ===
 (function () {
-  function centerTitleForCard(card) {
-    const table = card.querySelector('.chord-diagram');
-    const title = card.querySelector('.chord-title');
-    if (!table || !title) return;
-
-    const left = table.querySelector('.string-left');
-    const rights = table.querySelectorAll('.string-right');
-    const right = rights[rights.length - 1];
-    if (!left || !right) return;
-
-    // Reset before measuring
-    title.style.transform = 'none';
-
-    const leftRect = left.getBoundingClientRect();
-    const rightRect = right.getBoundingClientRect();
-    const stringsCenter = (leftRect.left + rightRect.right) / 2;
-
-    const titleRect = title.getBoundingClientRect();
-    const titleCenter = (titleRect.left + titleRect.right) / 2;
-
-    const deltaX = stringsCenter - titleCenter;
-
-    title.style.position = 'relative';
-    title.style.left = '0px';
-    title.style.right = 'auto';
-    title.style.transform = `translateX(${deltaX}px)`;
-  }
-
   function centerAllChordTitles() {
     // Catch both page and modal chord-cards
     const cards = document.querySelectorAll('.chord-card');

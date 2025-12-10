@@ -19,14 +19,14 @@
         <div class="d-flex align-items-center mb-3 page-title-row">
             <h2 class="page-title flex-grow-1">My Chords</h2>
             <span id="undo-redo-wrap" class="d-flex align-items-center gap-2">
-                <button type="button" class="primary-button" id="collections-import-btn"
-                    aria-label="Import collections" data-tooltip="Import Collections from File"
-                    data-tooltip-src="Import Collections from File" title="Import Collections from File">
+                <button type="button" class="primary-button" id="collections-import-btn" aria-label="Import collections"
+                    data-tooltip="Import Collections from File" data-tooltip-src="Import Collections from File"
+                    title="Import Collections from File">
                     <span class="material-icons-outlined">file_upload</span>
                 </button>
-                <button type="button" class="primary-button" id="collections-export-btn"
-                    aria-label="Export collections" data-tooltip="Export All Collections to File"
-                    data-tooltip-src="Export All Collections to File" title="Export All Collections to File">
+                <button type="button" class="primary-button" id="collections-export-btn" aria-label="Export collections"
+                    data-tooltip="Export All Collections to File" data-tooltip-src="Export All Collections to File"
+                    title="Export All Collections to File">
                     <span class="material-icons-outlined">file_download</span>
                 </button>
             </span>
@@ -64,14 +64,16 @@
             <div class="d-grid chord-grid">
                 {% for collection in group.collections %}
                 <div class="text-center chord-card collection-card mb-3{% if collection.deletable %} deletable{% endif %} position-relative"
-                    data-collection-id="{{ collection.id }}">
+                    data-collection-id="{{ collection.id }}"
+                    data-collection-url="{{ url_for('collection_chords', collection_id=collection.id) }}">
                     <span class="material-icons-outlined collection-handle">drag_indicator</span>
                     <button class="delete-collection-btn" type="button" title="Delete collection" tabindex="-1"
                         style="display:none;">&#8722;</button>
                     <span class="material-icons-outlined collection-edit" title="Edit collection">edit</span>
                     <div
                         class="d-flex align-items-center justify-content-between mb-1 position-relative collection-card-header">
-                        <span class="chord-title flex-grow-1 collection-title">{{ collection.name }}</span>
+                        <span class="chord-title flex-grow-1 collection-title collection-title-text">{{ collection.name
+                            }}</span>
                     </div>
                     <textarea class="form-control form-control-sm chord-name-input collection-name-input" rows="2"
                         style="display:none;">{{ collection.name }}</textarea>
@@ -110,7 +112,7 @@
 <script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
 <script defer src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script defer src="{{ url_for('static', filename='vendor/micromodal.min.js') }}"></script>
-<script defer src="{{ url_for('static', filename='tooltip.js') }}"></script>
+<script defer src="{{ url_for('static', filename='tooltips.js') }}"></script>
 <script defer src="{{ url_for('static', filename='undoRedo.collections.js') }}"></script>
 <script>
     window.MY_COLLECTIONS_EDIT_URL = "{{ url_for('my_collections_edit') }}";

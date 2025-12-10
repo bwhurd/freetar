@@ -46,6 +46,14 @@ Invariant
 - Each string has at most one stored note in `tokens`
 - There is no representation of two simultaneous notes on the same string
 
+Optional overlay ghost roots
+
+- Advanced inputs may include a per string ghost root overlay inside a parenthesized segment, for example `(7,{8})09980`
+  - Base `tokens` are still `7 0 9 9 8 0`
+  - An extra overlay entry records the ghost fret for that string (string 6 at fret 8 in the example)
+- Overlays are visual only: they render a second ghost root dot on the matching fret/string but do not change click behavior or base fret math
+- The one note per string model still uses the primary `tokens`/`roots`; editing by click on that string can drop the overlay while standard shapes keep their current behavior
+
 ### Parsing and serialization
 
 Use a single pair of helpers for all transformations:
@@ -99,8 +107,10 @@ Each chord card can carry a base fret in `card.dataset.baseFret`.
   - The table renders frets `baseFret` through `baseFret + 3` or whatever fixed range is currently used
 - When not set
   - The renderer derives a default top fret from `tokens`
-    - Often the minimum positive fret across strings
-    - Or a fallback like fret `1` when there are no fretted notes
+    - If there is at least one fretted note, it picks a 4 fret window so the lowest fretted note sits on the lowest visible label (`topBase = minFret`, clamped to `1`)
+    - If all strings are open or muted, it falls back to frets `1` through `4`
+
+This normalization happens on every render (initial page load, undo/redo, morphdom updates) so the lowest fretted note always aligns with the lowest visible label unless an explicit `baseFret` is set.
 
 `chordDiagram.js` is responsible for reading `card.dataset.baseFret` and building the diagram model accordingly.
 
@@ -114,7 +124,9 @@ The base fret modal is a small numeric prompt that appears in two scenarios
 Behavior
 
 - Shown as a centered panel with
-  - label text `Fret #?`
+  - label text set by JS based on context
+    - e.g., "What fret is the note you just added?" on the first fretted note prompt
+    - e.g., "What fret should this line be?" when retargeting a fret label
   - text and background colors defined in `my-chords.css`
 - There is no visible input element
 - While the modal is open
@@ -135,6 +147,22 @@ The modal helper
   - Hides the modal and removes the keydown listener
 
 Never add multiple separate base fret modals. Always reuse this helper.
+
+### First fretted note prompt
+
+- When a diagram is all open or muted and has no `card.dataset.baseFret`
+  - The first body click prompts for the fret number with the title "What fret is the note you just added?"
+  - The click handler captures the clicked string index and the visible fret row index so the note stays on the same visual line
+- After the user types an absolute fret `N`
+  - The clicked string is set to `N` in `tokens`
+  - `baseFret` is set to `max(1, N - rowIndex)` so the labels slide to keep the dot on that row
+  - The diagram rerenders and persists through the normal `persist('toggle-root-click')` flow in view mode
+- Example
+  - Labels show `1 2 3 4`
+  - User clicks the third row and types `7`
+  - Labels become `5 6 7 8` and the dot remains on the third row
+
+These base fret prompts do not change the one note per string invariant, the shape encoding, or any modifier click semantics.
 
 ---
 
@@ -329,28 +357,27 @@ Fret label clicks operate on `.chord-fret-label` cells in the left column.
 Step 1 — invoke the base fret modal
 
 - On click of `.chord-fret-label`
-  - The diagram click handler calls the modal helper with this card
-  - The helper shows the "Fret #?" modal and waits for a digit
+  - The diagram click handler determines the zero-based row index and current label for that line
+  - It calls the modal helper with the title "What fret should this line be?" and waits for a digit
 - When the first digit is typed
   - The modal hides
-  - The callback receives the chosen fret `F`
+  - The callback receives the chosen fret `F` for that line
 
 Step 2 — compute rebase delta
 
 Inside the callback
 
 - Read the current shape and parse tokens and roots
-- Determine the current top fret `currentTop`
+- Determine the current top fret `currentBase`
 
-  Typical logic
+  Logic
 
   - If `card.dataset.baseFret` is set to a positive integer, use that
-  - Else
-    - scan `tokens` for the smallest positive fret
-    - if none found
-      - use `1` as a default
+  - Else if the current label and row index are available, derive `currentBase = label - rowIndex`
+  - Else fall back to the renderer’s window: if any fretted notes exist use `maxFret - 3` (clamped to `1`), otherwise use `1`
 
-- Compute `delta = F - currentTop`
+- Compute `newBase = max(1, F - rowIndex)` so the clicked label moves to `F`
+- Compute `delta = newBase - currentBase`
 
 Step 3 — shift fretted tokens
 
@@ -366,8 +393,13 @@ Then
 
 - Serialize `tokens` and `roots`
 - Update `.chord-shape-input`
-- Set `card.dataset.baseFret = F`
+- Set `card.dataset.baseFret = newBase`
 - Call `renderCardDiagram(card)`
+
+Example
+
+- Diagram shows `5 6 7 8` and shape `xx678x`
+- Clicking the top label (`rowIndex = 0`) and typing `7` sets `newBase = 7`, slides labels to `7 8 9 10`, and shifts the notes up by `+2` so the interval structure stays intact
 
 Edit vs view mode
 

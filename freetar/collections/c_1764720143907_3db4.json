@@ -1,10 +1,14 @@
 [
   {
     "group": "New group",
-    "chords": [
+    "rows": [
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "...",
+            "shape": "000000"
+          }
+        ]
       }
     ]
   }

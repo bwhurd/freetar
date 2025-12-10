@@ -1804,3 +1804,33 @@ pre {
 h2.page-title.flex-grow-1 {
     margin-top: 0.25em;
 }
+
+
+.collection-title-text {
+    cursor: pointer !important;
+}
+
+/* Block all pointer based interactions */
+textarea.collection-name-input {
+    pointer-events: none;
+    user-select: text;
+    /* still allows selecting text and moving the caret */
+}
+
+/* When focusing by script, caret still works */
+textarea.collection-name-input:focus {
+    pointer-events: auto;
+    /* allow keyboard caret movement but no mouse click interaction */
+}
+
+textarea.collection-name-input {
+    position: relative;
+    /* ensure it creates its own stacking layer */
+    z-index: 10;
+    /* higher than the header */
+}
+
+.collection-card-header {
+    position: relative;
+    z-index: 1;
+}

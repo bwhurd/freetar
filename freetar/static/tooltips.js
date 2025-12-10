@@ -175,11 +175,20 @@
         '';
       const normalized = normalizeSource(localizeText(rawSrc));
       if (!normalized) return;
+      const normalizedLen = normalized.trim().length;
+      const isChordTitleTooltip = el.classList.contains('chord-title');
+      const forceSingleLineChordTitle =
+        isChordTitleTooltip &&
+        normalizedLen > 0 &&
+        normalizedLen <= SHORT_TOOLTIP_THRESHOLD &&
+        !normalized.includes('\n');
 
       el.dataset.tooltipSrc = normalized;
 
       const shouldBalance =
-        normalized.length > SHORT_TOOLTIP_THRESHOLD && !normalized.includes('\n');
+        !forceSingleLineChordTitle &&
+        normalizedLen > SHORT_TOOLTIP_THRESHOLD &&
+        !normalized.includes('\n');
       const balanced = shouldBalance
         ? balanceTooltipLines(normalized, maxChars, maxLines)
         : normalized;
@@ -197,6 +206,8 @@
       const meas = getTooltipMeasureEl();
       // apply the bubble's padding to the measurer so width matches visual bubble
       meas.style.padding = '12px 20px';
+      meas.style.whiteSpace = forceSingleLineChordTitle ? 'nowrap' : 'pre-line';
+      meas.style.setProperty('text-wrap', forceSingleLineChordTitle ? 'nowrap' : 'balance');
       meas.style.maxWidth = `${maxChars}ch`;   // cap at the same width as CSS (e.g., 36ch)
       meas.style.width = 'auto';               // shrink-to-fit
       meas.textContent = balanced;
@@ -205,7 +216,7 @@
       el.dataset.tooltipFixedW = String(boxWidth);
 
       // Install/update a dynamic rule that sets an exact inline-size for this element's ::after
-      (function applyFixedWidthRule(node, px) {
+      (function applyFixedWidthRule(node, px, singleLine) {
         const styleId = 'tooltip-fixed-widths';
         let styleEl = document.getElementById(styleId);
         if (!styleEl) {
@@ -226,9 +237,10 @@
           }
         } catch { }
         // insert updated rule with exact width
-        const rule = `${sel}{ inline-size:${px}px !important; }`;
+        const wrapRule = singleLine ? 'white-space:nowrap !important;text-wrap:nowrap !important;' : '';
+        const rule = `${sel}{ inline-size:${px}px !important; ${wrapRule}}`;
         try { sheet.insertRule(rule, sheet.cssRules.length); } catch { }
-      })(el, boxWidth);
+      })(el, boxWidth, forceSingleLineChordTitle);
     });
   }
 
@@ -292,6 +304,11 @@
       return;
     }
 
+    const isChordTitleTooltip = triggerEl.classList.contains('chord-title');
+    const textLen = text.trim().length;
+    const forceSingleLineChordTitle =
+      isChordTitleTooltip && textLen > 0 && textLen <= SHORT_TOOLTIP_THRESHOLD && !text.includes('\n');
+
     const boundary = getTooltipBoundary(opts.boundary);
     const gap = Number.isFinite(opts.gap) ? opts.gap : 6;
 
@@ -316,6 +333,8 @@
 
     const meas = getTooltipMeasureEl();
     meas.style.padding = '12px 20px';
+    meas.style.whiteSpace = forceSingleLineChordTitle ? 'nowrap' : 'pre-line';
+    meas.style.setProperty('text-wrap', forceSingleLineChordTitle ? 'nowrap' : 'balance');
     meas.textContent = text;
 
     if (!bubbleWidth || !Number.isFinite(bubbleWidth)) {
@@ -464,7 +483,7 @@
               }
               delete el.dataset.tooltipSaved;
               restoreTimers.delete(el);
-            }, 3000);
+            }, 500);
             restoreTimers.set(el, timer);
           }
         }

@@ -1,26 +1,22 @@
 [
   {
-    "group": "New group",
+    "group": "Radiohead - Creep",
     "chords": [
       {
-        "name": "...",
-        "shape": "000000"
+        "name": "G",
+        "shape": "[3]55433"
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "name": "B",
+        "shape": "x[2]4442"
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "name": "C",
+        "shape": "x[3]5553"
       },
       {
-        "name": "...",
-        "shape": "000000"
-      },
-      {
-        "name": "...",
-        "shape": "000000"
+        "name": "Cm",
+        "shape": "x[8](10)(10)98"
       }
     ]
   }

@@ -1,19 +1,19 @@
 /* Persistent Undo/Redo for My Chords
    - Stores a snapshot history in localStorage so Undo/Redo works after Save or reload.
-   - Applies a snapshot by POSTing it to /my-chords/edit, then reloads to re-render diagrams.
+   - Applies a snapshot by POSTing it to window.MY_CHORDS_EDIT_URL, then reloads to re-render diagrams.
    - No external dependencies; self-contained IIFE.
 */
 (() => {
   'use strict';
 
   // ---------- Config ----------
-  const ENDPOINT = window.MY_CHORDS_EDIT_URL || '/my-chords/edit';
+  const ENDPOINT = window.MY_CHORDS_EDIT_URL;
   const STORAGE_KEY = 'freetar:chords:history:v1';
   const MAX_SNAPSHOTS = 50; // cap to avoid unbounded growth
   const BTN_ROW_SELECTOR = '.page-title-row'; // your top button row
 
   const groupsRoot = document.getElementById('groups-root');
-  if (!groupsRoot) return;
+  if (!groupsRoot || !ENDPOINT) return;
 
   // ---------- Helpers ----------
   const $ = (sel, root = document) => root.querySelector(sel);
@@ -29,19 +29,24 @@
       const nameInput = $('.group-name', groupEl);
       const rawGroupName = nameInput ? nameInput.value : '';
       const groupName = rawGroupName.trim();
-      const chords = [];
-      $$('.chord-card', groupEl).forEach((card) => {
-        const nameInput = $('.chord-name-input', card);
-        const shapeInput = $('.chord-shape-input', card);
-        const titleEl = $('.chord-title', card);
-        const name = (
-          nameInput && nameInput.value ? nameInput.value : titleEl ? titleEl.textContent : ''
-        ).trim();
-        const shape = shapeInput ? shapeInput.value.trim() : '';
-        if (!shape) return; // ignore placeholders (matches your current save behavior)
-        chords.push({ name: name || '(unnamed)', shape });
+      const rows = [];
+      $$('.chord-grid', groupEl).forEach((grid) => {
+        const chords = [];
+        $$('.chord-card', grid).forEach((card) => {
+          if (card.classList.contains('chord-card-placeholder')) return;
+          const nameInput = $('.chord-name-input', card);
+          const shapeInput = $('.chord-shape-input', card);
+          const titleEl = $('.chord-title', card);
+          const name = (
+            nameInput && nameInput.value ? nameInput.value : titleEl ? titleEl.textContent : ''
+          ).trim();
+          const shape = shapeInput ? shapeInput.value.trim() : '';
+          if (!shape) return; // ignore placeholders (matches your current save behavior)
+          chords.push({ name: name || '(unnamed)', shape });
+        });
+        rows.push({ chords });
       });
-      groups.push({ group: groupName || '\u00A0', chords });
+      groups.push({ group: groupName || '\u00A0', rows });
     });
     return groups;
   }
@@ -299,7 +304,12 @@
       pushSnapshot('reorder');
     });
 
-    // 9) Library import (server-side merge; handled via custom event)
+    // 9) Row reorder capture
+    document.addEventListener('rows-reordered', () => {
+      pushSnapshot('rows-reordered');
+    });
+
+    // 10) Library import (server-side merge; handled via custom event)
     document.addEventListener('chords-imported', (e) => {
       const state = e && e.detail && e.detail.state;
       pushSnapshot('import', state);

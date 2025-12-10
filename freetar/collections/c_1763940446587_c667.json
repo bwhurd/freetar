@@ -1,67 +1,160 @@
 [
   {
     "group": "Favorites",
-    "chords": [
+    "rows": [
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "...",
+            "shape": "000000"
+          },
+          {
+            "name": "A−7",
+            "shape": "[3]x333x"
+          },
+          {
+            "name": "AΔ7",
+            "shape": "x(15)(15)0(14)x"
+          },
+          {
+            "name": "C69",
+            "shape": "3{3}2233"
+          },
+          {
+            "name": "G6",
+            "shape": "[3]x243x"
+          },
+          {
+            "name": "E7",
+            "shape": "[7]x780x"
+          },
+          {
+            "name": "A7",
+            "shape": "[5]455xx"
+          },
+          {
+            "name": "A-7",
+            "shape": "[5]x55xx"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
-      },
-      {
-        "name": "A−7",
-        "shape": "[3]x333x"
-      },
-      {
-        "name": "AΔ7",
-        "shape": "x(13)(13)0(12)x"
-      },
-      {
-        "name": "C69",
-        "shape": "56x[6]x7"
-      },
-      {
-        "name": "A−",
-        "shape": "x00000"
-      },
-      {
-        "name": "G6",
-        "shape": "[3]x243x"
-      },
-      {
-        "name": "E7",
-        "shape": "([7])87x0x"
-      },
-      {
-        "name": "A7",
-        "shape": "[5]455xx"
-      },
-      {
-        "name": "A-7",
-        "shape": "[5]x55xx"
+        "chords": [
+          {
+            "name": "...",
+            "shape": "000000"
+          }
+        ]
       }
     ]
   },
   {
-    "group": "New group 2",
-    "chords": [
+    "group": "Δ7",
+    "rows": [
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Cmaj7 {Root 6th string 8th fret}",
+            "shape": "(7,{8})x998x"
+          },
+          {
+            "name": "Dmaj7",
+            "shape": "2{5}422x"
+          },
+          {
+            "name": "Cmaj7 {5-3-M7}",
+            "shape": "3{3}2400"
+          },
+          {
+            "name": "CΔ7",
+            "shape": "x[3]24xx"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
-      },
+        "chords": [
+          {
+            "name": "GΔ7",
+            "shape": "{3}5[5]460"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "Δ7   →   69",
+    "rows": [
       {
-        "name": "...",
-        "shape": "000000"
-      },
+        "chords": [
+          {
+            "name": "CΔ7",
+            "shape": "3{3}5450"
+          },
+          {
+            "name": "G6 {R-R-3-6}",
+            "shape": "[3]x5450"
+          },
+          {
+            "name": "Cmaj7 {M7-X-M7-3-5-X}",
+            "shape": "(7,{8})x998x"
+          },
+          {
+            "name": "Cmaj7 {3-X-3-6-R-X}",
+            "shape": "(12){(15)}(14)(14)[(13)]x"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "New group",
+    "rows": [
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "...",
+            "shape": "000000"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "New group",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "...",
+            "shape": "000000"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "6/9",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "C69",
+            "shape": "3{3}2230"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "Δ6",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "...",
+            "shape": "000000"
+          }
+        ]
       }
     ]
   }

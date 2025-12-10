@@ -1,3 +1,35 @@
+Write a high quality prompt for the Codex IDE VS Code extension using GPT-5.1-Codex-Max for the Freetar “My Chord Library” project.
+
+Inputs in this message:
+- AGENTS.md between the 111s
+- An example Codex prompt between the 222s
+- A Task description in plain English between the 333s.
+
+Your job
+
+- Read AGENTS.md to understand the project, invariants, and patch rules.
+- Study the example prompt to match its style, structure, and level of detail.
+- Use the file tree only to choose a minimal set of files that obviously need to change for the Task.
+- Then write a single Codex prompt that will:
+  - Make Codex complete the Task correctly on the first pass as often as possible.
+  - Keep token usage low by scoping files and instructions tightly.
+
+Constraints for the Codex prompt you output
+
+- Assume Codex already loads AGENTS.md. Do not paste AGENTS.md content into the prompt. Instead, refer to it briefly, for example:
+  “AGENTS.md at the project root is your primary spec. Follow its editing, patch, and invariant rules. For this task, it is important you review x,y,z sections of the AGENTS.md spec and section w of the CHORD_INTERACTIONS.md”
+- Follow the section structure of the example prompt: a short intro, then sections like “Task”, “Files”, “Behavior” (or similar), “Constraints”, and “Return”.
+- Choose the smallest reasonable Files list for the Task. Do not list files that are clearly unrelated.
+- Describe behavior and implementation details at a similar level of precision as the example, but avoid unnecessary repetition or restating invariants that AGENTS.md already covers.
+- Keep natural language concise and directive.
+- Do not mention 111 or 222 in the output. The output should look like a direct prompt I can paste into Codex.
+
+Now here are the inputs.
+
+
+111
+# AGENTS.md (for reference)
+```
 # My Chord Library agent
 
 ## Role
@@ -128,6 +160,7 @@ Review this document when:
 
 - `freetar/static/tooltips.js`  
   Tooltip manager. Locates elements with `data-tooltip`, localizes and balances tooltip text for optimal line breaks, and applies dynamic widths for consistent display. Handles keyboard and pointer activation, auto-positions tooltips within viewport boundaries, and relies on `tooltips.css` for styling.
+
 
 CSS
 
@@ -298,3 +331,124 @@ If the user asks for raw file contents instead of diffs, you may return the full
 - Preserve the one note per string model and shape encoding unless explicitly told otherwise.
 - Do not silently change click semantics (plain, Shift, Alt, Ctrl) or base fret modal triggers.
 - If unsure about subtle behavior, call out tradeoffs in the summary rather than making a silent breaking change.
+```
+111
+
+---
+
+
+
+222
+# Example Prompt
+```
+You are editing the freetar repo. AGENTS.md at the project root is your primary spec. Follow its editing, patch, and invariant rules, including staying under freetar/ and never touching vendor bundles.
+
+Task
+
+Add a shared tooltip helper and wire it into both My Chords and My Collections so that data-tooltip attributes show balanced multi line tooltips.
+
+Files
+
+- freetar/static/tooltips.js (new)
+- freetar/static/my-chords.css
+- freetar/static/my-collections.css
+- freetar/templates/my_chords.html
+- freetar/templates/my_collections.html
+- freetar/static/my-chords.page.js
+- freetar/static/my-collections.page.js
+
+Behavior
+
+1) Tooltip behavior
+
+- Use a data attribute pattern
+  - Any element with data-tooltip uses the custom tooltip behavior
+  - Existing controls like Add chord, Import chords, Undo, Redo, Lock should use this pattern
+- Tooltip text rules
+  - If length <= 20 chars, show as a single line
+  - If longer, wrap at word boundaries into at most 3 or 4 lines
+  - Prefer balanced line lengths and avoid a very short last line
+  - Use a max characters per line driven by a CSS variable so we can tune width
+  - Support either newline characters or <br> for line breaks, but final rendering must work cleanly with CSS
+
+2) tooltips.js
+
+Create freetar/static/tooltips.js with:
+
+- A helper that reads a root CSS variable like --tooltip-max-ch and falls back to a default such as 36
+- A function balanceTooltipLines(text, maxCharsPerLine, maxLines) that
+  - Takes raw tooltip text
+  - Returns the same text or a version with line breaks at word boundaries
+  - Uses a simple scoring approach that
+    - Penalizes lines much shorter than maxCharsPerLine
+    - Penalizes a last line with only one or two words
+    - Prefers using fewer total lines, up to maxLines
+- An initTooltips function that
+  - Finds elements with data-tooltip
+  - Reads canonical text from data-tooltip-src if present, otherwise from data-tooltip and stores it in data-tooltip-src
+  - For text longer than 20 characters, runs balanceTooltipLines and writes the balanced text back into data-tooltip
+- A setupTooltipBoundary function that
+  - Uses a boundary element (for example a main content wrapper) or document.body
+  - Positions the tooltip bubble so it stays inside the boundary horizontally and inside the viewport vertically
+  - Can rely on CSS and variables like --tooltip-offset-x and --tooltip-offset-y
+- Expose only what is needed globally, for example window.initTooltips and window.setupTooltipBoundary
+
+Keep tooltips.js self contained and framework free. Do not use chrome or extension specific APIs.
+
+3) CSS
+
+In my-chords.css and my-collections.css:
+
+- Define shared tooltip bubble styles that read data-tooltip and use
+  - text-wrap balance
+  - white space settings that respect newlines or <br> from tooltips.js
+  - a max width in ch, controlled by --tooltip-max-ch
+- Ensure My Chords and My Collections share the same visual tooltip rules, with only layout differences if needed
+
+4) Template and controller wiring
+
+In my_chords.html and my_collections.html:
+
+- Include tooltips.js as a separate script
+  - Respect the script order invariants from AGENTS.md
+  - Load tooltips.js after vendor scripts (morphdom, Sortable, Micromodal) and before page controllers so controllers can rely on tooltips
+
+In my-chords.page.js and my-collections.page.js:
+
+- On page init, call initTooltips and setupTooltipBoundary in an idempotent way
+- Ensure that when morphdom updates content, rewireChordUI also triggers tooltip re initialisation for new or changed buttons
+
+5) Integrate existing tooltips
+
+- For buttons that already have tooltips or should have them (Add chord, Import chords, Undo, Redo, Lock)
+  - Standardize on data-tooltip for display text
+  - If title attributes are used, migrate or mirror to data-tooltip-src so tooltips.js can manage layout while preserving accessibility
+
+Constraints
+
+- Treat tooltips.js as a purely presentational enhancement
+- Do not change persistence code, chord diagram semantics, click semantics, one note per string, or script order invariants defined in AGENTS.md
+
+Return
+
+- Patches for:
+  - freetar/static/tooltips.js
+  - freetar/static/my-chords.css
+  - freetar/static/my-collections.css
+  - freetar/templates/my_chords.html
+  - freetar/templates/my_collections.html
+  - freetar/static/my-chords.page.js
+  - freetar/static/my-collections.page.js
+- Use the patch format from AGENTS.md
+- End with a short bullet summary covering
+  - Where tooltips.js is wired
+  - How the line balancing works
+  - Any risks for accessibility, focus, or morphdom
+```
+222
+
+
+333
+# Task
+
+333

@@ -130,7 +130,7 @@ V7: vertical gap between adjacent groups
     /* group inner top padding (or header top margin) */
     --spaceV-7: .05;
     /* inter-group vertical gap */
-    --min-height-multiplier: .9;
+    --min-height-multiplier: .76 ;
 }
 
 .group-header {
@@ -626,6 +626,7 @@ h5#delete-group-modal-title {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+    position: relative;
 }
 
 
@@ -748,6 +749,8 @@ h5#delete-group-modal-title {
     margin-left: auto;
     margin-right: auto;
     text-align: center;
+    overflow: visible;
+    position: relative;
 
 }
 
@@ -792,15 +795,18 @@ h5#delete-group-modal-title {
     z-index: 3;
 }
 
-.chord-card:hover {
-    border: 1px solid #d9d9d9;
 
-}
 
 
 .chord-card .delete-chord-btn:hover {
     background: #b52f3a;
 
+}
+
+.chord-card.is-inline-name-editing .chord-handle,
+.chord-card.is-inline-name-editing .chord-edit {
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .chord-card .material-icons-outlined.chord-edit {
@@ -951,6 +957,27 @@ h5#delete-group-modal-title {
     position: absolute;
     top: auto;
     transform: translateX(-50%);
+}
+
+.chord-diagram thead th .chord-header-label.chord-header-label-ghost-with-x {
+    align-items: center;
+    display: inline-flex;
+    flex-direction: column;
+    gap: calc(var(--u) * 0.12);
+}
+
+.chord-diagram thead th .chord-header-label.chord-header-label-ghost-with-x .chord-header-root {
+    bottom: auto;
+    left: auto;
+    pointer-events: auto;
+    position: relative;
+    transform: none;
+}
+
+.chord-diagram thead th .chord-header-label .chord-header-muted-x {
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    transform: translateY(calc(var(--u) * -0.08));
 }
 
 /* Expand header click hit area upward so X/0 region is easier to tap */
@@ -1257,8 +1284,32 @@ h5#delete-group-modal-title {
 
 }
 
-.collection-body-placeholder {
-    flex: 1 1 auto;
+.chord-name-inline-input {
+    position: absolute;
+    z-index: 5;
+    min-width: 0;
+    font-family: "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
+    font-size: calc(1.3em * var(--chord-edit-scale, 1));
+    letter-spacing: 0.12em;
+    color: inherit;
+    background: #2a282d;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xxs);
+    padding: 0.2rem 0.4rem;
+    text-align: center;
+    margin: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    transform: translateY(1.2em);
+}
+
+.chord-name-inline-input:focus {
+    outline: 2px solid var(--focus-ring);
+    outline-offset: 1px;
+}
+
+.chord-title:hover {
+    cursor: pointer;
 }
 
 .collection-card {
@@ -1487,7 +1538,7 @@ h5#delete-group-modal-title {
     display: none;
     font-size: 1.1em;
     height: 1.7em;
-    left: 0.35rem;
+    left: 1.5rem;
     line-height: 1.7em;
     position: absolute;
     text-align: center;
@@ -1571,21 +1622,24 @@ h5#delete-group-modal-title {
     display: flex;
     justify-content: flex-end;
     padding-right: 0.7em;
+    margin-top: 0;
     margin-bottom: -.2em;
+    min-height: 36px;
+    position: relative;
 }
 
 .group-footer-actions .export-group {
     align-items: center;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 8px;
+    border-radius: var(--radius-xs);
     box-sizing: border-box;
     color: var(--text-primary);
     cursor: pointer;
     display: inline-flex;
     height: 32px;
     justify-content: center;
-    padding: 1.3em;
+    padding: 0.35em;
     transition: background-color .15s ease, color .15s ease, transform .1s ease, border-color .15s ease;
     width: 32px;
     opacity: 0;
@@ -1604,6 +1658,125 @@ h5#delete-group-modal-title {
     opacity: 1;
     pointer-events: auto;
 }
+
+.row-insert-plus {
+    align-items: center;
+    background: var(--surface-elevated, #2a282d);
+    border-radius: 50%;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    color: #0d6efd;
+    cursor: pointer;
+    display: none;
+    font-size: 28px;
+    height: 36px;
+    justify-content: center;
+    left: 50%;
+    pointer-events: auto;
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    transition: transform .12s ease, box-shadow .12s ease;
+    width: 36px;
+    z-index: 20;
+}
+
+.row-insert-plus:hover,
+.row-insert-plus:focus-visible {
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+    transform: translate(-50%, -50%) scale(1.05);
+}
+
+.row-insert-plus[data-tooltip]::after,
+.row-insert-plus[data-tooltip]::before {
+    font-family: "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
+}
+
+.chord-grid .row-drag-handle {
+    align-items: center;
+    color: #47637f;
+    cursor: move;
+    display: inline-flex;
+    font-size: 22px;
+    height: 26px;
+    left: 0;
+    justify-content: center;
+    line-height: 1;
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform: none;
+    transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+    width: 26px;
+    z-index: 2;
+}
+
+.chord-grid.row-handle-active .row-drag-handle {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.chord-grid .row-drag-handle:hover {
+    color: #084aab;
+    background: rgba(10, 88, 202, 0.08);
+    border-radius: 50%;
+}
+
+.group-ghost-row {
+    display: none;
+    align-items: start;
+    box-sizing: border-box;
+    margin: 0.35rem 0 0.25rem;
+    min-height: calc(var(--diagram-u) * var(--chord-card-height-u) * 0.95);
+    padding: 0.25rem 0.2rem;
+    width: 100%;
+    justify-content: flex-start;
+    gap: 0.12rem;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
+    border: 1px dashed var(--border-subtle);
+    border-radius: var(--radius-xs);
+    column-gap: 0.12rem;
+    grid-template-columns: repeat(auto-fill, minmax(min(calc(var(--diagram-u) * var(--chord-card-width-u)), 100%), 1fr));
+    row-gap: 0.15rem;
+}
+
+.group-ghost-row.is-visible {
+    display: grid;
+}
+
+.group-ghost-row .chord-card-placeholder {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.35);
+    border-radius: var(--radius-xs);
+    box-sizing: border-box;
+    color: var(--text-secondary);
+    display: flex;
+    font-size: 0.9rem;
+    justify-content: center;
+    letter-spacing: 0.08em;
+    min-height: calc(var(--diagram-u) * var(--chord-card-height-u) * 0.95);
+    min-width: calc(var(--diagram-u) * var(--chord-card-width-u));
+    max-width: calc(var(--diagram-u) * var(--chord-card-width-u) * 1.05);
+    opacity: 0.7;
+    padding: 0.45rem 0.7rem;
+    text-transform: uppercase;
+    transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
+    cursor: copy;
+}
+
+.group-ghost-row .chord-card-placeholder::after {
+    content: 'Drop to start a new row';
+}
+
+.group-ghost-row .chord-card-placeholder.is-active {
+    background: rgba(67, 223, 231, 0.14);
+    border-color: rgba(67, 223, 231, 0.85);
+    box-shadow: 0 0 0 1px rgba(67, 223, 231, 0.35);
+    color: var(--text-primary);
+    opacity: 1;
+}
+
 
 .group-handle {
     color: #47637F;
@@ -1854,11 +2027,11 @@ h5#delete-group-modal-title {
 
 @keyframes chord-shake {
     from {
-        transform: rotate(-2deg);
+        transform: rotate(-1deg);
     }
 
     to {
-        transform: rotate(2deg);
+        transform: rotate(1deg);
     }
 }
 

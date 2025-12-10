@@ -19,6 +19,7 @@ function parseTokensAndRootKinds(shapeText) {
   const input = typeof shapeText === 'string' ? shapeText : '';
   const tokens = [];
   const roots = []; // 'played' | 'ghost' | null
+  const overlays = {}; // { [stringIndex]: { ghostFret: number } }
   const SEP = /[,\s\/|\-]/; // treat whitespace and punctuation as separators
 
   const push = (val, kind = null) => {
@@ -26,6 +27,21 @@ function parseTokensAndRootKinds(shapeText) {
     const numVal = val == null ? null : Number(val);
     tokens.push(Number.isFinite(numVal) ? numVal : null);
     roots.push(kind === 'played' || kind === 'ghost' ? kind : null);
+  };
+
+  const recordOverlay = (idx, overlayVal) => {
+    const ghostFret = Number(overlayVal);
+    if (!Number.isFinite(ghostFret)) return;
+    if (idx < 0 || idx >= 6) return;
+    overlays[idx] = { ghostFret };
+  };
+
+  const pushWithOverlay = (val, kind, overlayVal) => {
+    const idx = tokens.length;
+    push(val, kind);
+    if (tokens.length > idx) {
+      recordOverlay(idx, overlayVal);
+    }
   };
 
   const len = input.length;
@@ -40,6 +56,27 @@ function parseTokensAndRootKinds(shapeText) {
 
     const sub = input.slice(i);
     let m;
+
+    if ((m = sub.match(/^\[\s*\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)\s*\]/))) {
+      pushWithOverlay(parseInt(m[1], 10), 'played', parseInt(m[2], 10)); // [(7,{8})]
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\{\s*\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)\s*\}/))) {
+      pushWithOverlay(parseInt(m[1], 10), 'ghost', parseInt(m[2], 10)); // {(7,{8})}
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\(\s*\[\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\]\s*\)/))) {
+      pushWithOverlay(parseInt(m[1], 10), 'ghost', parseInt(m[2], 10)); // legacy ([7,{8}])
+      i += m[0].length;
+      continue;
+    }
+    if ((m = sub.match(/^\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)/))) {
+      pushWithOverlay(parseInt(m[1], 10), null, parseInt(m[2], 10)); // (7,{8})
+      i += m[0].length;
+      continue;
+    }
 
     if ((m = sub.match(/^\{\s*\(\s*(\d+)\s*\)\s*\}/))) {
       push(parseInt(m[1], 10), 'ghost'); // {(10)}
@@ -115,7 +152,14 @@ function parseTokensAndRootKinds(shapeText) {
     roots.length = 6;
   }
 
-  return { tokens, roots };
+  Object.keys(overlays).forEach((idx) => {
+    const n = Number(idx);
+    if (!Number.isInteger(n) || n < 0 || n >= tokens.length) {
+      delete overlays[idx];
+    }
+  });
+
+  return { tokens, roots, overlays };
 }
 
 function parseRootKinds(shape) {
@@ -123,7 +167,7 @@ function parseRootKinds(shape) {
   return roots; // array of 6: 'played' | 'ghost' | null
 }
 
-function buildShapeFromTokensAndRootKinds(tokens, roots) {
+function buildShapeFromTokensAndRootKinds(tokens, roots, overlays) {
   const vals = Array.isArray(tokens) ? tokens.slice(0, 6) : [];
   const kinds = Array.isArray(roots) ? roots.slice(0, 6) : [];
   while (vals.length < 6) vals.push(null);
@@ -135,12 +179,19 @@ function buildShapeFromTokensAndRootKinds(tokens, roots) {
       if (t == null) return 'x';
       const num = Number(t);
       if (!Number.isFinite(num)) return 'x';
+      const overlayVal =
+        overlays && overlays[i] && Number.isFinite(Number(overlays[i].ghostFret))
+          ? Number(overlays[i].ghostFret)
+          : null;
       if (num === 0) {
+        const coreZero = overlayVal != null ? `(${num},{${overlayVal}})` : '0';
+        if (overlayVal != null && rk === 'played') return `[${coreZero}]`;
+        if (overlayVal != null && rk === 'ghost') return `{${coreZero}}`;
         if (rk === 'played') return '[0]';
         if (rk === 'ghost') return '{0}';
-        return '0';
+        return coreZero;
       }
-      const core = num >= 10 ? `(${num})` : String(num);
+      const core = overlayVal != null ? `(${num},{${overlayVal}})` : num >= 10 ? `(${num})` : String(num);
       if (rk === 'played') return `[${core}]`;
       if (rk === 'ghost') return `{${core}}`;
       return core;
@@ -150,22 +201,43 @@ function buildShapeFromTokensAndRootKinds(tokens, roots) {
 
 function normalizeShapeText(raw) {
   const parsed = parseTokensAndRootKinds(raw);
-  return buildShapeFromTokensAndRootKinds(parsed.tokens, parsed.roots);
+  return buildShapeFromTokensAndRootKinds(parsed.tokens, parsed.roots, parsed.overlays);
+}
+
+function deriveAutoBaseFret(tokens) {
+  if (!Array.isArray(tokens) || !tokens.length) return 1;
+  const fretted = tokens.filter((t) => typeof t === 'number' && t > 0);
+  if (!fretted.length) return 1;
+  const minFret = Math.min(...fretted);
+  return Math.max(1, minFret);
 }
 
 function buildDiagramModel(shape, baseFret) {
-  const tokens = parseShapeTokens(shape);
-  const rootKinds = parseRootKinds(shape);
+  const parsedShape = parseTokensAndRootKinds(shape);
+  const tokens = parsedShape.tokens;
+  const rootKinds = parsedShape.roots;
+  const overlayRoots = parsedShape.overlays || {};
   const header = tokens.map((t) => (t == null ? 'X' : t === 0 ? 'O' : String(t)));
-  const used = tokens.filter((t) => t != null && t !== 0);
   const base =
     typeof baseFret === 'number' && Number.isFinite(baseFret) && baseFret > 0 ? baseFret : null;
-  let start = base ?? (used.length ? Math.min(...used) : 1);
-  if (start <= 1) start = 1;
+  let start;
+  if (base != null) {
+    start = base;
+  } else {
+    start = deriveAutoBaseFret(tokens);
+  }
   const frets = [start, start + 1, start + 2, start + 3];
   const rows = frets.map((fret) => ({
     fret,
     strings: tokens.map((t) => (t === fret ? 1 : 0)),
+    overlays: tokens.map((_, idx) => {
+      const ov = overlayRoots[idx];
+      const ghostFret =
+        ov && Number.isFinite(Number(ov.ghostFret)) ? Number(ov.ghostFret) : null;
+      if (ghostFret == null) return 0;
+      if (tokens[idx] != null && ghostFret === tokens[idx]) return 0; // avoid double on same cell
+      return ghostFret === fret ? 1 : 0;
+    }),
   }));
   return { header, rows, rootKinds };
 }
@@ -182,24 +254,30 @@ function buildChordTableInnerHTML(model) {
       const pos = i === 0 ? ' string-left' : i === arr.length - 1 ? ' string-right' : '';
       const cls =
         x === 'X' ? 'chord-header-muted' : x === 'O' ? 'chord-header-open' : 'chord-header-fret';
+      const rk = (model.rootKinds && model.rootKinds[i]) || null;
 
       let label = '';
       if (x === 'X') {
-        label = `<span class="chord-header-label">X</span>`;
+        label =
+          rk === 'ghost'
+            ? `<span class="chord-header-label chord-header-muted-x">X</span>`
+            : `<span class="chord-header-label">X</span>`;
       } else if (x === 'O') {
-        const rk = (model.rootKinds && model.rootKinds[i]) || null;
         if (rk === 'played') {
           // open-string root (played) → filled root dot with R label above nut
           label = `<span class="chord-header-root chord-header-root-played"><span class="chord-header-root-label">R</span></span>`;
         } else if (rk === 'ghost') {
-          // open-string root (not played) → ghost ring with inner accent (no R label)
-          label = `<span class="chord-header-root chord-header-root-ghost"><span class="chord-header-root-mini"></span></span>`;
+          // open-string ghost root → ghost marker plus muted X above nut
+          label = `<span class="chord-header-label chord-header-label-ghost-with-x"><span class="chord-header-muted-x">X</span><span class="chord-header-root chord-header-root-ghost"><span class="chord-header-root-mini"></span></span></span>`;
         } else {
           label = `<span class="chord-header-label">O</span>`;
         }
       } else {
-        // numeric header shown in footer; keep placeholder for consistent row height
-        label = `<span class="chord-header-placeholder"></span>`;
+        // numeric header shown in footer; keep placeholder unless we need muted X for ghost roots
+        label =
+          rk === 'ghost'
+            ? `<span class="chord-header-label chord-header-muted-x">X</span>`
+            : `<span class="chord-header-placeholder"></span>`;
       }
 
       return `<th class="chord-header-string ${cls} string-col${pos}">${label}</th>`;
@@ -226,7 +304,11 @@ function buildChordTableInnerHTML(model) {
               dotClasses += ' chord-dot-filled';
             }
           }
-          return `<td class="chord-string-cell${pos}"><div class="chord-dot-wrap"><div class="${dotClasses}">${dotInner}</div></div></td>`;
+          const hasOverlay = row.overlays && row.overlays[i];
+          const overlayDot = hasOverlay
+            ? `<div class="chord-dot chord-dot-overlay root-ghost"><span class="chord-dot-mini"></span></div>`
+            : '';
+          return `<td class="chord-string-cell${pos}"><div class="chord-dot-wrap"><div class="${dotClasses}">${dotInner}</div>${overlayDot}</div></td>`;
         })
         .join('');
       return `<tr data-fret="${row.fret}"><td class="chord-fret-label">${row.fret}</td>${cells}</tr>`;
@@ -234,8 +316,9 @@ function buildChordTableInnerHTML(model) {
     .join('');
 
   const footerCells = headerTokens
-    .map((x) => {
-      const footerLabel = x === 'X' || x === 'O' ? '' : x;
+    .map((x, i) => {
+      const rk = (model.rootKinds && model.rootKinds[i]) || null;
+      const footerLabel = x === 'X' || x === 'O' || rk === 'ghost' ? '' : x;
       const footerText = footerLabel == null ? '' : footerLabel;
       return `<td class="chord-footer-cell"><span class="chord-footer-label">${footerText}</span></td>`;
     })

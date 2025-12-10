@@ -768,6 +768,7 @@
         input.style.display = show ? 'block' : 'none';
         title.style.display = show ? 'none' : 'block';
         if (show) {
+            input.dataset.originalName = input.value;
             resize();
             input.focus();
             input.select();
@@ -784,6 +785,7 @@
         const input = qs('.chord-name-input', card);
         const deleteBtn = qs('.delete-collection-btn', card);
         const editIcon = qs('.collection-edit', card);
+        const title = qs('.chord-title', card);
 
         // modern textarea styling + hover effects + 20 percent wider
         if (input) {
@@ -827,12 +829,48 @@
                 input.style.height = `${input.scrollHeight}px`;
             });
 
+            const commitEdit = () => {
+                if (!card.classList.contains('editing')) return;
+                toggleEdit(card, false);
+                persistCollections('edit-collection-name');
+                if (document.activeElement === input) input.blur();
+            };
+
+            const cancelEdit = () => {
+                if (!card.classList.contains('editing')) return;
+                const original = input.dataset.originalName || title?.textContent || '';
+                input.value = original;
+                toggleEdit(card, false);
+                if (document.activeElement === input) input.blur();
+            };
+
+            ['pointerdown', 'mousedown', 'click'].forEach((evt) => {
+                input.addEventListener(evt, (e) => {
+                    e.stopPropagation();
+                });
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (e.ctrlKey || e.metaKey) {
+                        e.preventDefault();
+                        commitEdit();
+                        return;
+                    }
+                    if (e.shiftKey) return;
+                    e.preventDefault();
+                    commitEdit();
+                } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    cancelEdit();
+                }
+            });
+
             input.addEventListener('blur', () => {
                 input.style.borderColor = 'rgba(0,0,0,0.15)';
                 input.style.boxShadow = 'none';
                 input.style.background = '#f8fafc';
-                toggleEdit(card, false);
-                persistCollections('edit-collection-name');
+                commitEdit();
             });
         }
 
@@ -856,11 +894,15 @@
         card.addEventListener('click', (e) => {
             const inDeleteMode = deleteModeGroup === groupEl;
             if (inDeleteMode) return;
-            if (card.classList.contains('editing')) return;
+            if (card.classList.contains('editing')) {
+                if (e.target.closest('.collection-name-input')) {
+                    e.stopPropagation();
+                }
+                return;
+            }
             if (
                 e.target.closest('.chord-name-input') ||
                 e.target.closest('.delete-collection-btn') ||
-                e.target.closest('.chord-title') ||
                 e.target.closest('.chord-handle, .collection-handle, .collection-edit')
             ) {
                 return;
