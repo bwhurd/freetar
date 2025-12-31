@@ -1,4 +1,4 @@
-# Python bytecode
+# --- Python ---
 __pycache__/
 *.py[cod]
 *$py.class
@@ -9,14 +9,14 @@ venv/
 ENV/
 env/
 
-# Distribution / packaging
+# Packaging / builds
 build/
 dist/
 .eggs/
 *.egg-info/
 pip-wheel-metadata/
 
-# Test and coverage artifacts
+# Test / coverage
 .pytest_cache/
 .coverage*
 htmlcov/
@@ -31,7 +31,7 @@ htmlcov/
 # Logs
 *.log
 
-# Node
+# --- Node / frontend ---
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -40,15 +40,131 @@ pnpm-debug.log*
 coverage/
 .cache/
 
-# OS / editor cruft
+# Common build artifacts
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.esbuild/
+.parcel-cache/
+turbo/
+
+# --- OS / editor ---
 .DS_Store
 Thumbs.db
 *.swp
 
-# Project specific
-TODOs
-*.sh# Python venv
-.venv/
+# VS Code: ignore workspace cruft, keep shared config
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
 
-# Node modules
+# JetBrains
+.idea/
+
+# --- Windows reserved device name (was breaking git add) ---
+nul
+
+# --- Project decisions ---
+# Ignore Claude local config
+.claude/
+
+# Ignore tools scratch + generated artifacts
+tools/
+
+# (Explicitly KEEP these by not ignoring them)
+# images/                 (kept)
+# freetar/collections/    (kept)
+# freetar/static/vendor/  (kept)
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Packaging / builds
+build/
+dist/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+
+# Test / coverage
+.pytest_cache/
+.coverage*
+htmlcov/
+.tox/
+.nox/
+
+# Type checking / tooling caches
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Logs
+*.log
+
+# --- Node / frontend ---
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+coverage/
+.cache/
+
+# Common build artifacts
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.esbuild/
+.parcel-cache/
+turbo/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# VS Code: ignore workspace cruft, keep shared config
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# JetBrains
+.idea/
+
+# --- Windows reserved device name (was breaking git add) ---
+nul
+
+# --- Project decisions ---
+# Ignore Claude local config
+.claude/
+
+# Ignore tools scratch + generated artifacts
+tools/
+
+# Local automation scripts
+BackupFreetarEvery5Minutes.ps1
+FreetarBackupTray.ahk
+
+# (Explicitly KEEP these by not ignoring them)
+# images/                 (kept)
+# freetar/collections/    (kept)
+# freetar/static/vendor/  (kept)
