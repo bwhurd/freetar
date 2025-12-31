@@ -1,64 +1,335 @@
 [
   {
-    "chords": [
+    "group": "Exit Music",
+    "rows": [
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "C/G",
+            "shape": "332010"
+          },
+          {
+            "name": "Dadd9/F#",
+            "shape": "2x[0]230"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "A",
+            "shape": "x[0]2220"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "C/G",
+            "shape": "332010"
+          },
+          {
+            "name": "Dadd9/F#",
+            "shape": "2x0230"
+          },
+          {
+            "name": "Dadd9/F",
+            "shape": "1x[0]230"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "A",
+            "shape": "x[0]2220"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Gmadd11",
+            "shape": "[3]x0313"
+          },
+          {
+            "name": "D7/F#",
+            "shape": "2x[0]212"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Asus2",
+            "shape": "x[0]2200"
+          },
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "Asus2",
+            "shape": "x[0]2200"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "Am/C",
+            "shape": "x(3,{0})2[2]10"
+          },
+          {
+            "name": "Esus4",
+            "shape": "[0]22200"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Gmadd11",
+            "shape": "[3]x0313"
+          },
+          {
+            "name": "D7/F#",
+            "shape": "2x0{0}12"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Asus2",
+            "shape": "x[0]2200"
+          },
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "Asus2",
+            "shape": "x[0]2200"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "Am/C",
+            "shape": "x32210"
+          },
+          {
+            "name": "Esus4",
+            "shape": "[0]22200"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "C/G",
+            "shape": "332010"
+          },
+          {
+            "name": "Dadd9/F#",
+            "shape": "2x0230"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "A",
+            "shape": "x[0]2220"
+          }
+        ]
       },
       {
-        "name": "...",
-        "shape": "000000"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "B7",
+            "shape": "x[2]1202"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "F",
+            "shape": "[1]33211"
+          },
+          {
+            "name": "Bb",
+            "shape": "x[1]333x"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "Esus4",
+            "shape": "[0]22200"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "C/G",
+            "shape": "332010"
+          },
+          {
+            "name": "Dadd9/F#",
+            "shape": "2x0230"
+          },
+          {
+            "name": "Dadd9/F",
+            "shape": "1x0230"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "A",
+            "shape": "x[0]2220"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "A",
+            "shape": "x[0]2220"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x[0]2210"
+          },
+          {
+            "name": "E",
+            "shape": "[0]22100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x[0]2230"
+          },
+          {
+            "name": "A",
+            "shape": "x[0]2220"
+          }
+        ]
       }
-    ],
-    "group": "New group"
-  },
-  {
-    "chords": [
-      {
-        "name": "...",
-        "shape": "000000"
-      },
-      {
-        "name": "...",
-        "shape": "000000"
-      }
-    ],
-    "group": "New group"
+    ]
   }
 ]

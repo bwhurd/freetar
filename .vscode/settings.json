@@ -7,6 +7,9 @@
         "**/Thumbs.db": true,
         "**/CVS": true
     },
+    "files.associations": {
+        "**/templates/*.html": "jinja-html"
+    },
     "hide-files.files": [],
     "chatgpt.openOnStartup": true,
     "chatgpt.runCodexInWindowsSubsystemForLinux": true

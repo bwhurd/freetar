@@ -1,8 +1,5 @@
 :root {
     --accent: #43dfe7;
-    --accent-soft: rgba(67, 223, 231, 0.16);
-    --accent-warm: #ffb366;
-    --accent-warm-soft: rgba(255, 179, 102, 0.16);
     --border-subtle: #ececf71f;
     --chord-card-height-u: 10;
     --chord-card-width-u: 6.2;
@@ -31,31 +28,19 @@
     --diagram-row2-h: 1.07;
     --diagram-row3-h: 1.09;
     --diagram-row4-h: 1.09;
-    --diagram-row5-h: 1.09;
     --diagram-string-gap: .7;
     --diagram-string-width: .1;
     --diagram-u: 1.75rem;
     --focus-ring: #43dfe78c;
     --font-base: system-ui, sans-serif;
-    --font-inter: 'Inter', system-ui, sans-serif;
     --font-chord: NunitoChord, var(--font-base);
     --font-weight-medium: 500;
     --font-weight-regular: 400;
-    --fz-12: .75rem;
     --fz-14: .875rem;
-    --fz-15: .9375rem;
     --fz-16: 1rem;
     --fz-18: 1.125rem;
-    --fz-20: 1.25rem;
     --fz-22: 1.375rem;
     --fz-28: 1.75rem;
-    --fz-17: 1.0625rem;
-    --lh-tight: 1.2;
-    --lh-snug: 1.3;
-    --lh-normal: 1.55;
-    --lh-relaxed: 1.65;
-    --radius-component: 8px;
-    --radius-card: 12px;
     --radius-m: 12px;
     --radius-pill: 999px;
     --radius-xs: .5rem;
@@ -66,13 +51,6 @@
     --space-3: .75rem;
     --space-4: 1rem;
     --space-5: 1.25rem;
-    --space-micro: 0.25rem;
-    --space-xs: 0.5rem;
-    --space-s: 0.75rem;
-    --space-m: 1rem;
-    --space-l: 1.5rem;
-    --space-xl: 2rem;
-    --space-xxl: 3rem;
     --surface-elevated: #2a282d;
     --bs-link-color: #00B499;
     --tooltip-gap: 0.65rem;
@@ -84,14 +62,11 @@
     --text-primary: #f5f4ee;
     --text-secondary: #ececf7;
     --chord-grid-max-columns: 8;
-    /* Shadows */
-    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.12);
-    --shadow-standard: 0 4px 12px rgba(0, 0, 0, 0.15);
-    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.2);
-    --shadow-modal: 0 12px 40px rgba(0, 0, 0, 0.35);
-    /* Spacing */
-    /* Surface */
-    --surface: #2a282d;
+    /Radii/--radius-s: 10px;
+    /Shadows/--shadow-elevated: 0 1px 0 #ffffff05 inset, 0 10px 28px #00000059;
+    /Spacing/--space-2: .5rem;
+    /Surfacetext/--surface: #2a282d;
+    /Typescale/--fz-12: .75rem;
 }
 
 /* Horizontal spacing map (A–E)
@@ -155,7 +130,7 @@ V7: vertical gap between adjacent groups
     /* group inner top padding (or header top margin) */
     --spaceV-7: .05;
     /* inter-group vertical gap */
-    --min-height-multiplier: .76;
+    --min-height-multiplier: .76 ;
 }
 
 .group-header {
@@ -165,18 +140,12 @@ V7: vertical gap between adjacent groups
 
 :root[data-bs-theme="light"] {
     --accent: #555555;
-    --accent-soft: rgba(85, 85, 85, 0.16);
-    --accent-warm: #c26a25;
-    --accent-warm-soft: rgba(194, 106, 37, 0.16);
     --border-subtle: #c8c8c8;
     --color-bg: #ffffff;
     --color-fg: #000000;
     --focus-ring: #7a7a7a;
     --root-dot-color: #555555;
-    --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-standard: 0 4px 12px rgba(0, 0, 0, 0.08);
-    --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.1);
-    --shadow-modal: 0 10px 32px rgba(0, 0, 0, 0.14);
+    --shadow-elevated: 0 1px 0 #00000008 inset, 0 10px 28px #0000001f;
     --surface-elevated: #f5f5f5;
     --surface: #ffffff;
     --text-on-accent: #ffffff;
@@ -199,7 +168,7 @@ V7: vertical gap between adjacent groups
 :root[data-bs-theme="light"] #delete-group-modal .delete-group-modal-container {
     background: #ffffff !important;
     border: 1px solid #c8c8c8;
-    box-shadow: var(--shadow-modal);
+    box-shadow: 0 8px 24px #0000001f;
     color: #000000;
 }
 
@@ -327,7 +296,7 @@ V7: vertical gap between adjacent groups
 :root[data-bs-theme="light"] .group {
     background: #ffffff;
     border-color: #c8c8c8;
-    box-shadow: var(--shadow-standard);
+    box-shadow: 0 4px 12px #00000014;
 }
 
 :root[data-bs-theme="light"] .group-handle {
@@ -354,25 +323,22 @@ V7: vertical gap between adjacent groups
     background: transparent;
 }
 
-:root[data-bs-theme="light"] .chord-card.collection-text-card {
-    border-color: rgba(0, 0, 0, 0.08);
-    opacity: 0.9;
-}
-
 :root[data-bs-theme="light"] .page-title-row .primary-button,
-:root[data-bs-theme="light"] .page-title-row .lock-button,
-:root[data-bs-theme="light"] .page-title-row #help-toggle,
-:root[data-bs-theme="light"] .page-title-row #chord-settings-toggle {
-    border-color: rgba(0, 0, 0, 0.15);
-    color: #2f2f2f;
+:root[data-bs-theme="light"] .primary-button,
+:root[data-bs-theme="light"] .lock-button {
+    background: transparent !important;
+    border-color: #b3b3b3 !important;
+    box-shadow: none !important;
+    color: #b3b3b3 !important;
 }
 
 :root[data-bs-theme="light"] .page-title-row .primary-button:hover,
-:root[data-bs-theme="light"] .page-title-row .lock-button:hover,
-:root[data-bs-theme="light"] .page-title-row #help-toggle:hover,
-:root[data-bs-theme="light"] .page-title-row #chord-settings-toggle:hover {
-    background: rgba(0, 0, 0, 0.04);
-    border-color: rgba(0, 0, 0, 0.25);
+:root[data-bs-theme="light"] .page-title-row .primary-button:focus-visible,
+:root[data-bs-theme="light"] .lock-button:hover,
+:root[data-bs-theme="light"] .lock-button:focus-visible {
+    background: transparent !important;
+    border-color: #b3b3b3 !important;
+    color: #b3b3b3 !important;
 }
 
 :root[data-bs-theme="light"] .page-title-row .primary-button .material-icons-outlined,
@@ -384,16 +350,9 @@ V7: vertical gap between adjacent groups
     color: #b3b3b3 !important;
 }
 
-:root[data-bs-theme="light"] .page-breadcrumb {
-    opacity: 0.6;
-}
-
 :root[data-bs-theme="light"] .page-breadcrumb a {
-    color: #666666;
-}
-
-:root[data-bs-theme="light"] .page-breadcrumb a:hover {
-    color: #000000;
+    color: #b3b3b3;
+    text-decoration: underline;
 }
 
 :root[data-bs-theme="light"] .group-buttons .add-chord::after,
@@ -417,26 +376,23 @@ V7: vertical gap between adjacent groups
     src: url(/static/Nunito-VariableFont_wght.ttf) format("truetype");
 }
 
-/* Button changes */
-.btn {
+/ Button changes / .btn {
     -webkit-appearance: none;
     appearance: none;
     background: #ffffff05 !important;
-    border-radius: var(--radius-component) !important;
+    border-radius: var(--radius-pill) !important;
     border: 1px solid var(--border-subtle) !important;
     box-shadow: none !important;
     color: var(--text-primary) !important;
-    font-family: var(--font-inter) !important;
     font-size: var(--fz-14) !important;
-    font-weight: 500 !important;
+    font-weight: 600 !important;
     letter-spacing: 0em;
     line-height: 1 !important;
     padding: .5rem .9rem !important;
-    transition: background-color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), border-color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), box-shadow 160ms cubic-bezier(0.4, 0.0, 0.2, 1), transform 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .02s ease;
 }
 
-/* Delete button reveal */
-.remove-group {
+/ Delete button reveal / .remove-group {
     border-radius: var(--radius-pill) !important;
     display: inline-grid !important;
     height: 28px !important;
@@ -448,10 +404,9 @@ V7: vertical gap between adjacent groups
     width: 28px !important;
 }
 
-/* Editable section header */
-.group-name.form-control {
+/ Editable section header / .group-name.form-control {
     background: transparent !important;
-    border-radius: var(--radius-component) !important;
+    border-radius: var(--radius-s) !important;
     border: 1px solid transparent !important;
     box-shadow: none !important;
     color: var(--text-primary) !important;
@@ -462,22 +417,18 @@ V7: vertical gap between adjacent groups
     transition: background-color .15s ease, border-color .15s ease, box-shadow .15s ease;
 }
 
-/* Focus ring */
-.btn:focus {
-    outline: 2px solid var(--focus-ring) !important;
-    outline-offset: 2px !important;
+/ Focus ring / .btn:focus {
+    outline: none !important;
 }
 
-/* Group divider */
-.group>hr.border {
+/ Group divider / .group>hr.border {
     background: linear-gradient(90deg, #ffffff0f, #fff0 40%, #ffffff0f 100%);
     border: 0 !important;
     height: 1px !important;
     margin: var(--space-4) 0 var(--space-2) !important;
 }
 
-/* Group header row */
-.group>.d-flex.align-items-center {
+/ Group header row / .group>.d-flex.align-items-center {
     gap: var(--space-2);
     margin-bottom: var(--space-3) !important;
 }
@@ -499,28 +450,17 @@ h2.page-title.flex-grow-1 {
     margin-right: 0.25rem;
 }
 
-.page-breadcrumb {
-    font-size: var(--fz-12);
-    color: var(--text-secondary);
-    opacity: 0.7;
-    margin-bottom: var(--space-xs);
-    font-weight: 400;
-}
-
+/* normal link state (blue) */
 .page-breadcrumb a {
-    color: var(--text-secondary);
+    color: var(--bs-link-color);
+    /* or #0d6efd */
     text-decoration: none;
-    transition: color 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
+/* mouse hover effect */
 .page-breadcrumb a:hover {
-    color: var(--text-primary);
-    text-decoration: none;
-}
-
-.page-breadcrumb .breadcrumb-separator {
-    opacity: 0.5;
-    margin: 0 var(--space-xs);
+    color: var(--bs-link-hover-color);
+    /* or a slightly darker blue */
 }
 
 
@@ -528,10 +468,9 @@ h2.page-title.flex-grow-1 {
     align-items: center;
     border-bottom: 1px solid var(--border-subtle);
     display: flex;
-    gap: var(--space-l);
-    margin-bottom: var(--space-l);
-    padding-top: var(--space-s);
-    padding-bottom: var(--space-m);
+    gap: var(--space-2);
+    margin: 0;
+    padding-bottom: .65rem;
 }
 
 :root[data-bs-theme="light"] .page-title-row {
@@ -541,12 +480,11 @@ h2.page-title.flex-grow-1 {
 .page-title {
     color: var(--text-primary);
     flex-shrink: 1;
-    font-family: var(--font-inter);
-    font-size: var(--fz-20);
+    font-size: clamp(var(--fz-22), 1.25rem + 1vw, var(--fz-28));
     font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: var(--lh-tight);
+    letter-spacing: 0em;
     margin: 0;
+    text-shadow: 0 1px 0 #00000040;
 }
 
 .page-title::after {
@@ -555,14 +493,14 @@ h2.page-title.flex-grow-1 {
 
 #undo-redo-wrap {
     align-items: center;
-    display: inline-flex;
+    display: flex;
     flex-shrink: 0;
-    gap: var(--space-xs);
+    gap: 0.5rem;
     justify-content: flex-end;
 }
 
 #undo-redo-wrap .toolbar-export {
-    margin-right: 0;
+    margin-right: 2em;
 }
 
 
@@ -658,9 +596,9 @@ pre {
 
 #delete-group-modal .delete-group-modal-container {
     background: var(--color-bg) !important;
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-xs);
     border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: var(--shadow-modal);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
     color: var(--color-fg);
     padding: 2em;
 }
@@ -680,11 +618,11 @@ h5#delete-group-modal-title {
 
 #groups-root .chord-grid {
     align-items: start;
-    column-gap: var(--space-s);
+    column-gap: 0.12rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(min(calc(var(--diagram-u) * var(--chord-card-width-u)), 100%), 1fr));
     justify-content: center;
-    row-gap: var(--space-s);
+    row-gap: 0.15rem;
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -762,28 +700,25 @@ h5#delete-group-modal-title {
 }
 
 .btn:hover {
-    background: color-mix(in srgb, var(--accent-soft) 50%, transparent) !important;
-    border-color: color-mix(in srgb, var(--border-subtle) 150%, transparent) !important;
-    transform: translateY(-1px);
+    background: #ffffff0a !important;
 }
 
 .chord-card {
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-xs);
 
     box-sizing: border-box;
     max-width: 100%;
     min-height: calc(var(--diagram-u) * var(--chord-card-height-u) * var(--min-height-multiplier) * var(--chord-edit-scale));
     /* min-height: calc(var(--diagram-u) * var(--chord-card-height-u) * var(--chord-edit-scale)); */
     min-width: calc(var(--diagram-u) * var(--chord-card-width-u));
-    padding: var(--space-s);
+    padding: 0.12rem;
     position: relative;
     width: 100%;
     z-index: 0;
-    transition: transform 140ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 160ms cubic-bezier(0.4, 0, 0.2, 1), background-color 140ms ease, opacity 140ms ease;
 }
 
 #groups-root .chord-card.mb-3 {
-    margin-bottom: var(--space-s);
+    margin-bottom: 0.12rem;
 }
 
 .chord-card .chord-diagram {
@@ -808,11 +743,8 @@ h5#delete-group-modal-title {
 
 .chord-card .chord-title {
     flex: 0 0 auto;
-    font-family: var(--font-inter);
-    font-size: var(--fz-17);
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    line-height: 1;
+    font-family: "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
+    letter-spacing: 0.2em;
     padding-top: 2em;
     margin-left: auto;
     margin-right: auto;
@@ -820,69 +752,6 @@ h5#delete-group-modal-title {
     overflow: visible;
     position: relative;
 
-}
-
-.chord-card.collection-text-card {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    border: 1px solid color-mix(in srgb, var(--border-subtle) 50%, transparent);
-    border-radius: var(--radius-card);
-    opacity: 0.85;
-    padding: var(--space-m);
-    margin: var(--space-xs);
-}
-
-.chord-card.collection-text-card.is-editing {
-    justify-content: flex-start;
-}
-
-.chord-card.collection-text-card .position-relative.mb-1 {
-    align-items: flex-start;
-    gap: var(--space-3);
-    justify-content: space-between;
-    margin-bottom: 0;
-    padding: var(--space-4);
-    width: 100%;
-}
-
-.chord-card.collection-text-card .chord-handle,
-.chord-card.collection-text-card .chord-edit {
-    position: absolute;
-    top: var(--space-s);
-    z-index: 2;
-}
-
-.chord-card.collection-text-card .chord-handle {
-    left: var(--space-s);
-    margin: 0;
-}
-
-.chord-card.collection-text-card .chord-edit {
-    right: var(--space-s);
-    margin: 0;
-}
-
-.chord-card.collection-text-card .chord-title {
-    color: var(--text-primary);
-    font-size: 0.9rem;
-    font-weight: 400;
-    letter-spacing: 0.02em;
-    line-height: 1.4;
-    margin: 0 auto;
-    opacity: 0.9;
-    overflow: visible;
-    padding-top: 0;
-    text-align: center;
-    transform: none;
-    white-space: pre-wrap;
-    word-break: normal;
-    overflow-wrap: break-word;
-    max-width: 100%;
-}
-
-.chord-card.collection-text-card .chord-diagram {
-    display: none !important;
 }
 
 .chord-card .delete-chord-btn {
@@ -944,13 +813,12 @@ h5#delete-group-modal-title {
     align-self: flex-start;
     margin-right: var(--space-3);
     margin-top: var(--space-3);
-    font-size: 1.2em !important;
-    transform: translateX(0.25em) translateY(-0.15em);
+    font-size: 1.5em !important;
 }
 
 .chord-card .material-icons-outlined.chord-edit,
 .chord-card .material-icons-outlined.chord-handle {
-    font-size: 1.44em;
+    font-size: 1.8em;
     line-height: 1;
     opacity: 0.82;
     pointer-events: auto;
@@ -960,7 +828,6 @@ h5#delete-group-modal-title {
 
 .chord-card .material-icons-outlined.chord-handle {
     align-self: flex-start;
-    transform: translateX(-0.2em) translateY(-0.2em);
 }
 
 .chord-card.deletable {
@@ -987,84 +854,6 @@ h5#delete-group-modal-title {
     inset: -0.5rem;
     position: absolute;
     z-index: -1;
-}
-
-.chord-card.chord-drag-ghost {
-    background: var(--surface-elevated, var(--color-bg));
-    background-image: linear-gradient(135deg, var(--accent-warm-soft, rgba(255, 179, 102, 0.07)), rgba(255, 179, 102, 0.03));
-    background-clip: padding-box;
-    box-shadow: 0 0 0 1px var(--accent-warm-soft, rgba(255, 179, 102, 0.16));
-    outline: 1px dashed var(--accent-warm, #ffb366);
-    outline-offset: 0;
-    opacity: 1;
-    transform: none;
-}
-
-.chord-card.chord-drag-item {
-    background: linear-gradient(135deg, var(--accent-soft, rgba(67, 223, 231, 0.08)), transparent), var(--surface-elevated, var(--color-bg));
-    box-shadow: var(--shadow-elevated), 0 0 0 1px var(--accent-soft, rgba(67, 223, 231, 0.08));
-    opacity: 0.92;
-    transform: scale(1.01);
-    z-index: 10;
-}
-
-.chord-card.chord-drag-chosen {
-    background: linear-gradient(135deg, var(--accent-soft, rgba(67, 223, 231, 0.06)), transparent), var(--surface-elevated, var(--color-bg));
-    box-shadow: 0 0 0 1px var(--border-subtle);
-}
-
-:root[data-bs-theme="light"] .chord-card.chord-drag-ghost {
-    background-image: linear-gradient(135deg, var(--accent-warm-soft, rgba(194, 106, 37, 0.07)), rgba(194, 106, 37, 0.03));
-    box-shadow: 0 0 0 1px var(--accent-warm-soft, rgba(194, 106, 37, 0.08));
-    outline-color: var(--accent-warm, #c26a25);
-}
-
-.chord-dup-drag-active .chord-drag-ghost {
-    background: var(--surface-elevated, var(--color-bg));
-    background-image: linear-gradient(135deg, var(--accent-soft, rgba(67, 223, 231, 0.07)), rgba(67, 223, 231, 0.04));
-    background-clip: padding-box;
-    box-shadow: 0 0 0 1px var(--accent-soft, rgba(67, 223, 231, 0.25));
-    outline-color: var(--accent, #43dfe7);
-}
-
-:root[data-bs-theme="light"] .chord-dup-drag-active .chord-drag-ghost {
-    background-image: linear-gradient(135deg, var(--accent-soft, rgba(85, 85, 85, 0.06)), rgba(85, 85, 85, 0.04));
-    box-shadow: 0 0 0 1px var(--accent-soft, rgba(85, 85, 85, 0.12));
-    outline-color: var(--accent, #555555);
-}
-
-:root[data-bs-theme="light"] .chord-card.chord-drag-item {
-    background: linear-gradient(135deg, var(--accent-soft, rgba(85, 85, 85, 0.08)), transparent), var(--surface-elevated, #ffffff);
-    box-shadow: var(--shadow-elevated), 0 0 0 1px var(--accent-soft, rgba(85, 85, 85, 0.08));
-}
-
-:root[data-bs-theme="light"] .chord-card.chord-drag-chosen {
-    background: linear-gradient(135deg, var(--accent-soft, rgba(85, 85, 85, 0.06)), transparent), var(--surface-elevated, #ffffff);
-    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.14);
-}
-
-.chord-card.chord-drag-ghost>* {
-    visibility: hidden;
-}
-
-.chord-card.chord-drag-ghost .chord-card-placeholder {
-    visibility: visible;
-}
-
-.chord-card.chord-drag-ghost .chord-diagram,
-.chord-card.chord-drag-ghost .chord-edit-section,
-.chord-card.chord-drag-ghost .chord-title,
-.chord-card.chord-drag-ghost .chord-header-row {
-    visibility: hidden;
-}
-
-.chord-card.chord-drag-ghost .chord-card-placeholder {
-    visibility: visible;
-}
-
-.chord-dup-source-placeholder {
-    pointer-events: none;
-    opacity: 0.98;
 }
 
 .chord-card:hover .chord-edit,
@@ -1094,7 +883,6 @@ h5#delete-group-modal-title {
     --row2-h: var(--diagram-row2-h);
     --row3-h: var(--diagram-row3-h);
     --row4-h: var(--diagram-row4-h);
-    --row5-h: var(--diagram-row5-h);
     --string-gap: var(--diagram-string-gap);
     --string-width: var(--diagram-string-width);
     --u: calc(var(--diagram-u) * var(--chord-edit-scale));
@@ -1124,24 +912,20 @@ h5#delete-group-modal-title {
     display: block;
 }
 
-.chord-diagram tbody tr[data-fret]:nth-child(1) {
+.chord-diagram tbody tr:nth-child(1) {
     height: calc(var(--u) * var(--row1-h));
 }
 
-.chord-diagram tbody tr[data-fret]:nth-child(2) {
+.chord-diagram tbody tr:nth-child(2) {
     height: calc(var(--u) * var(--row2-h));
 }
 
-.chord-diagram tbody tr[data-fret]:nth-child(3) {
+.chord-diagram tbody tr:nth-child(3) {
     height: calc(var(--u) * var(--row3-h));
 }
 
-.chord-diagram tbody tr[data-fret]:nth-child(4) {
+.chord-diagram tbody tr:nth-child(4) {
     height: calc(var(--u) * var(--row4-h));
-}
-
-.chord-diagram tbody tr[data-fret]:nth-child(5) {
-    height: calc(var(--u) * var(--row5-h));
 }
 
 .chord-diagram td,
@@ -1222,13 +1006,6 @@ h5#delete-group-modal-title {
     z-index: 2;
 }
 
-/* Open-string interval marker: same visual language as fretted dots, but positioned above the nut */
-.chord-diagram thead th .chord-header-open-note {
-    background: var(--color-fg);
-    height: calc(var(--u) * var(--dot-size));
-    width: calc(var(--u) * var(--dot-size));
-}
-
 .chord-diagram thead th .chord-header-root-ghost {
     background: transparent;
     border: calc(var(--u) * 0.04) solid var(--color-fg);
@@ -1247,18 +1024,11 @@ h5#delete-group-modal-title {
 }
 
 .chord-diagram thead th .chord-header-root-played {
-    /* Above-nut root dot: match the open-note dot size, but with root color */
-    background: #00d3dc;
+    background: var(--root-dot-color);
     color: var(--text-on-accent, #0e1b1b);
-
-    /* override the base .chord-header-root 0.924 scaling */
-    height: calc(var(--u) * var(--dot-size));
-    width: calc(var(--u) * var(--dot-size));
 }
 
-
 .chord-diagram thead th .chord-header-root-label {
-    font-family: "Roboto Condensed", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     color: var(--text-on-accent, #0e1b1b);
     font-size: calc(var(--u) * var(--dot-size) * 0.96);
     font-weight: 800;
@@ -1271,7 +1041,6 @@ h5#delete-group-modal-title {
 .chord-diagram thead th .chord-header-root-ghost .chord-header-root-label {
     color: var(--root-dot-color);
 }
-
 
 .chord-diagram thead th:not(.chord-header-spacer) {
     border-bottom: none;
@@ -1314,20 +1083,13 @@ h5#delete-group-modal-title {
 }
 
 .chord-dot-label {
-    font-family: "Roboto Condensed", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    font-weight: 800;
     color: var(--text-on-accent, #0e1b1b);
-    font-size: calc(var(--u) * var(--dot-size) * 0.92);
+    font-size: calc(var(--u) * var(--dot-size) * 0.96);
     font-weight: 800;
     line-height: 1;
     pointer-events: none;
     position: relative;
     top: 1px;
-}
-
-.chord-dot-interval-label {
-    font-size: calc(var(--u) * var(--dot-size) * 0.72);
-    font-weight: 700;
 }
 
 .chord-dot-mini {
@@ -1462,24 +1224,13 @@ h5#delete-group-modal-title {
 }
 
 .chord-name-input {
-    font-family: "Roboto Condensed", "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
-    line-height: 1.35;
-    white-space: pre-wrap;
-    overflow-wrap: break-word;
-    word-break: normal;
     box-sizing: border-box;
     resize: vertical;
     width: 100%;
 }
 
-.chord-card:not(.collection-text-card) .chord-name-input {
-    height: 1rem;
-
-}
-
 .chord-shape-input {
     letter-spacing: 0.12em;
-    text-transform: uppercase;
 }
 
 .chord-string-cell {
@@ -1528,7 +1279,7 @@ h5#delete-group-modal-title {
 
 .chord-title {
     color: #00d3dc;
-    font-size: calc(1.56em * var(--chord-edit-scale, 1));
+    font-size: calc(1.3em * var(--chord-edit-scale, 1));
     margin-bottom: .15rem;
 
 }
@@ -1537,57 +1288,24 @@ h5#delete-group-modal-title {
     position: absolute;
     z-index: 5;
     min-width: 0;
-    font-family: "Roboto Condensed", "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
-    font-size: calc(.9em * var(--chord-edit-scale, 1));
+    font-family: "Noto Sans", "Noto Sans Symbols 2", system-ui, -apple-system, "Segoe UI", "Segoe UI Symbol", Arial, sans-serif;
+    font-size: calc(1.3em * var(--chord-edit-scale, 1));
     letter-spacing: 0.12em;
     color: inherit;
     background: #2a282d;
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-component);
-    padding: 0.35rem 0.5rem;
+    border-radius: var(--radius-xxs);
+    padding: 0.2rem 0.4rem;
     text-align: center;
     margin: 0;
     max-width: 100%;
     box-sizing: border-box;
-    line-height: 1.3;
-    white-space: pre-wrap;
-    resize: vertical;
-    min-height: 2.6em;
     transform: translateY(1.2em);
 }
 
-/* Drag handle: shift left */
-.chord-card.collection-text-card .chord-handle {
-    transform: translateX(-0.35em) translateY(-0.1em);
-}
-
-
-/* Edit icon: shift up */
-.chord-card.collection-text-card .chord-edit {
-    transform: translateX(.8em) translateY(-0.7em);
-}
-
-
-textarea.chord-name-inline-input {
-    height: calc(1.5em * 6 + 8px);
-    /* 4 lines, adjust as needed */
-    /* 1.5em is typical line height, 8px for padding/border fudge */
-    resize: vertical;
-}
-
-.collection-text-card {
-    transform: translate(0.25em, 0.5em);
-}
-
-.collection-text-card .chord-title {
-    top: 0.5em;
-}
-
-
-
 .chord-name-inline-input:focus {
     outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
+    outline-offset: 1px;
 }
 
 .chord-title:hover {
@@ -1648,7 +1366,7 @@ textarea.chord-name-inline-input {
 
 .collection-card .chord-name-input {
     background: #ffffff0f !important;
-    border-radius: var(--radius-component) !important;
+    border-radius: var(--radius-xxs) !important;
     border: 1px solid #ffffff2a !important;
     box-shadow: inset 0 0 0 1px #ffffff10;
     color: var(--text-primary) !important;
@@ -1799,15 +1517,15 @@ textarea.chord-name-inline-input {
 
 .group {
     background: var(--surface-elevated);
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-m);
+    border-radius: var(--radius-xxs);
     border: 1px solid var(--border-subtle);
     box-shadow: var(--shadow-elevated);
     box-sizing: border-box;
     min-width: 0;
     position: relative;
     width: 100%;
-    padding: var(--space-l);
-    margin-bottom: var(--space-xl);
+    padding: 0.5em;
 }
 
 .group .delete-group-pill {
@@ -1914,7 +1632,7 @@ textarea.chord-name-inline-input {
     align-items: center;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-xs);
     box-sizing: border-box;
     color: var(--text-primary);
     cursor: pointer;
@@ -1974,32 +1692,23 @@ textarea.chord-name-inline-input {
 }
 
 .chord-grid .row-drag-handle {
-    position: absolute;
-    top: 0;
-    left: 0;
-    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    font-size: 22px;
-    color: #47637F;
-    background: var(--color-bg);
-    border-radius: 6px;
+    color: #47637f;
     cursor: move;
+    display: inline-flex;
+    font-size: 22px;
+    height: 26px;
+    left: 0;
+    justify-content: center;
+    line-height: 1;
     opacity: 0;
     pointer-events: none;
+    position: absolute;
+    top: 0;
+    transform: none;
+    transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+    width: 26px;
     z-index: 2;
-    line-height: 1;
-    border: 1px solid rgba(128, 128, 128, 0.25);
-    transform: translateY(1em);
-    /* Reserve space for hover */
-    transition:
-        opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-        color 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-        background 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-        box-shadow 0.22s cubic-bezier(0.4, 0, 0.2, 1),
-        border-color 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .chord-grid.row-handle-active .row-drag-handle {
@@ -2007,15 +1716,11 @@ textarea.chord-name-inline-input {
     pointer-events: auto;
 }
 
-.chord-grid .row-drag-handle:hover,
-.chord-grid .row-drag-handle:focus-visible {
-    background: rgba(0, 211, 220, 0.05);
-    /* Even softer */
-    box-shadow: 0 2px 8px 0 rgba(0, 211, 220, 0.12);
-    border-color: rgba(0, 211, 220, 0.10);
-    /* Gentle, always matches base border */
+.chord-grid .row-drag-handle:hover {
+    color: #084aab;
+    background: rgba(10, 88, 202, 0.08);
+    border-radius: 50%;
 }
-
 
 .group-ghost-row {
     display: none;
@@ -2029,7 +1734,7 @@ textarea.chord-name-inline-input {
     gap: 0.12rem;
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.01));
     border: 1px dashed var(--border-subtle);
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-xs);
     column-gap: 0.12rem;
     grid-template-columns: repeat(auto-fill, minmax(min(calc(var(--diagram-u) * var(--chord-card-width-u)), 100%), 1fr));
     row-gap: 0.15rem;
@@ -2043,7 +1748,7 @@ textarea.chord-name-inline-input {
     align-items: center;
     background: rgba(255, 255, 255, 0.02);
     border: 1px dashed rgba(255, 255, 255, 0.35);
-    border-radius: var(--radius-card);
+    border-radius: var(--radius-xs);
     box-sizing: border-box;
     color: var(--text-secondary);
     display: flex;
@@ -2087,10 +1792,8 @@ textarea.chord-name-inline-input {
 .group-header {
     align-items: center;
     display: flex;
-    gap: var(--space-m);
-    margin-bottom: var(--space-l);
-    padding-bottom: var(--space-s);
-    border-bottom: 1px solid var(--border-subtle);
+    gap: 2em;
+
     position: relative;
     transform: none;
     width: 100%;
@@ -2129,16 +1832,13 @@ textarea.chord-name-inline-input {
 
 .group-name {
     background: transparent !important;
-    border-radius: var(--radius-component);
+    border-radius: var(--radius-xxs);
     border: none !important;
     box-shadow: none !important;
     color: var(--text-primary);
     cursor: text;
-    font-family: var(--font-inter);
-    font-size: var(--fz-18);
-    font-weight: 600;
-    letter-spacing: -0.005em;
-    line-height: var(--lh-snug);
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-medium);
     min-width: 0;
     outline: none;
     padding-left: 0.5em !important;
@@ -2467,276 +2167,6 @@ textarea.chord-name-inline-input {
     opacity: 1;
 }
 
-/* --- Help Modal (MicroModal) --- */
-@keyframes mclHelpModalIn {
-    from {
-        opacity: 0;
-        transform: translateY(12px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-@keyframes mclHelpModalOut {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    to {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-}
-
-#help-modal {
-    --help-modal-gutter: clamp(16px, 4vw, 48px);
-    --help-modal-radius: 12px;
-    --help-modal-pad: 32px;
-    --help-modal-pad-sm: 20px;
-    --help-modal-body-size: 0.9375rem;
-    --help-modal-font-family: 'Inter', system-ui, sans-serif;
-}
-
-#help-modal .modaloverlay {
-    background: rgba(0, 0, 0, 0.26);
-    backdrop-filter: blur(16px) saturate(1.08);
-    -webkit-backdrop-filter: blur(16px) saturate(1.08);
-    padding: var(--help-modal-gutter);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    #help-modal .modaloverlay {
-        background: rgba(0, 0, 0, 0.40);
-    }
-}
-
-#help-modal.micromodal-slide .modaloverlay {
-    opacity: 0;
-    transition: opacity 180ms cubic-bezier(0.0, 0.0, 0.2, 1);
-    will-change: opacity;
-}
-
-#help-modal.micromodal-slide[aria-hidden="false"] .modaloverlay {
-    opacity: 1;
-}
-
-#help-modal.micromodal-slide[aria-hidden="true"] .modaloverlay {
-    opacity: 0;
-    pointer-events: none;
-    transition-timing-function: cubic-bezier(0.4, 0.0, 1, 1);
-}
-
-#help-modal .modalcontainer {
-    background:
-        radial-gradient(900px 360px at 18% 0%, rgba(67, 223, 231, 0.04), transparent 60%),
-        radial-gradient(900px 360px at 92% 0%, rgba(255, 179, 102, 0.03), transparent 62%),
-        var(--surface-elevated);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--help-modal-radius);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
-    color: var(--text-secondary);
-    display: flex;
-    flex-direction: column;
-    font-family: var(--help-modal-font-family);
-    font-size: var(--help-modal-body-size);
-    line-height: 1.65;
-    max-height: calc(100vh - (var(--help-modal-gutter) * 2));
-    overflow: hidden;
-    width: min(980px, calc(100vw - (var(--help-modal-gutter) * 2)));
-    will-change: transform, opacity;
-}
-
-#help-modal.micromodal-slide[aria-hidden="false"] .modalcontainer {
-    animation: mclHelpModalIn 220ms cubic-bezier(0.0, 0.0, 0.2, 1);
-}
-
-#help-modal.micromodal-slide[aria-hidden="true"] .modalcontainer {
-    animation: mclHelpModalOut 180ms cubic-bezier(0.4, 0.0, 1, 1);
-}
-
-#help-modal .modalheader {
-    align-items: center;
-    border-bottom: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    display: flex;
-    gap: 20px;
-    justify-content: space-between;
-    padding: 28px var(--help-modal-pad) 20px;
-}
-
-#help-modal .modaltitle,
-#help-modal .help-modal-title {
-    color: var(--text-primary);
-    font-size: 1.25rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.2;
-    margin: 0;
-}
-
-#help-modal .modalclose.modal__close-button {
-    position: static;
-    top: auto;
-    right: auto;
-    width: 40px;
-    height: 40px;
-    font-size: 1.4rem;
-    font-weight: 500;
-    padding: 0;
-    opacity: 0.85;
-    transform: none;
-    transition: background-color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), border-color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), opacity 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-#help-modal .modalclose.modal__close-button:hover {
-    background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
-    border-color: color-mix(in srgb, var(--border-subtle) 150%, transparent);
-    opacity: 1;
-    transform: none;
-}
-
-#help-modal .modalclose.modal__close-button:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-    transform: none;
-}
-
-#help-modal .modalbtn {
-    align-items: center;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid var(--border-subtle);
-    border-radius: 8px;
-    color: var(--text-primary);
-    cursor: pointer;
-    display: inline-flex;
-    font-size: 0.875rem;
-    font-weight: 500;
-    gap: 8px;
-    line-height: 1;
-    padding: 10px 18px;
-    transition: background-color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), border-color 160ms cubic-bezier(0.4, 0.0, 0.2, 1), transform 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-#help-modal .modalbtn:hover {
-    background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
-    border-color: color-mix(in srgb, var(--border-subtle) 150%, transparent);
-    transform: translateY(-1px);
-}
-
-#help-modal .modalbtn:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-}
-
-#help-modal .modalbtn-primary {
-    background: var(--accent);
-    border-color: transparent;
-    color: var(--text-on-accent);
-}
-
-#help-modal .modalbtn-primary:hover {
-    background: color-mix(in srgb, var(--accent) 92%, black);
-    transform: translateY(-1px);
-}
-
-#help-modal .modalcontent,
-#help-modal .help-modal-content {
-    color: var(--text-secondary);
-    display: flex;
-    flex: 1 1 auto;
-    flex-direction: column;
-    gap: 32px;
-    overflow: auto;
-    padding: 32px var(--help-modal-pad) var(--help-modal-pad);
-    -webkit-overflow-scrolling: touch;
-}
-
-#help-modal .help-section {
-    margin: 0;
-}
-
-#help-modal .help-section-title {
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.005em;
-    margin-bottom: 10px;
-}
-
-#help-modal .help-section-list {
-    color: var(--text-secondary);
-    display: grid;
-    gap: 10px 32px;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
-    line-height: 1.55;
-    list-style: disc;
-    margin: 0;
-    padding-left: 1.25rem;
-}
-
-#help-modal .help-section-list li {
-    break-inside: avoid;
-    margin: 0;
-}
-
-:root[data-bs-theme="light"] #help-modal .modaloverlay {
-    background: rgba(0, 0, 0, 0.24);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    :root[data-bs-theme="light"] #help-modal .modaloverlay {
-        background: rgba(0, 0, 0, 0.38);
-    }
-}
-
-:root[data-bs-theme="light"] #help-modal .modalcontainer {
-    background:
-        radial-gradient(900px 360px at 18% 0%, rgba(85, 85, 85, 0.03), transparent 60%),
-        radial-gradient(900px 360px at 92% 0%, rgba(194, 106, 37, 0.025), transparent 62%),
-        var(--surface-elevated);
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.14);
-}
-
-:root[data-bs-theme="light"] #help-modal .modalclose.modal__close-button:hover {
-    background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
-    border-color: color-mix(in srgb, var(--border-subtle) 80%, transparent);
-}
-
-:root[data-bs-theme="light"] #help-modal .modalbtn {
-    background: rgba(0, 0, 0, 0.03);
-}
-
-:root[data-bs-theme="light"] #help-modal .modalbtn:hover {
-    background: color-mix(in srgb, var(--accent-soft) 50%, transparent);
-    border-color: color-mix(in srgb, var(--border-subtle) 80%, transparent);
-}
-
-/* Responsive: fall back to single column on narrow screens */
-@media (max-width: 720px) {
-    #help-modal .modalheader {
-        gap: 16px;
-        padding-left: var(--help-modal-pad-sm);
-        padding-right: var(--help-modal-pad-sm);
-    }
-
-    #help-modal .modalcontent,
-    #help-modal .help-modal-content {
-        gap: 24px;
-        padding-left: var(--help-modal-pad-sm);
-        padding-right: var(--help-modal-pad-sm);
-    }
-
-    #help-modal .help-section-list {
-        gap: 8px;
-        grid-template-columns: 1fr;
-    }
-}
-
-
 .chord-edit-modal-slot {
     width: 100%;
 }
@@ -2772,15 +2202,14 @@ textarea.chord-name-inline-input {
 
 #base-fret-modal .base-fret-modal-box {
     align-items: center;
-    background: linear-gradient(135deg, rgba(67, 223, 231, 0.04), rgba(255, 179, 102, 0.03)), var(--surface-elevated, #2a282d);
-    border: 1px solid var(--border-subtle);
-    box-shadow: var(--shadow-modal);
+    background: var(--surface-elevated, #2a282d);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
     color: var(--text-primary);
     display: flex;
     flex-direction: column;
-    padding: var(--space-xl);
-    border-radius: var(--radius-card);
-    max-width: 400px;
+    padding: 2.75rem 2.5rem;
+    border-radius: var(--radius-xs);
+    max-width: 460px;
     min-width: 240px;
     text-align: center;
 }
@@ -2794,11 +2223,9 @@ textarea.chord-name-inline-input {
 }
 
 #base-fret-modal-title {
-    font-family: var(--font-inter);
-    font-size: var(--fz-20);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: var(--lh-tight);
+    font-size: var(--fz-22);
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 #base-fret-modal-hint {
@@ -2817,25 +2244,24 @@ textarea.chord-name-inline-input {
 #base-fret-modal .base-fret-input {
     background: var(--surface, var(--surface-elevated, #2a282d));
     border: 1px solid var(--border-light, var(--border-subtle));
-    border-radius: var(--radius-component);
-    color: var(--text-primary);
-    font-family: var(--font-inter);
-    font-size: var(--fz-14);
-    font-weight: 500;
+    border-radius: 999px;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    font-weight: 700;
     height: 2rem;
-    letter-spacing: 0.02em;
-    line-height: 1;
-    margin-top: var(--space-m);
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    margin-top: var(--space-2);
     min-width: 3.2rem;
     outline: none;
-    padding: var(--space-s) var(--space-m);
+    padding: 0.35rem 0.75rem;
     text-align: center;
     width: 3.2rem;
 }
 
 #base-fret-modal .base-fret-input:focus {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
+    border-color: var(--focus-ring);
+    box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
 #base-fret-modal .base-fret-input::placeholder {
@@ -2860,55 +2286,40 @@ textarea.chord-name-inline-input {
 }
 
 .page-title-row .primary-button {
-    background: transparent;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-component);
-    color: var(--text-primary);
-    font-family: var(--font-inter);
-    font-size: var(--fz-14);
-    font-weight: 500;
-    line-height: 1;
-    padding: var(--space-s) var(--space-m);
-    height: auto;
-    min-height: 2.2em;
+    background: #004654;
+    border: 1px solid #47637F;
+    border-radius: 4px;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.3em 1.2em 0.3em 1.2em;
+    height: 2.2em;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: var(--space-xs);
     box-shadow: none;
     cursor: pointer;
-    transition: all 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-.page-title-row .primary-button:hover {
-    background: color-mix(in srgb, var(--accent-soft) 30%, transparent);
-    border-color: color-mix(in srgb, var(--border-subtle) 150%, transparent);
-    transform: translateY(-1px);
-}
-
-.page-title-row .primary-button:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
+    transition: background-color .15s, color .15s, border-color .15s;
 }
 
 .page-title-row .primary-button:disabled {
-    opacity: 0.4;
+    opacity: 0.6;
     cursor: not-allowed;
 }
 
 .page-title-row .primary-button .material-icons-outlined {
-    color: currentColor;
+    color: rgb(255, 255, 255);
     font-size: 1.25em;
-    opacity: 0.85;
+    vertical-align: middle;
 }
 
 /* Hover and focus for primary buttons */
 .page-title-row .primary-button:hover,
 .page-title-row .primary-button:focus-visible {
-    background: color-mix(in srgb, var(--accent-soft) 50%, #004654);
-    border-color: color-mix(in srgb, var(--border-subtle) 120%, #47637F);
+    background: #343a40;
+    /* dark gray */
+    border: 1px solid #47637F;
     color: #fff;
-    transform: translateY(-1px);
 }
 
 .page-title-row .primary-button:hover .material-icons-outlined,
@@ -2916,39 +2327,38 @@ textarea.chord-name-inline-input {
     color: #fff;
 }
 
-/* Remove individual margins - use flex gap instead */
+/* Margin-right for Import Chords and Redo buttons */
 #show-import-chords {
-    margin-right: 0;
+    margin-right: 4em;
 }
 
 #redo-history-btn {
-    margin-right: 0;
+    margin-right: 2em;
 }
 
 .chord-settings-wrap {
     align-items: center;
     display: inline-flex;
-    gap: var(--space-xs);
-    margin-left: auto;
+    gap: var(--space-2);
     position: relative;
 }
 
 .chord-settings-menu {
-    --settings-gap: var(--space-s);
+    --settings-gap: var(--space-2);
     background: var(--surface-elevated);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-modal);
+    border-radius: var(--radius-xs);
+    box-shadow: var(--shadow-elevated);
     color: var(--text-primary);
     min-width: 20rem;
     opacity: 0;
-    padding: var(--space-m);
+    padding: var(--space-3);
     pointer-events: none;
     position: absolute;
     right: 0;
-    top: calc(100% + var(--space-xs));
+    top: calc(100% + var(--space-2));
     transform: translateY(-4px);
-    transition: opacity 160ms cubic-bezier(0.4, 0.0, 0.2, 1), transform 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    transition: opacity 120ms ease, transform 120ms ease;
     z-index: 24;
 }
 
@@ -2969,10 +2379,8 @@ textarea.chord-name-inline-input {
     align-items: center;
     cursor: pointer;
     display: inline-flex;
-    gap: var(--space-xs);
-    font-family: var(--font-inter);
-    font-size: var(--fz-14);
-    font-weight: 500;
+    gap: var(--space-2);
+    font-weight: 600;
     margin: 0;
 }
 
@@ -2986,8 +2394,7 @@ textarea.chord-name-inline-input {
 .chord-settings-value {
     align-items: center;
     display: inline-flex;
-    font-family: var(--font-inter);
-    gap: var(--space-xs);
+    gap: var(--space-1);
 }
 
 .chord-settings-input-label {
@@ -3000,7 +2407,7 @@ textarea.chord-name-inline-input {
 #max-per-row-input {
     background: var(--surface);
     border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-component);
+    border-radius: var(--radius-xxs);
     color: var(--text-primary);
     font-weight: 600;
     padding: 0.35rem 0.6rem;
@@ -3020,59 +2427,35 @@ textarea.chord-name-inline-input {
 }
 
 
-/* Lock button - Ghost style matching primary buttons */
-.page-title-row .lock-button,
-.page-title-row #help-toggle,
-.page-title-row #chord-settings-toggle {
-    background: transparent;
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-component);
-    color: var(--text-primary);
-    font-family: var(--font-inter);
-    font-size: var(--fz-14);
-    font-weight: 500;
-    height: auto;
-    min-height: 2.2em;
+/* Lock button base style */
+.page-title-row .lock-button {
+    background: #2a282d;
+    color: #fff;
+    border: 1px solid #2a282d;
+    border-radius: 4px;
+    height: 2.2em;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: var(--space-s) var(--space-m);
-    gap: var(--space-xs);
-    cursor: pointer;
-    transition: all 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
+    padding: 0.3em 1.2em 0.1em 1.2em;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: background-color .15s, color .15s, border-color .15s;
 }
 
+/* Hover and focus for lock button */
 .page-title-row .lock-button:hover,
-.page-title-row #help-toggle:hover,
-.page-title-row #chord-settings-toggle:hover {
-    background: color-mix(in srgb, var(--accent-soft) 30%, transparent);
-    border-color: color-mix(in srgb, var(--border-subtle) 150%, transparent);
-    transform: translateY(-1px);
+.page-title-row .lock-button:focus-visible {
+    background: #343a40;
+    border: 1px solid #47637F;
+
 }
 
-.page-title-row .lock-button:focus-visible,
-.page-title-row #help-toggle:focus-visible,
-.page-title-row #chord-settings-toggle:focus-visible {
-    outline: 2px solid var(--focus-ring);
-    outline-offset: 2px;
-}
-
-/* Lock icon size and color transitions - keep semantic colors */
-.page-title-row .lock-button .material-icons-outlined,
-.page-title-row #help-toggle .material-icons-outlined,
-.page-title-row #chord-settings-toggle .material-icons-outlined {
-    font-size: 1.25em;
-    opacity: 0.85;
-    transition: color 160ms cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-/* Keep semantic icon colors for lock states */
-.page-title-row .lock-button[data-locked="false"] .material-icons-outlined {
-    color: #00B499;
-}
-
-.page-title-row .lock-button[data-locked="true"] .material-icons-outlined {
-    color: #D0A097;
+/* Lock icon size and color transitions */
+.page-title-row .lock-button .material-icons-outlined {
+    font-size: 1.4em;
+    vertical-align: middle;
+    transition: color .15s;
 }
 
 /* 8-across spacing tune */
@@ -3173,259 +2556,4 @@ main.container,
     margin-inline: auto;
     max-width: calc(var(--chord-grid-max-columns) * var(--diagram-u) * var(--chord-card-width-u) + (var(--chord-grid-max-columns) - 1) * var(--chord-grid-gap-max));
     width: 100%;
-}
-
-.my-chords-toast-root {
-    position: fixed;
-    bottom: 5vh;
-    left: 0;
-    right: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: var(--space-2);
-    pointer-events: none;
-    z-index: 3600;
-}
-
-.my-chords-toast {
-    background: #00d3dc;
-    border: 1px solid transparent;
-    border-radius: var(--radius-card);
-    box-shadow: var(--shadow-elevated);
-    color: var(--text-on-accent, #0e1b1b);
-    font-size: var(--fz-14);
-    font-weight: var(--font-weight-medium);
-    line-height: 1.3;
-    max-width: min(420px, calc(100vw - 2.5rem));
-    opacity: 0;
-    padding: var(--space-2) var(--space-3);
-    pointer-events: auto;
-    transform: translateY(6px);
-    transition: opacity 160ms ease, transform 180ms ease;
-}
-
-.my-chords-toast.is-visible {
-    opacity: 1;
-    transform: translateY(0);
-}
-
-:root[data-bs-theme="light"] .my-chords-toast {
-    background: royalblue;
-    border-color: transparent;
-    box-shadow: var(--shadow-elevated);
-    color: #ffffff;
-}
-
-
-.chord-dot-interval-label {
-    font-family: "Roboto Condensed", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    font-weight: 600;
-    display: inline-block;
-
-    transform: translateY(-5.7px);
-    /* tweak value */
-    will-change: transform;
-
-}
-
-
-/* open-string interval label nudge (above nut) */
-.chord-dot-interval-label--open {
-    transform: translateY(0px);
-    /* tweak independently */
-}
-
-
-/* Chord naming toast (diagram-driven suggestions) */
-.chord-naming-toast {
-    position: absolute;
-    z-index: 4200;
-    max-width: 260px;
-    background: rgba(12, 12, 14, 0.9);
-    color: #f5f7fb;
-    border-radius: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-    padding: 8px 10px;
-    font-family: "Roboto Condensed", system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
-    font-size: 14px;
-    line-height: 1.3;
-    pointer-events: none;
-    transition: opacity 140ms ease, transform 140ms ease;
-}
-
-.chord-naming-toast[aria-hidden="true"] {
-    opacity: 0;
-    transform: translateY(-4px);
-    display: none;
-}
-
-.chord-naming-toast-title {
-    font-weight: 700;
-    font-size: 12px;
-    letter-spacing: 0.4px;
-    text-transform: uppercase;
-    opacity: 0.75;
-    margin-bottom: 4px;
-}
-
-.chord-naming-toast-body {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.chord-naming-toast-item {
-    white-space: pre-wrap;
-}
-
-
-/* Applies to ALL above-nut dots (root + open-string interval dots) */
-.chord-diagram thead th .chord-header-root {
-    transform: translate(-50%, 1px) translateY(-1.4px);
-}
-
-
-.chord-edit-modal-slot .chord-dot-label.chord-dot-interval-label {
-    transform: translateY(-1.4px);
-}
-
-/* ========================================
-   PRINT OPTIMIZATION (Light Theme)
-   ======================================== */
-@media print {
-
-    /* Force light theme colors for print */
-    :root,
-    :root[data-bs-theme="dark"] {
-        --color-bg: #ffffff;
-        --color-fg: #000000;
-        --text-primary: #000000;
-        --text-secondary: #2f2f2f;
-        --border-subtle: #000000;
-        --surface-elevated: #ffffff;
-        --accent: #555555;
-        --root-dot-color: #555555;
-    }
-
-    /* Remove all shadows for crisp print */
-    * {
-        box-shadow: none !important;
-        text-shadow: none !important;
-    }
-
-    /* Remove gradients and backgrounds */
-    body,
-    #groups-root,
-    .chord-grid {
-        background: #ffffff !important;
-        background-image: none !important;
-    }
-
-    .group,
-    .chord-card {
-        background: #ffffff !important;
-        background-image: none !important;
-    }
-
-    /* Strengthen borders for print clarity */
-    .chord-card,
-    .group {
-        border: 1px solid #000000 !important;
-    }
-
-    .chord-diagram {
-        border: 1px solid #000000 !important;
-    }
-
-    .group-header {
-        border-bottom: 1px solid #000000 !important;
-    }
-
-    /* Hide interactive elements */
-    .group-handle,
-    .chord-handle,
-    .row-handle,
-    .group-buttons,
-    .chord-edit,
-    .delete-chord-btn,
-    .primary-button,
-    .lock-button,
-    #chord-settings-toggle,
-    button,
-    .btn,
-    #show-import-chords,
-    #undo-history-btn,
-    #redo-history-btn,
-    #help-btn,
-    #upload-library-input,
-    #download-library-btn,
-    .page-breadcrumb,
-    .group-insert-zone,
-    .chord-card-placeholder,
-    .my-chords-toast,
-    .chord-naming-toast {
-        display: none !important;
-    }
-
-    /* Ensure high contrast text */
-    .chord-title,
-    .group-name,
-    .page-title {
-        color: #000000 !important;
-        font-weight: 600 !important;
-    }
-
-    /* Optimize chord diagram for print */
-    .chord-diagram,
-    .chord-diagram tbody td,
-    .chord-diagram thead th {
-        border-color: #000000 !important;
-    }
-
-    .chord-dot-filled,
-    .chord-dot.root-played,
-    .chord-header-root-played {
-        background: #555555 !important;
-        border-color: #555555 !important;
-    }
-
-    /* Page breaks */
-    .group {
-        page-break-inside: avoid;
-        break-inside: avoid;
-    }
-
-    .chord-card {
-        page-break-inside: avoid;
-        break-inside: avoid;
-    }
-
-    /* Remove excess padding for more chords per page */
-    .group {
-        padding: 1rem !important;
-        margin-bottom: 1.5rem !important;
-    }
-
-    .chord-card {
-        padding: 0.5rem !important;
-    }
-
-    /* Compact page title */
-    .page-title {
-        font-size: 1.25rem !important;
-        margin-bottom: 1rem !important;
-    }
-
-    .page-title-row {
-        border-bottom: 2px solid #000000 !important;
-        margin-bottom: 1rem !important;
-        padding-bottom: 0.5rem !important;
-    }
-}
-
-
-.form-control.form-control-sm.group-name {
-    padding-left: 0.5rem !important;
 }

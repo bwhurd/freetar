@@ -1,48 +1,32 @@
 [
   {
-    "group": "Favorites",
+    "group": "Major",
     "rows": [
       {
         "chords": [
           {
-            "name": "...",
+            "name": "\"This is a  quote  card\"",
             "shape": "000000"
           },
           {
-            "name": "A−7",
-            "shape": "[3]x333x"
+            "name": "G",
+            "shape": "7x[5]7xx"
           },
           {
-            "name": "AΔ7",
-            "shape": "x(15)(15)0(14)x"
-          },
-          {
-            "name": "C69",
-            "shape": "3{3}2233"
-          },
-          {
-            "name": "G6",
-            "shape": "[3]x243x"
+            "name": "GΔ13",
+            "shape": "[3]x445x"
           },
           {
             "name": "E7",
-            "shape": "[7]x780x"
+            "shape": "8{8}778x"
           },
           {
             "name": "A7",
-            "shape": "[5]455xx"
+            "shape": "[5]456xx"
           },
           {
             "name": "A-7",
-            "shape": "[5]x55xx"
-          }
-        ]
-      },
-      {
-        "chords": [
-          {
-            "name": "...",
-            "shape": "000000"
+            "shape": "[5]x555x"
           }
         ]
       }
@@ -54,28 +38,36 @@
       {
         "chords": [
           {
-            "name": "Cmaj7 {Root 6th string 8th fret}",
-            "shape": "(7,{8})x998x"
-          },
-          {
             "name": "Dmaj7",
             "shape": "2{5}422x"
           },
           {
-            "name": "Cmaj7 {5-3-M7}",
-            "shape": "3{3}2400"
+            "name": "G6",
+            "shape": "7{(10)}998x"
           },
           {
-            "name": "CΔ7",
-            "shape": "x[3]24xx"
+            "name": "Cmaj7 {Root 6th string 8th fret}",
+            "shape": "(7,{8})x998x"
+          },
+          {
+            "name": "C−6",
+            "shape": "x[3]x243"
           }
         ]
       },
       {
         "chords": [
           {
-            "name": "GΔ7",
-            "shape": "{3}5[5]460"
+            "name": "G7",
+            "shape": "x5[5]46x"
+          },
+          {
+            "name": "A13",
+            "shape": "[5]x567x"
+          },
+          {
+            "name": "CΔ7",
+            "shape": "3[3]24xx"
           }
         ]
       }
@@ -88,45 +80,137 @@
         "chords": [
           {
             "name": "CΔ7",
-            "shape": "3{3}5450"
+            "shape": "3{3}545x"
           },
           {
-            "name": "G6 {R-R-3-6}",
-            "shape": "[3]x5450"
+            "name": "G6",
+            "shape": "[3]5545x"
           },
           {
-            "name": "Cmaj7 {M7-X-M7-3-5-X}",
-            "shape": "(7,{8})x998x"
+            "name": "G6",
+            "shape": "{3}5[5]45x"
           },
           {
-            "name": "Cmaj7 {3-X-3-6-R-X}",
-            "shape": "(12){(15)}(14)(14)[(13)]x"
+            "name": "D♭ø7",
+            "shape": "[9]x998x"
+          },
+          {
+            "name": "C6",
+            "shape": "x[(15)](14)(14)[(13)]x"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "G6",
+            "shape": "[3]x2430"
+          },
+          {
+            "name": "C7",
+            "shape": "3{4}23xx"
+          },
+          {
+            "name": "E",
+            "shape": "4x[2]4xx"
           }
         ]
       }
     ]
   },
   {
-    "group": "New group",
+    "group": "Quartile Chords",
     "rows": [
       {
         "chords": [
           {
-            "name": "...",
-            "shape": "000000"
+            "name": "B−11",
+            "shape": "x[2]223x"
+          },
+          {
+            "name": "CΔ11",
+            "shape": "x[3]345x"
+          },
+          {
+            "name": "D−11",
+            "shape": "x[5]556x"
+          },
+          {
+            "name": "FΔ7♯11",
+            "shape": "x[8]99(10)x"
+          },
+          {
+            "name": "G11",
+            "shape": "x[(10)](10)(10)(12)x"
+          },
+          {
+            "name": "A−7add4",
+            "shape": "x[(12)](12)(12)(13)x"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "\"So What __Miles Davis __→\"",
+            "shape": "x[5]5565"
+          },
+          {
+            "name": "D−11",
+            "shape": "x[5]5565"
+          },
+          {
+            "name": "E−11",
+            "shape": "x[7]7787"
+          },
+          {
+            "name": "FΔ7",
+            "shape": "x[8](10)9(10)8"
+          },
+          {
+            "name": "F−11",
+            "shape": "x[8]8898"
+          },
+          {
+            "name": "G♭Δ7",
+            "shape": "x[9](11)(10)(11)9"
           }
         ]
       }
     ]
   },
   {
-    "group": "New group",
+    "group": "So What",
+    "rows": [
+      {
+        "chords": []
+      }
+    ]
+  },
+  {
+    "group": "Carnage by The Antlers",
     "rows": [
       {
         "chords": [
           {
             "name": "...",
-            "shape": "000000"
+            "shape": "070000"
+          },
+          {
+            "name": "F -",
+            "shape": "8{8}(10)(10)9x"
+          },
+          {
+            "name": "F -",
+            "shape": "0[8]888x"
+          },
+          {
+            "name": "...",
+            "shape": "(8,{9})868xx"
+          },
+          {
+            "name": "...",
+            "shape": "(7,{7}){7}989x"
           }
         ]
       }
@@ -138,8 +222,104 @@
       {
         "chords": [
           {
+            "name": "\"69 Chords\"",
+            "shape": "xxxxxx"
+          },
+          {
             "name": "C69",
-            "shape": "3{3}2230"
+            "shape": "3{3}223x"
+          },
+          {
+            "name": "Bb69",
+            "shape": "[6]5556x"
+          },
+          {
+            "name": "C69",
+            "shape": "[3]x2233"
+          },
+          {
+            "name": "C69",
+            "shape": "[3]x2233"
+          },
+          {
+            "name": "...",
+            "shape": "x(2,{3})210x"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "\"Gypsy Jazz Idiom_ii-V-I\"",
+            "shape": "[3]x233x"
+          },
+          {
+            "name": "A−6",
+            "shape": "[5]x455x"
+          },
+          {
+            "name": "C9",
+            "shape": "5{5}455x"
+          },
+          {
+            "name": "Eø7",
+            "shape": "[3]x223x"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "\"A-7 is a _rootles A-9:\"",
+            "shape": "xxxxxx"
+          },
+          {
+            "name": "A−7",
+            "shape": "[5]x555x"
+          },
+          {
+            "name": "FΔ9",
+            "shape": "5{8}555x"
+          },
+          {
+            "name": "\"_\"",
+            "shape": "xxxxxx"
+          },
+          {
+            "name": "\"B°7 is a _Rootless G7(b9)\"",
+            "shape": "xxxxxx"
+          },
+          {
+            "name": "B°7",
+            "shape": "x[2]313x"
+          },
+          {
+            "name": "G7♭9",
+            "shape": "{3}2313x"
+          }
+        ]
+      },
+      {
+        "chords": [
+          {
+            "name": "\"CΔ7 is a _rootles A-9:\"",
+            "shape": "[8]x998x"
+          },
+          {
+            "name": "CΔ7",
+            "shape": "[8]x998x"
+          },
+          {
+            "name": "A−9",
+            "shape": "8x(9,{7})98x"
+          },
+          {
+            "name": "CΔ7",
+            "shape": "x[3]545x"
+          },
+          {
+            "name": "A−9",
+            "shape": "{5}3545x"
           }
         ]
       }

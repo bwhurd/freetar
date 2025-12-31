@@ -262,9 +262,8 @@ TLDR: One note per string. Treat the current chord diagram semantics as a spec. 
   - The "Fret #?" modal is the one interactive way to set base fret.
 - Click semantics at a high level:
   - Plain left click toggles plain notes on and off and can move a note to a new fret on that string.
-  - Shift plus left click cycles the note state on that string and fret across:
-    - plain, root played, ghost root, muted, then back to plain.
-  - Alt plus left click mutes the string and clears root.
+  - Shift plus left click toggles a played root on the clicked string and fret, moving the note there if needed and removing the root flag if it is already present.
+  - Alt plus left click assigns a ghost root on the clicked string and fret; if the clicked fret already has a note it converts that note to a ghost root, otherwise an existing note elsewhere gets a ghost overlay, and clicking the same spot again drops the ghost flag while keeping the note.
   - Ctrl plus left click:
     - In view mode enters edit mode for that card.
     - In edit mode commits and exits edit mode for that card.

@@ -18,6 +18,10 @@ You are a senior full stack engineer working on the My Chord Library repository 
 
 Treat the user as a fast-moving, design-focused front-end developer.
 
+## Design System and Visual Aesthetic
+
+My Chord Library follows a **contemporary minimalist design system** with material-influenced elevation and tactile lightness. Visual changes should align with this established aesthetic. **All agents making front end design changes must review [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for complete specifications as an initial planning step.** Changes outside of this spec are acceptable to meet task requirements, but agents should guide users toward professional, award-winning modern design choices.
+
 ## Project summary
 
 My Chord Library is a web based guitar chord organizer and chord diagram editor.
@@ -94,6 +98,9 @@ Key JavaScript
   - Enforce the one note per string model.
   - Surface clickable header elements via `.chord-header-label`.
 
+- `freetar/static/chordNaming.js`  
+  Chord name suggestions panel (right side). Loads `freetar/static/myChordsDictionary.json` and inserts picked names into the active `.chord-name-input`. Depends on `chordDiagram.js` (`window.parseTokensAndRootKinds`) and refreshes on `chord-diagram-changed`.
+
 - Chord_interactions.md
 Interaction and invariants spec for chord diagrams. Treat it as the reference for changes to `chordDiagram.js` and `my-chords.page.js`.
 Review this document when:
@@ -109,6 +116,7 @@ Review this document when:
   Main controller for My Chords. Responsibilities:
   - Manage groups and chord cards under `#groups-root` with SortableJS, emitting `chords-reordered` on reorder.
   - Inline edit flow via `#chord-edit-modal` spotlight clone, `.chord-edit-section`, and `.chord-edit-fields`, using `beginEditing` and `finishEditing`, with click-away commit, Esc cancel, Ctrl+Enter commit, and Ctrl-click commit.
+  - Chord suggestions integration: calls `window.freetarChordNaming.loadDictionary()` on init and exempts `.chord-name-suggest-panel` from click-away commit.
   - Diagram click handling for header, fret cells, and fret labels, including base fret prompt wiring, delegation to `chordDiagram.js`, and the diagram lock toggle via `#diagram-lock-toggle` and `my_chords_settings`.
   - Chord symbol palette in `.chord-symbols-toolbar` plus shape keybindings (Alt, Shift, Ctrl combinations) to wrap selections into root encodings.
   - Batch import via `#import-chords-area`, using `normalizeShapeText` and optional group hints (first-word prefix match) to route chords into groups.
@@ -160,6 +168,7 @@ Script wiring on `my_chords.html`:
 
 - `window.MY_CHORDS_EDIT_URL` is set inline by Jinja so static JS can POST chord changes.
 - The inline script must set the endpoint for per collection chord views when `collection_id` is present.
+- `chordNaming.js` must load after `chordDiagram.js` and before `my-chords.page.js` (it uses `window.parseTokensAndRootKinds` and exposes `window.freetarChordNaming`).
 - Script tags must stay in this order even with `defer`:
 
         <script src="{{ url_for('static', filename='vendor/morphdom-umd.min.js') }}"></script>
@@ -225,13 +234,12 @@ TLDR: One note per string. Treat the current chord diagram semantics as a spec. 
   - Do not introduce alternate encodings or bypass these helpers.
 - Base fret:
   - Each card may carry `card.dataset.baseFret` that sets the top visible fret.
-  - When baseFret is unset, the code derives a fallback from the tokens.
+  - When baseFret is unset, the code derives a fallback from the tokens; see `CHORD_INTERACTIONS.md` for caching and recompute rules.
   - The "Fret #?" modal is the one interactive way to set base fret.
 - Click semantics at a high level:
   - Plain left click toggles plain notes on and off and can move a note to a new fret on that string.
-  - Shift plus left click cycles the note state on that string and fret across:
-    - plain, root played, ghost root, muted, then back to plain.
-  - Alt plus left click mutes the string and clears root.
+  - Shift plus left click toggles a played root on the clicked string and fret, moving the note there if needed and dropping the root flag if it is already present.
+  - Alt plus left click assigns a ghost root on the clicked string and fret; if the clicked fret already has a note it converts that note to a ghost root, otherwise an existing note elsewhere gets a ghost overlay, and clicking the same spot again drops the ghost flag while leaving the note.
   - Ctrl plus left click:
     - In view mode enters edit mode for that card.
     - In edit mode commits and exits edit mode for that card.

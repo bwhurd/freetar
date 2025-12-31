@@ -106,11 +106,19 @@ Each chord card can carry a base fret in `card.dataset.baseFret`.
   - Top visible fret row is `baseFret`
   - The table renders frets `baseFret` through `baseFret + 3` or whatever fixed range is currently used
 - When not set
-  - The renderer derives a default top fret from `tokens`
+  - The renderer derives a default top fret from `tokens` on the initial render and caches it for that card until an explicit base is set or a forced recompute occurs
     - If there is at least one fretted note, it picks a 4 fret window so the lowest fretted note sits on the lowest visible label (`topBase = minFret`, clamped to `1`)
     - If all strings are open or muted, it falls back to frets `1` through `4`
-
-This normalization happens on every render (initial page load, undo/redo, morphdom updates) so the lowest fretted note always aligns with the lowest visible label unless an explicit `baseFret` is set.
+  - Derived bases are only recomputed on page load, when the user picks a base via the modal (including the first fretted note prompt), or when an edit session is committed and closed
+  - Diagram clicks while editing no longer auto-shift the base fret just because the lowest fret changed
+- Hover + mouse wheel on the left fret labels scrolls the visible window up or down without changing `tokens`
+  - Scroll down moves the window toward lower fret numbers (e.g., `3-4-5-6` → `2-3-4-5`)
+  - The scroll range is clamped so all fretted notes remain visible inside the 4-fret window
+  - The base shifts in eased steps (about one row every ~0.08–0.1s) to avoid jumpy redraws
+  - This view-only offset is not persisted; reloads derive the base fret using the standard rules above
+- Click-drag on a fret label also slides the visible window in the same eased, clamped way; the drag suppresses the modal and does not change `tokens`
+  - Wheel and drag both use roughly one fret-row of pointer movement per step (measured from label height)
+  - Drag releases snap to the nearest step after the easing completes
 
 `chordDiagram.js` is responsible for reading `card.dataset.baseFret` and building the diagram model accordingly.
 
@@ -228,44 +236,17 @@ Plain clicks never set root state. They only manage mute and plain notes.
 
 ### Shift plus left click
 
-Shift plus left click uses the complex cycle
+Shift plus left click toggles a played root on the targeted string and fret.
 
 - It operates on the targeted string and fret
-- It can move a note to the clicked fret if it was on another fret
-
-Cycle per string and fret
-
-- plain note at that fret
-- root played
-- ghost root
-- muted
-- back to plain note at that fret
-
-Implementation outline
-
-- Let `t = tokens[stringIndex]`
-- Let `r = roots[stringIndex]`
-
-Step A: ensure the note is at the clicked fret
-
-- If `t` is `null` or `0` or a different fret than `fret`
-  - Set `tokens[stringIndex] = fret`
-  - Set `roots[stringIndex] = null`
-
-Step B: if the note is already at the clicked fret, cycle the root state
-
-- If `tokens[stringIndex] === fret`
-  - If `roots[stringIndex]` is `null`
-    - set to `'played'`
-  - Else if `'played'`
-    - set to `'ghost'`
-  - Else if `'ghost'`
-    - set `tokens[stringIndex] = null`
-    - set `roots[stringIndex] = null`
-  - Else
-    - fall back to plain
-    - set `tokens[stringIndex] = fret`
-    - set `roots[stringIndex] = null`
+- It moves the note to the clicked fret if it was on another fret
+- If that string and fret already have a played root
+  - remove the root flag but keep the note
+- Otherwise
+  - set `tokens[stringIndex] = fret`
+  - set `roots[stringIndex] = 'played'`
+- If another root exists on a different string and the pitch class differs
+  - clear the other roots and any ghost overlays
 
 Then
 
@@ -276,14 +257,15 @@ Then
 
 ### Alt plus left click
 
-Alt plus left click is a direct mute
-
-- Regardless of `fret` or existing state
+Alt plus left click assigns an unplayed (ghost) root
 
 Behavior
 
-- `tokens[stringIndex] = null`
-- `roots[stringIndex] = null`
+- If the string already has a non-ghost note, add or move a ghost root overlay on that string at the clicked fret (serialized as `(note,{ghost})`); clicking the same overlay again removes it
+- If the clicked fret already holds a played or plain note on that string, convert it to a ghost root (no overlay) instead of adding a second note
+- Otherwise move the note to the clicked fret and set `roots[stringIndex] = 'ghost'`
+- If the same string and fret already hold a ghost root, drop the ghost flag but keep the note
+- When a different root exists on another string and the pitch class differs, clear the other roots and ghost overlays; clearing a ghost root also drops its note
 - Serialize and update diagram
 - Edit mode
   - keep editing, no `persist`

@@ -1,0 +1,822 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "overallRank": 1,
+      "preferredNotation": "CΔ",
+      "longChordName": "Major",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5"
+      ],
+      "essentialNotes": "1, 3",
+      "omittableNotes": "5",
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 2,
+      "preferredNotation": "C−",
+      "longChordName": "Minor",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5"
+      ],
+      "essentialNotes": "1, ♭3",
+      "omittableNotes": "5",
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 3,
+      "preferredNotation": "C°",
+      "longChordName": "Diminished",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "b5"
+      ],
+      "essentialNotes": "1, ♭3, ♭5",
+      "omittableNotes": null,
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 4,
+      "preferredNotation": "C+",
+      "longChordName": "Augmented",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "#5"
+      ],
+      "essentialNotes": "1, 3, ♯5",
+      "omittableNotes": null,
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 5,
+      "preferredNotation": "Csus4",
+      "longChordName": "Sus. 4th",
+      "chordFormulaTokens": [
+        "1",
+        "4",
+        "5"
+      ],
+      "essentialNotes": "1, 4",
+      "omittableNotes": "5",
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 6,
+      "preferredNotation": "Csus2",
+      "longChordName": "Sus. 2nd",
+      "chordFormulaTokens": [
+        "1",
+        "2",
+        "5"
+      ],
+      "essentialNotes": "1, 2",
+      "omittableNotes": "5",
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 7,
+      "preferredNotation": "C5",
+      "longChordName": "Power",
+      "chordFormulaTokens": [
+        "1",
+        "5"
+      ],
+      "essentialNotes": "1, 5",
+      "omittableNotes": null,
+      "chordFamily": "triad"
+    },
+    {
+      "overallRank": 8,
+      "preferredNotation": "C7",
+      "longChordName": "(Dominant) 7th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7"
+      ],
+      "essentialNotes": "1, 3, ♭7",
+      "omittableNotes": "5",
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 9,
+      "preferredNotation": "C−7",
+      "longChordName": "Minor 7th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "b7"
+      ],
+      "essentialNotes": "1, ♭3, ♭7",
+      "omittableNotes": "5",
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 10,
+      "preferredNotation": "CΔ7",
+      "longChordName": "Major 7th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "7"
+      ],
+      "essentialNotes": "1, 3, 7",
+      "omittableNotes": "5",
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 11,
+      "preferredNotation": "C6",
+      "longChordName": "(Major) 6th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "6"
+      ],
+      "essentialNotes": "1, 3, 6",
+      "omittableNotes": "5",
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 12,
+      "preferredNotation": "Cø7",
+      "longChordName": "Half-Dim. 7th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "b5",
+        "b7"
+      ],
+      "essentialNotes": "1, ♭3, ♭5, ♭7",
+      "omittableNotes": null,
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 13,
+      "preferredNotation": "C−6",
+      "longChordName": "Minor 6th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "6"
+      ],
+      "essentialNotes": "1, ♭3, 6",
+      "omittableNotes": "5",
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 14,
+      "preferredNotation": "C°7",
+      "longChordName": "Dim. 7th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "b5",
+        "bb7"
+      ],
+      "essentialNotes": "1, ♭3, ♭5, ♭♭7",
+      "omittableNotes": null,
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 15,
+      "preferredNotation": "C+7",
+      "longChordName": "Aug. 7th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "#5",
+        "b7"
+      ],
+      "essentialNotes": "1, 3, ♯5, ♭7",
+      "omittableNotes": null,
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 16,
+      "preferredNotation": "CmΔ7",
+      "longChordName": "Min-Maj. 7th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "7"
+      ],
+      "essentialNotes": "1, ♭3, 7",
+      "omittableNotes": "5",
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 17,
+      "preferredNotation": "C°Δ7",
+      "longChordName": "Dim-Maj. 7th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "b5",
+        "7"
+      ],
+      "essentialNotes": "1, ♭3, ♭5, 7",
+      "omittableNotes": null,
+      "chordFamily": "seventh"
+    },
+    {
+      "overallRank": 18,
+      "preferredNotation": "C9",
+      "longChordName": "(Dom.) 9th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "9"
+      ],
+      "essentialNotes": "1, 3, ♭7, 9",
+      "omittableNotes": "5",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 19,
+      "preferredNotation": "C13",
+      "longChordName": "(Dom.) 13th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "9",
+        "11",
+        "13"
+      ],
+      "essentialNotes": "1, 3, ♭7, 13",
+      "omittableNotes": "5, 9, 11",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 20,
+      "preferredNotation": "C6/9",
+      "longChordName": "6th/9th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "6",
+        "9"
+      ],
+      "essentialNotes": "1, 3, 6, 9",
+      "omittableNotes": "5",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 21,
+      "preferredNotation": "C11",
+      "longChordName": "(Dom.) 11th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "9",
+        "11"
+      ],
+      "essentialNotes": "1, 3, ♭7, 11",
+      "omittableNotes": "5, 9",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 22,
+      "preferredNotation": "CΔ9",
+      "longChordName": "Major 9th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "7",
+        "9"
+      ],
+      "essentialNotes": "1, 3, 7, 9",
+      "omittableNotes": "5",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 23,
+      "preferredNotation": "C−9",
+      "longChordName": "Minor 9th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "b7",
+        "9"
+      ],
+      "essentialNotes": "1, ♭3, ♭7, 9",
+      "omittableNotes": "5",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 24,
+      "preferredNotation": "CΔ13",
+      "longChordName": "Major 13th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "7",
+        "9",
+        "11",
+        "13"
+      ],
+      "essentialNotes": "1, 3, 7, 13",
+      "omittableNotes": "5, 9, 11",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 25,
+      "preferredNotation": "C−13",
+      "longChordName": "Minor 13th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "b7",
+        "9",
+        "11",
+        "13"
+      ],
+      "essentialNotes": "1, ♭3, ♭7, 13",
+      "omittableNotes": "5, 9, 11",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 26,
+      "preferredNotation": "Cadd9",
+      "longChordName": "Add 9th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "9"
+      ],
+      "essentialNotes": "1, 3, 9",
+      "omittableNotes": "5",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 27,
+      "preferredNotation": "Cadd11",
+      "longChordName": "Add 11th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "11"
+      ],
+      "essentialNotes": "1, 3, 11",
+      "omittableNotes": "5",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 28,
+      "preferredNotation": "CΔ11",
+      "longChordName": "Major 11th",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "7",
+        "9",
+        "11"
+      ],
+      "essentialNotes": "1, 3, 7, 11",
+      "omittableNotes": "5, 9",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 29,
+      "preferredNotation": "C−11",
+      "longChordName": "Minor 11th",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "b7",
+        "9",
+        "11"
+      ],
+      "essentialNotes": "1, ♭3, ♭7, 11",
+      "omittableNotes": "5, 9",
+      "chordFamily": "extended"
+    },
+    {
+      "overallRank": 30,
+      "preferredNotation": "C7♭9",
+      "longChordName": "(Dom.) 7♭9",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "b9"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♭9",
+      "omittableNotes": "5",
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 31,
+      "preferredNotation": "C7♯9",
+      "longChordName": "(Dom.) 7♯9",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "#9"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♯9",
+      "omittableNotes": "5",
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 32,
+      "preferredNotation": "C7alt",
+      "longChordName": "(Dom.) 7alt",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "b7",
+        "±9",
+        "±11",
+        "±13"
+      ],
+      "essentialNotes": "1, 3, ♭7",
+      "omittableNotes": "5",
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 33,
+      "preferredNotation": "C7♭13",
+      "longChordName": "(Dom.) 7♭13",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "b13"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♭13",
+      "omittableNotes": "5, 9, 11",
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 34,
+      "preferredNotation": "C7♯11",
+      "longChordName": "(Dom.) 7♯11",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "#11"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♯11",
+      "omittableNotes": "5, 9",
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 35,
+      "preferredNotation": "C7♭5",
+      "longChordName": "(Dom.) 7♭5",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "b5",
+        "b7"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♭5",
+      "omittableNotes": null,
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 36,
+      "preferredNotation": "C7♯5",
+      "longChordName": "(Dom.) 7♯5",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "#5",
+        "b7"
+      ],
+      "essentialNotes": "1, 3, ♯5, ♭7",
+      "omittableNotes": null,
+      "chordFamily": "seventhAltered"
+    },
+    {
+      "overallRank": 37,
+      "preferredNotation": "CΔ7♯11",
+      "longChordName": "Maj7♯11",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "7",
+        "#11"
+      ],
+      "essentialNotes": "1, 3, 7, ♯11",
+      "omittableNotes": "5, 9",
+      "chordFamily": "maj7Altered"
+    },
+    {
+      "overallRank": 38,
+      "preferredNotation": "CΔ7♯5",
+      "longChordName": "Maj7♯5",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "#5",
+        "7"
+      ],
+      "essentialNotes": "1, 3, ♯5, 7",
+      "omittableNotes": null,
+      "chordFamily": "maj7Altered"
+    },
+    {
+      "overallRank": 39,
+      "preferredNotation": "CΔ7♭5",
+      "longChordName": "Maj7♭5",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "b5",
+        "7"
+      ],
+      "essentialNotes": "1, 3, ♭5, 7",
+      "omittableNotes": null,
+      "chordFamily": "maj7Altered"
+    },
+    {
+      "overallRank": 40,
+      "preferredNotation": "CmΔ7",
+      "longChordName": "m(maj7)",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "7"
+      ],
+      "essentialNotes": "1, ♭3, 5, 7",
+      "omittableNotes": null,
+      "chordFamily": "min7Altered"
+    },
+    {
+      "overallRank": 41,
+      "preferredNotation": "C−7♭9",
+      "longChordName": "m7♭9",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "b7",
+        "b9"
+      ],
+      "essentialNotes": "1, ♭3, ♭7, ♭9",
+      "omittableNotes": "5",
+      "chordFamily": "min7Altered"
+    },
+    {
+      "overallRank": 42,
+      "preferredNotation": "C−7♯5",
+      "longChordName": "m7♯5",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "#5",
+        "b7"
+      ],
+      "essentialNotes": "1, ♭3, ♯5, ♭7",
+      "omittableNotes": null,
+      "chordFamily": "min7Altered"
+    },
+    {
+      "overallRank": 43,
+      "preferredNotation": "CmΔ9",
+      "longChordName": "m(maj7)9",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "5",
+        "7",
+        "9"
+      ],
+      "essentialNotes": "1, ♭3, 7, 9",
+      "omittableNotes": "5",
+      "chordFamily": "min7Altered"
+    },
+    {
+      "overallRank": 44,
+      "preferredNotation": "C−11♯5",
+      "longChordName": "m11♯5",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "#5",
+        "b7",
+        "9",
+        "11"
+      ],
+      "essentialNotes": "1, ♭3, ♯5, ♭7, 11",
+      "omittableNotes": "9, 5",
+      "chordFamily": "min7Altered"
+    },
+    {
+      "overallRank": 45,
+      "preferredNotation": "C7sus4",
+      "longChordName": "7sus4",
+      "chordFormulaTokens": [
+        "1",
+        "4",
+        "5",
+        "b7"
+      ],
+      "essentialNotes": "1, 4, ♭7",
+      "omittableNotes": "5",
+      "chordFamily": "sus7"
+    },
+    {
+      "overallRank": 46,
+      "preferredNotation": "C7sus2",
+      "longChordName": "7sus2",
+      "chordFormulaTokens": [
+        "1",
+        "2",
+        "5",
+        "b7"
+      ],
+      "essentialNotes": "1, 2, ♭7",
+      "omittableNotes": "5",
+      "chordFamily": "sus7"
+    },
+    {
+      "overallRank": 47,
+      "preferredNotation": "C7sus♭9",
+      "longChordName": "7sus♭9",
+      "chordFormulaTokens": [
+        "1",
+        "4",
+        "5",
+        "b7",
+        "b9"
+      ],
+      "essentialNotes": "1, 4, ♭7, ♭9",
+      "omittableNotes": "5",
+      "chordFamily": "sus7"
+    },
+    {
+      "overallRank": 48,
+      "preferredNotation": "CΔ7sus4",
+      "longChordName": "maj7sus4",
+      "chordFormulaTokens": [
+        "1",
+        "4",
+        "5",
+        "7"
+      ],
+      "essentialNotes": "1, 4, 7",
+      "omittableNotes": "5",
+      "chordFamily": "sus7"
+    },
+    {
+      "overallRank": 49,
+      "preferredNotation": "CΔ7sus2",
+      "longChordName": "maj7sus2",
+      "chordFormulaTokens": [
+        "1",
+        "2",
+        "5",
+        "7"
+      ],
+      "essentialNotes": "1, 2, 7",
+      "omittableNotes": "5",
+      "chordFamily": "sus7"
+    },
+    {
+      "overallRank": 50,
+      "preferredNotation": "Cø7♭9",
+      "longChordName": "m7♭5♭9",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "b5",
+        "b7",
+        "b9"
+      ],
+      "essentialNotes": "1, ♭3, ♭5, ♭7, ♭9",
+      "omittableNotes": null,
+      "chordFamily": "halfDimExt"
+    },
+    {
+      "overallRank": 51,
+      "preferredNotation": "Cø7♯9",
+      "longChordName": "m7♭5♯9",
+      "chordFormulaTokens": [
+        "1",
+        "b3",
+        "b5",
+        "b7",
+        "#9"
+      ],
+      "essentialNotes": "1, ♭3, ♭5, ♭7, ♯9",
+      "omittableNotes": null,
+      "chordFamily": "halfDimExt"
+    },
+    {
+      "overallRank": 52,
+      "preferredNotation": "C9♯11",
+      "longChordName": "(Dom.) 9♯11",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "9",
+        "#11"
+      ],
+      "essentialNotes": "1, 3, ♭7, 9, ♯11",
+      "omittableNotes": "5",
+      "chordFamily": "domExtVar"
+    },
+    {
+      "overallRank": 53,
+      "preferredNotation": "C13♭9",
+      "longChordName": "(Dom.) 13♭9",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "b9",
+        "13"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♭9, 13",
+      "omittableNotes": "5, 11, 9",
+      "chordFamily": "domExtVar"
+    },
+    {
+      "overallRank": 54,
+      "preferredNotation": "C13♯9",
+      "longChordName": "(Dom.) 13♯9",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "5",
+        "b7",
+        "#9",
+        "13"
+      ],
+      "essentialNotes": "1, 3, ♭7, ♯9, 13",
+      "omittableNotes": "5, 11, 9",
+      "chordFamily": "domExtVar"
+    },
+    {
+      "overallRank": 55,
+      "preferredNotation": "C9♯5",
+      "longChordName": "(Dom.) 9♯5",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "#5",
+        "b7",
+        "9"
+      ],
+      "essentialNotes": "1, 3, ♯5, ♭7, 9",
+      "omittableNotes": null,
+      "chordFamily": "domExtVar"
+    },
+    {
+      "overallRank": 56,
+      "preferredNotation": "C9♭5",
+      "longChordName": "(Dom.) 9♭5",
+      "chordFormulaTokens": [
+        "1",
+        "3",
+        "b5",
+        "b7",
+        "9"
+      ],
+      "essentialNotes": "1, 3, ♭5, ♭7, 9",
+      "omittableNotes": null,
+      "chordFamily": "domExtVar"
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import json
 import logging
+import mimetypes
 import os
 import re
 import secrets
@@ -16,6 +17,11 @@ from freetar.ug import Search, ug_tab
 from freetar.utils import get_version, FreetarError
 
 logger = logging.getLogger(__name__)
+
+# Ensure .wasm is served with a correct MIME type under Flask's static server.
+mimetypes.add_type("application/wasm", ".wasm")
+
+APP_START_TS = int(time.time())
 
 cache = Cache(
     config={
@@ -365,6 +371,7 @@ def build_chord_library_export_payload(groups: list[dict]) -> dict:
 def export_variables():
     return {
         "version": get_version(),
+        "app_start_ts": APP_START_TS,
     }
 
 

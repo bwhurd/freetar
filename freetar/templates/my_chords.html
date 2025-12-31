@@ -3,12 +3,23 @@
 
 {% block content %}
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined">
 <link rel="stylesheet" href="{{ url_for('static', filename='my-chords.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='tooltips.css') }}">
 <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&family=Noto+Sans+Symbols+2&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
 
+
+<style>
+    /* Ensure quote-cards (text-only) display newlines correctly */
+    .collection-text-card .chord-title {
+        white-space: pre-wrap !important;
+    }
+</style>
 
 <div class="page-title-group">
     {% if collection_id is defined %}
@@ -54,6 +65,10 @@
                 title="Diagram lock is OFF (diagram clicks edit immediately)">
                 <span class="material-icons-outlined" aria-hidden="true">lock_open</span>
             </button>
+            <button id="help-toggle" type="button" class="lock-button chord-settings-button" aria-label="Help"
+                data-tooltip="Help" data-tooltip-src="Help" title="Help">
+                <span class="material-icons-outlined"> help_outline </span>
+            </button>
             <button id="chord-settings-toggle" type="button" class="lock-button chord-settings-button"
                 aria-label="Chord layout settings" aria-expanded="false" data-tooltip="Chord layout settings"
                 title="Chord layout settings">
@@ -71,7 +86,22 @@
                             aria-label="Max chords per row" disabled>
                     </div>
                 </div>
+
+                <div class="chord-settings-row" id="five-frets-row">
+                    <label for="five-frets-checkbox" class="chord-settings-label">
+                        <input type="checkbox" id="five-frets-checkbox">
+                        <span>Show 5 frets</span>
+                    </label>
+                </div>
+
+                <div class="chord-settings-row" id="show-intervals-row">
+                    <label for="show-intervals-checkbox" class="chord-settings-label">
+                        <input type="checkbox" id="show-intervals-checkbox">
+                        <span>Show intervals</span>
+                    </label>
+                </div>
             </div>
+
         </div>
     </div>
 
@@ -134,7 +164,7 @@
             <span class="row-drag-handle material-icons-outlined" aria-hidden="true">drag_indicator</span>
             {% for chord in row.chords or [] %}
             {% set diag = chord.diagram %}
-            <div class="text-center chord-card mb-3">
+            <div class="text-center chord-card mb-3" data-raw-name='{{ chord.name|tojson }}'>
                 <div class="d-flex align-items-center justify-content-between mb-1 position-relative">
                     <span class="material-icons-outlined chord-handle">drag_indicator</span>
                     <span class="chord-title flex-grow-1 text-truncate mx-1">{{ chord.name }}</span>
@@ -204,7 +234,8 @@
 
                 <div class="chord-edit-section">
                     <div class="chord-edit-fields mb-2">
-                        <input class="form-control form-control-sm mb-1 chord-name-input" value="{{ chord.name }}">
+                        <textarea class="form-control form-control-sm mb-1 chord-name-input"
+                            rows="2">{{ chord.name }}</textarea>
                         <input class="form-control form-control-sm chord-shape-input" value="{{ chord.shape }}">
                     </div>
                     <div class="chord-symbols-toolbar"></div>
@@ -222,7 +253,7 @@
             </button>
         </div>
     </div>
-{% endfor %}
+    {% endfor %}
 
 </div>
 
@@ -232,6 +263,11 @@
 <script defer src="{{ url_for('static', filename='tooltips.js') }}"></script>
 <script defer src="{{ url_for('static', filename='undoRedo.js') }}"></script>
 <script defer src="{{ url_for('static', filename='chordDiagram.js') }}"></script>
+<script defer src="{{ url_for('static', filename='vendor/tonal.min.js') }}"></script>
+<script>
+    window.MCL_DICT_BUST = "{{ app_start_ts }}";
+</script>
+<script defer src="{{ url_for('static', filename='chordNaming.js') }}"></script>
 <script>
     {% if collection_id is defined %}
     window.MY_CHORDS_EDIT_URL = "{{ url_for('collection_chords_edit', collection_id=collection_id) }}";
@@ -281,6 +317,84 @@
         </div>
     </div>
 </div>
+
+<!-- Help Modal -->
+<div class="modal micromodal-slide" id="help-modal" aria-hidden="true">
+    <div class="modal__overlay modaloverlay" tabindex="-1" data-micromodal-close>
+        <div class="modal__container help-modal-container modalcontainer" role="dialog" aria-modal="true"
+            aria-labelledby="help-modal-title">
+            <div class="modal__header modalheader">
+                <h3 id="help-modal-title" class="modal__title modaltitle help-modal-title">Help</h3>
+                <button type="button" class="modal__close-button modal__close modalclose" aria-label="Close help modal"
+                    data-micromodal-close>&times;</button>
+            </div>
+            <div class="modal__content modalcontent help-modal-content">
+                <div class="help-section">
+                    <div class="help-section-title">Keyboard Shortcuts</div>
+                    <ul class="help-section-list">
+                        <li>Alt+A: Add chord</li>
+                        <li>Alt+D: Delete chords or groups</li>
+                        <li>Ctrl+Z: Undo</li>
+                        <li>Ctrl+Shift+Z: Redo</li>
+                        <li>Alt+L: Toggle lock to prevent edits</li>
+                        <li>Control+/: Show help page</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <div class="help-section-title">Moving Items</div>
+                    <ul class="help-section-list">
+                        <li>Drag handle icons ⋮⋮</li>
+                        <li>Groups: Hover over group title ⋮⋮</li>
+                        <li>Rows: Hover over first chord in row ⋮⋮</li>
+                        <li>Chords: Hover over any chord card ⋮⋮</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <div class="help-section-title">Adding and Deleting Items</div>
+                    <ul class="help-section-list">
+                        <li>Add or delete chords: Use shortcuts or the + and − buttons in the group upper right</li>
+                        <li>Add group: Hover over the top or bottom edge of a group, then click the green +</li>
+                        <li>Add row: Hover below the last row of a group, then click the blue +</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <div class="help-section-title">Editing Titles</div>
+                    <ul class="help-section-list">
+                        <li>Click titles to edit directly</li>
+                        <li>Tooltips: Text in {curly braces} shows on hover</li>
+                        <li>Text-only cards: "Wrap titles in quotes" to create text only cards. Use Shift+Enter to add
+                            line
+                            breaks.</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <div class="help-section-title">Editing Chord Diagrams</div>
+                    <ul class="help-section-list">
+                        <li>Edit directly when unlocked</li>
+                        <li>Ctrl+Click chord diagram: Enter/Exit Edit Mode</li>
+                        <li>Ctrl+Enter: Exit Edit Mode and save</li>
+                        <li>Esc: Exit Edit Mode without saving</li>
+                        <li>Left Click fret: Add or remove notes</li>
+                        <li>Shift+Click fret: Set Root or Ghost Root (a ghost root is displayed but not supposed to be
+                            played)</li>
+                        <li>Alt+Click String: Assign X (mute)</li>
+                    </ul>
+                </div>
+                <div class="help-section">
+                    <div class="help-section-title">Import and Export</div>
+                    <ul class="help-section-list">
+                        <li>Click the 'Import Chords' button to batch import text, with one chord per line, for example
+                            'Am, X02210'</li>
+                        <li>Blank lines in the import text start a new row in that group</li>
+                        <li>Import or export JSON with Import Chords from File</li>
+                        <li>Export a single group to file using the button at the group bottom right.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 
 <!-- Chord Edit Spotlight Modal -->
 <div class="modal micromodal-slide" id="chord-edit-modal" aria-hidden="true">

@@ -1,22 +1,164 @@
 [
   {
     "group": "Radiohead - Creep",
-    "chords": [
+    "rows": [
       {
-        "name": "G",
-        "shape": "[3]55433"
+        "chords": [
+          {
+            "name": "...",
+            "shape": "xxxxxx"
+          },
+          {
+            "name": "...",
+            "shape": "xxxxxx"
+          },
+          {
+            "name": "A",
+            "shape": "x02220"
+          }
+        ]
       },
       {
-        "name": "B",
-        "shape": "x[2]4442"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x02210"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "Exit Music",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x02210"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x02230"
+          },
+          {
+            "name": "A",
+            "shape": "x02220"
+          },
+          {
+            "name": "Am",
+            "shape": "x02210"
+          },
+          {
+            "name": "B7",
+            "shape": "x21202"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "F",
+            "shape": "133211"
+          },
+          {
+            "name": "Bb",
+            "shape": "x1333x"
+          },
+          {
+            "name": "Esus4",
+            "shape": "022200"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "Am",
+            "shape": "x02210"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "C/G",
+            "shape": "332010"
+          },
+          {
+            "name": "Dadd9/F#",
+            "shape": "2x0230"
+          },
+          {
+            "name": "Dadd9/F",
+            "shape": "1x0230"
+          },
+          {
+            "name": "Am",
+            "shape": "x02210"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x02230"
+          },
+          {
+            "name": "A",
+            "shape": "x02220"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "group": "2 Rows Example",
+    "rows": [
+      {
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x02210"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x02230"
+          },
+          {
+            "name": "A",
+            "shape": "x02220"
+          }
+        ]
       },
       {
-        "name": "C",
-        "shape": "x[3]5553"
-      },
-      {
-        "name": "Cm",
-        "shape": "x[8](10)(10)98"
+        "chords": [
+          {
+            "name": "Am",
+            "shape": "x02210"
+          },
+          {
+            "name": "E",
+            "shape": "022100"
+          },
+          {
+            "name": "Asus4",
+            "shape": "x02230"
+          },
+          {
+            "name": "A",
+            "shape": "x02220"
+          }
+        ]
       }
     ]
   }

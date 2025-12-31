@@ -4,6 +4,43 @@
    Exposes: parseShapeTokens, buildDiagramModel, buildChordTableInnerHTML, renderCardDiagram (globals)
 */
 
+const CARD_SHAPE_CACHE = new WeakMap();
+const CARD_INTERACTION_MARK = new WeakSet();
+const CARD_BASE_FRET_CACHE = new WeakMap();
+let chordDiagramInteractionListenerAttached = false;
+const DEFAULT_VISIBLE_FRET_ROWS = 4;
+const MAX_VISIBLE_FRET_ROWS = 5;
+
+function ensureChordDiagramInteractionListener() {
+  if (chordDiagramInteractionListenerAttached) return;
+  chordDiagramInteractionListenerAttached = true;
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      const tbl = e.target?.closest?.('table.chord-diagram') || null;
+      if (!tbl) return;
+      const card = tbl.closest('.chord-card');
+      if (!card) return;
+      CARD_INTERACTION_MARK.add(card);
+    },
+    true,
+  );
+}
+
+function getVisibleFretRows() {
+  if (typeof window !== 'undefined' && window.MY_CHORDS_VISIBLE_FRETS != null) {
+    const parsed = parseInt(window.MY_CHORDS_VISIBLE_FRETS, 10);
+    if (
+      Number.isFinite(parsed) &&
+      parsed >= DEFAULT_VISIBLE_FRET_ROWS &&
+      parsed <= MAX_VISIBLE_FRET_ROWS
+    ) {
+      return parsed;
+    }
+  }
+  return DEFAULT_VISIBLE_FRET_ROWS;
+}
+
 // Mirror backend.py _parse_shape_tokens
 function parseShapeTokens(shape) {
   // Dual-mode tokenizer:
@@ -20,7 +57,7 @@ function parseTokensAndRootKinds(shapeText) {
   const tokens = [];
   const roots = []; // 'played' | 'ghost' | null
   const overlays = {}; // { [stringIndex]: { ghostFret: number } }
-  const SEP = /[,\s\/|\-]/; // treat whitespace and punctuation as separators
+  const SEP = /[,\s/|-]/; // treat whitespace and punctuation as separators
 
   const push = (val, kind = null) => {
     if (tokens.length >= 6) return; // drop extras from the end
@@ -57,53 +94,63 @@ function parseTokensAndRootKinds(shapeText) {
     const sub = input.slice(i);
     let m;
 
-    if ((m = sub.match(/^\[\s*\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)\s*\]/))) {
+    m = sub.match(/^\[\s*\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)\s*\]/);
+    if (m) {
       pushWithOverlay(parseInt(m[1], 10), 'played', parseInt(m[2], 10)); // [(7,{8})]
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\{\s*\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)\s*\}/))) {
+    m = sub.match(/^\{\s*\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)\s*\}/);
+    if (m) {
       pushWithOverlay(parseInt(m[1], 10), 'ghost', parseInt(m[2], 10)); // {(7,{8})}
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\(\s*\[\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\]\s*\)/))) {
+    m = sub.match(/^\(\s*\[\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\]\s*\)/);
+    if (m) {
       pushWithOverlay(parseInt(m[1], 10), 'ghost', parseInt(m[2], 10)); // legacy ([7,{8}])
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)/))) {
+    m = sub.match(/^\(\s*(\d+)\s*,?\s*\{\s*(\d+)\s*\}\s*\)/);
+    if (m) {
       pushWithOverlay(parseInt(m[1], 10), null, parseInt(m[2], 10)); // (7,{8})
       i += m[0].length;
       continue;
     }
 
-    if ((m = sub.match(/^\{\s*\(\s*(\d+)\s*\)\s*\}/))) {
+    m = sub.match(/^\{\s*\(\s*(\d+)\s*\)\s*\}/);
+    if (m) {
       push(parseInt(m[1], 10), 'ghost'); // {(10)}
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\{\s*(\d+)\s*\}/))) {
+    m = sub.match(/^\{\s*(\d+)\s*\}/);
+    if (m) {
       push(parseInt(m[1], 10), 'ghost'); // {10}
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\[\s*\(\s*(\d+)\s*\)\s*\]/))) {
+    m = sub.match(/^\[\s*\(\s*(\d+)\s*\)\s*\]/);
+    if (m) {
       push(parseInt(m[1], 10), 'played'); // [(10)]
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\[\s*(\d+)\s*\]/))) {
+    m = sub.match(/^\[\s*(\d+)\s*\]/);
+    if (m) {
       push(parseInt(m[1], 10), 'played'); // [10]
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\(\s*\[\s*(\d+)\s*\]\s*\)/))) {
+    m = sub.match(/^\(\s*\[\s*(\d+)\s*\]\s*\)/);
+    if (m) {
       push(parseInt(m[1], 10), 'ghost'); // legacy ([10])
       i += m[0].length;
       continue;
     }
-    if ((m = sub.match(/^\(\s*(\d+)\s*\)/))) {
+    m = sub.match(/^\(\s*(\d+)\s*\)/);
+    if (m) {
       push(parseInt(m[1], 10), null); // (10)
       i += m[0].length;
       continue;
@@ -179,10 +226,8 @@ function buildShapeFromTokensAndRootKinds(tokens, roots, overlays) {
       if (t == null) return 'x';
       const num = Number(t);
       if (!Number.isFinite(num)) return 'x';
-      const overlayVal =
-        overlays && overlays[i] && Number.isFinite(Number(overlays[i].ghostFret))
-          ? Number(overlays[i].ghostFret)
-          : null;
+      const overlayGhost = overlays?.[i]?.ghostFret;
+      const overlayVal = Number.isFinite(Number(overlayGhost)) ? Number(overlayGhost) : null;
       if (num === 0) {
         const coreZero = overlayVal != null ? `(${num},{${overlayVal}})` : '0';
         if (overlayVal != null && rk === 'played') return `[${coreZero}]`;
@@ -204,12 +249,153 @@ function normalizeShapeText(raw) {
   return buildShapeFromTokensAndRootKinds(parsed.tokens, parsed.roots, parsed.overlays);
 }
 
-function deriveAutoBaseFret(tokens) {
+function deriveAutoBaseFret(tokens, overlays) {
   if (!Array.isArray(tokens) || !tokens.length) return 1;
   const fretted = tokens.filter((t) => typeof t === 'number' && t > 0);
+  if (overlays && typeof overlays === 'object') {
+    Object.values(overlays).forEach((ov) => {
+      const ghostFret = ov && Number.isFinite(Number(ov.ghostFret)) ? Number(ov.ghostFret) : null;
+      if (ghostFret != null && ghostFret > 0) fretted.push(ghostFret);
+    });
+  }
   if (!fretted.length) return 1;
+  const maxFret = Math.max(...fretted);
+  const visibleRows = getVisibleFretRows();
+  const clampThreshold = Math.max(DEFAULT_VISIBLE_FRET_ROWS, visibleRows);
+  if (maxFret <= clampThreshold) return 1; // keep open-position chords pinned near the nut
   const minFret = Math.min(...fretted);
   return Math.max(1, minFret);
+}
+
+// Standard tuning EADGBE; only semitone differences mod 12 matter.
+const INTERVAL_OPEN_PITCHES = [40, 45, 50, 55, 59, 64];
+
+const INTERVAL_BY_SEMITONE = {
+  0: 'R1', // not used directly; primary root renders as "R"
+  1: 'b2',
+  2: '2',
+  3: 'b3',
+  4: '3',
+  5: '4',
+  6: 'b5',
+  7: '5',
+  8: 'b6',
+  9: '6',
+  10: 'b7',
+  11: '7',
+};
+
+function findPrimaryRoot(tokens, rootKinds, overlays) {
+  if (!Array.isArray(tokens) || !Array.isArray(rootKinds)) return null;
+
+  // 1) Prefer an explicit played root on a real token
+  for (let i = 0; i < rootKinds.length; i += 1) {
+    if (rootKinds[i] === 'played' && tokens[i] != null) {
+      const fret = tokens[i];
+      if (typeof fret === 'number') return { stringIndex: i, fret };
+    }
+  }
+
+  // 2) Then prefer an explicit ghost root on a real token
+  for (let i = 0; i < rootKinds.length; i += 1) {
+    if (rootKinds[i] === 'ghost' && tokens[i] != null) {
+      const fret = tokens[i];
+      if (typeof fret === 'number') return { stringIndex: i, fret };
+    }
+  }
+
+  // 3) Finally: if there is an overlay ghost root (e.g. (7,{8})), use that as the primary root
+  // This is what makes (7,{8})x998x compute intervals relative to the ghost root at 8.
+  if (overlays && typeof overlays === 'object') {
+    for (let i = 0; i < 6; i += 1) {
+      const ov = overlays[i];
+      const ghostFret = ov && Number.isFinite(Number(ov.ghostFret)) ? Number(ov.ghostFret) : null;
+      if (ghostFret != null) return { stringIndex: i, fret: ghostFret };
+    }
+  }
+
+  return null;
+}
+
+
+function getIntervalLabelForNote(primaryRoot, stringIndex, fret) {
+  if (!primaryRoot) return null;
+  if (typeof stringIndex !== 'number' || typeof fret !== 'number') return null;
+  if (
+    stringIndex < 0 ||
+    stringIndex >= INTERVAL_OPEN_PITCHES.length ||
+    primaryRoot.stringIndex < 0 ||
+    primaryRoot.stringIndex >= INTERVAL_OPEN_PITCHES.length
+  ) {
+    return null;
+  }
+
+  const rootPitch = INTERVAL_OPEN_PITCHES[primaryRoot.stringIndex] + primaryRoot.fret;
+  const notePitch = INTERVAL_OPEN_PITCHES[stringIndex] + fret;
+  let diff = (notePitch - rootPitch) % 12;
+  if (diff < 0) diff += 12;
+
+  if (diff === 0) {
+    // Same pitch class as the primary root: show "1" on repeated roots.
+    return '1';
+  }
+  return INTERVAL_BY_SEMITONE[diff] || null;
+}
+
+/*
+  Ordered interval relabeling rules (first match wins), assuming a primary root and presentRaw exist:
+
+  A) Upper structure naming for 2, 4, 6 (only these three)
+     - If rawLabel is "2"
+       - If hasThird is false, return "2"
+       - Else return "9"
+     - If rawLabel is "4"
+       - If hasThird is false, return "4"
+       - Else return "11"
+     - If rawLabel is "6"
+       - If hasSeventh is true, return "13"
+       - Else return "6"
+
+  B) Simple alteration spellings (apply only when the specific rawLabel matches)
+     - If rawLabel is "b2" AND hasSeventh is true, return "b9"
+     - If rawLabel is "b6" AND hasSeventh is true, return "b13"
+     - If rawLabel is "b5" AND hasMajThird is true AND hasMinThird is false, return "#11"
+     - If rawLabel is "b3" AND hasMajThird is true AND has("b7") is true, return "#9"
+
+  C) Otherwise return rawLabel unchanged.
+*/
+function applyIntervalDisplayRules(rawLabel, presentRaw) {
+  if (!rawLabel) return rawLabel;
+  if (rawLabel === '1') return rawLabel; // raw repeated roots stay as-is
+  if (!presentRaw || !(presentRaw instanceof Set)) return rawLabel;
+
+  const has = (lbl) => presentRaw.has(lbl);
+  const hasThird = has('3') || has('b3');
+  const hasSeventh = has('7') || has('b7');
+  const hasMajThird = has('3');
+  const hasMinThird = has('b3');
+
+  // A) Upper structure naming for 2, 4, 6
+  if (rawLabel === '2') {
+    if (!hasThird) return '2';
+    return '9';
+  }
+  if (rawLabel === '4') {
+    if (!hasThird) return '4';
+    return '11';
+  }
+  if (rawLabel === '6') {
+    if (hasSeventh) return '13';
+    return '6';
+  }
+
+  // B) Simple alteration spellings
+  if (rawLabel === 'b2' && hasSeventh) return 'b9';
+  if (rawLabel === 'b6' && hasSeventh) return 'b13';
+  if (rawLabel === 'b5' && hasMajThird && !hasMinThird) return '#11';
+  if (rawLabel === 'b3' && hasMajThird && has('b7')) return '#9';
+
+  return rawLabel;
 }
 
 function buildDiagramModel(shape, baseFret) {
@@ -224,23 +410,30 @@ function buildDiagramModel(shape, baseFret) {
   if (base != null) {
     start = base;
   } else {
-    start = deriveAutoBaseFret(tokens);
+    start = deriveAutoBaseFret(tokens, overlayRoots);
   }
-  const frets = [start, start + 1, start + 2, start + 3];
+  const visibleRows = getVisibleFretRows();
+  const frets = Array.from({ length: visibleRows }, (_, idx) => start + idx);
   const rows = frets.map((fret) => ({
     fret,
     strings: tokens.map((t) => (t === fret ? 1 : 0)),
     overlays: tokens.map((_, idx) => {
       const ov = overlayRoots[idx];
-      const ghostFret =
-        ov && Number.isFinite(Number(ov.ghostFret)) ? Number(ov.ghostFret) : null;
+      const ghostFret = ov && Number.isFinite(Number(ov.ghostFret)) ? Number(ov.ghostFret) : null;
       if (ghostFret == null) return 0;
       if (tokens[idx] != null && ghostFret === tokens[idx]) return 0; // avoid double on same cell
       return ghostFret === fret ? 1 : 0;
     }),
   }));
-  return { header, rows, rootKinds };
+
+  // Key change: allow overlay ghost roots to become the interval reference root when no other root exists.
+  const primaryRoot = findPrimaryRoot(tokens, rootKinds, overlayRoots);
+
+  return { header, rows, rootKinds, tokens, primaryRoot };
 }
+
+
+
 
 function buildChordTableInnerHTML(model) {
   const headerTokens =
@@ -248,13 +441,48 @@ function buildChordTableInnerHTML(model) {
       ? model.header
       : new Array(6).fill('');
 
+  const primaryRoot = model?.primaryRoot ?? null;
+  const showIntervals =
+    typeof window !== 'undefined' && window.MY_CHORD_INTERVALS_ENABLED === true;
+  const presentRaw =
+    showIntervals && primaryRoot
+      ? (() => {
+        const set = new Set();
+        const tokens = Array.isArray(model.tokens) ? model.tokens : [];
+        tokens.forEach((t, idx) => {
+          if (typeof t !== 'number') return;
+          const raw = getIntervalLabelForNote(primaryRoot, idx, t);
+          if (!raw || raw === '1') return;
+          set.add(raw);
+        });
+        const rows = Array.isArray(model.rows) ? model.rows : [];
+        rows.forEach((row) => {
+          if (!row || !Array.isArray(row.overlays)) return;
+          row.overlays.forEach((ov, idx) => {
+            if (!ov) return;
+            const raw = getIntervalLabelForNote(primaryRoot, idx, row.fret);
+            if (!raw || raw === '1') return;
+            set.add(raw);
+          });
+        });
+        return set;
+      })()
+      : null;
+
   // Header: show small turquoise dot for open-string roots ([0] or ([0])) instead of 'O'
+
   const headerCells = headerTokens
     .map((x, i, arr) => {
       const pos = i === 0 ? ' string-left' : i === arr.length - 1 ? ' string-right' : '';
       const cls =
         x === 'X' ? 'chord-header-muted' : x === 'O' ? 'chord-header-open' : 'chord-header-fret';
-      const rk = (model.rootKinds && model.rootKinds[i]) || null;
+      const rk = model.rootKinds?.[i] || null;
+      const rawIntervalLabel =
+        showIntervals && primaryRoot ? getIntervalLabelForNote(primaryRoot, i, 0) : null;
+      const intervalLabel =
+        rawIntervalLabel && showIntervals
+          ? applyIntervalDisplayRules(rawIntervalLabel, presentRaw)
+          : null;
 
       let label = '';
       if (x === 'X') {
@@ -270,9 +498,18 @@ function buildChordTableInnerHTML(model) {
           // open-string ghost root → ghost marker plus muted X above nut
           label = `<span class="chord-header-label chord-header-label-ghost-with-x"><span class="chord-header-muted-x">X</span><span class="chord-header-root chord-header-root-ghost"><span class="chord-header-root-mini"></span></span></span>`;
         } else {
-          label = `<span class="chord-header-label">O</span>`;
+          // open string non-root: show a filled dot; include interval text when available
+          if (showIntervals) {
+            const intervalSpan = intervalLabel
+              ? `<span class="chord-dot-label chord-dot-interval-label chord-dot-interval-label--open">${intervalLabel}</span>`
+              : '';
+            label = `<span class="chord-header-root chord-header-open-note">${intervalSpan}</span>`;
+          } else {
+            label = `<span class="chord-header-label">O</span>`;
+          }
         }
       } else {
+
         // numeric header shown in footer; keep placeholder unless we need muted X for ghost roots
         label =
           rk === 'ghost'
@@ -293,7 +530,7 @@ function buildChordTableInnerHTML(model) {
           let dotClasses = 'chord-dot';
           let dotInner = '';
           if (row.strings[i]) {
-            const rk = (model.rootKinds && model.rootKinds[i]) || null;
+            const rk = model.rootKinds?.[i] || null;
             if (rk === 'played') {
               dotClasses += ' chord-dot-filled root-played';
               dotInner = `<span class="chord-dot-label">R</span>`;
@@ -302,9 +539,17 @@ function buildChordTableInnerHTML(model) {
               dotInner = `<span class="chord-dot-mini"></span>`;
             } else {
               dotClasses += ' chord-dot-filled';
+              if (showIntervals && primaryRoot) {
+                const rawIntervalLabel = getIntervalLabelForNote(primaryRoot, i, row.fret);
+                const intervalLabel = applyIntervalDisplayRules(rawIntervalLabel, presentRaw);
+                if (intervalLabel) {
+                  dotInner = `<span class="chord-dot-label chord-dot-interval-label">${intervalLabel}</span>`;
+                }
+
+              }
             }
           }
-          const hasOverlay = row.overlays && row.overlays[i];
+          const hasOverlay = row.overlays?.[i];
           const overlayDot = hasOverlay
             ? `<div class="chord-dot chord-dot-overlay root-ghost"><span class="chord-dot-mini"></span></div>`
             : '';
@@ -317,7 +562,7 @@ function buildChordTableInnerHTML(model) {
 
   const footerCells = headerTokens
     .map((x, i) => {
-      const rk = (model.rootKinds && model.rootKinds[i]) || null;
+      const rk = model.rootKinds?.[i] || null;
       const footerLabel = x === 'X' || x === 'O' || rk === 'ghost' ? '' : x;
       const footerText = footerLabel == null ? '' : footerLabel;
       return `<td class="chord-footer-cell"><span class="chord-footer-label">${footerText}</span></td>`;
@@ -341,20 +586,52 @@ function buildChordTableInnerHTML(model) {
   `;
 }
 
-function renderCardDiagram(card) {
+function readBaseFret(val) {
+  const num = Number(val);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function getCachedBaseFret(card) {
+  if (!card) return null;
+  const cached = CARD_BASE_FRET_CACHE.get(card);
+  return readBaseFret(cached);
+}
+
+function setCachedBaseFret(card, base) {
+  if (!card) return;
+  const valid = readBaseFret(base);
+  if (valid == null) {
+    CARD_BASE_FRET_CACHE.delete(card);
+    return;
+  }
+  CARD_BASE_FRET_CACHE.set(card, valid);
+}
+
+function renderCardDiagram(card, options) {
+  ensureChordDiagramInteractionListener();
+  const opts = options && typeof options === 'object' ? options : {};
+  const forceRecomputeBase = opts.forceRecomputeBase === true;
   const shapeInput = card.querySelector('.chord-shape-input');
   const shape = shapeInput ? (shapeInput.value || '').trim() : '000000';
   const baseAttr = card?.dataset?.baseFret;
-  const baseFret =
-    baseAttr && Number.isFinite(Number(baseAttr)) && Number(baseAttr) > 0 ? Number(baseAttr) : null;
-  const model = buildDiagramModel(shape, baseFret);
+  const explicitBase = readBaseFret(baseAttr);
+  const cachedBase = !forceRecomputeBase && explicitBase == null ? getCachedBaseFret(card) : null;
+  const baseForModel = explicitBase != null ? explicitBase : cachedBase;
+  const model = buildDiagramModel(shape, baseForModel);
+  const derivedBase =
+    explicitBase != null
+      ? explicitBase
+      : Array.isArray(model?.rows) && model.rows.length
+        ? model.rows[0].fret
+        : null;
+  setCachedBaseFret(card, derivedBase);
   let table = card.querySelector('table.chord-diagram');
   if (!table) {
     table = document.createElement('table');
     table.className = 'chord-diagram';
     // place after edit fields to match server structure
     const fields = card.querySelector('.chord-edit-fields');
-    if (fields && fields.nextSibling) {
+    if (fields?.nextSibling) {
       card.insertBefore(table, fields.nextSibling);
     } else {
       card.appendChild(table);
@@ -396,6 +673,23 @@ function renderCardDiagram(card) {
   })(table);
 
   table.innerHTML = buildChordTableInnerHTML(model);
+
+  const lastShape = CARD_SHAPE_CACHE.has(card) ? CARD_SHAPE_CACHE.get(card) : undefined;
+  CARD_SHAPE_CACHE.set(card, shape);
+  const interacted = CARD_INTERACTION_MARK.has(card);
+  if (interacted) CARD_INTERACTION_MARK.delete(card);
+  if (interacted && lastShape !== undefined && lastShape !== shape) {
+    try {
+      card.dispatchEvent(
+        new CustomEvent('chord-diagram-changed', {
+          bubbles: true,
+          detail: { card },
+        }),
+      );
+    } catch (_) {
+      /* noop */
+    }
+  }
 
   // Re-snap on zoom/resize (idempotent, cheap)
   if (!window.__chordCrispSizerAttached) {
@@ -457,7 +751,11 @@ function focusBaseFretInput() {
 }
 
 // Expose tokenizer + root parser for edit-mode helpers
+window.parseShapeTokens = parseShapeTokens;
 window.parseTokensAndRootKinds = parseTokensAndRootKinds;
+window.parseRootKinds = parseRootKinds;
 window.buildShapeFromTokensAndRootKinds = buildShapeFromTokensAndRootKinds;
 window.normalizeShapeText = normalizeShapeText;
+window.renderCardDiagram = renderCardDiagram;
 window.focusBaseFretInput = focusBaseFretInput;
+window.getChordDiagramVisibleRows = getVisibleFretRows;

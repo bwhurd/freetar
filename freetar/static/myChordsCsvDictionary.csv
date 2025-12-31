@@ -1,0 +1,57 @@
+﻿overallRank,longChordName,preferredNotation,alternativeNotation,chordFormula,essentialNotes,essentialNoteCount,omittableNotes,chordConstructionNotes,chordFamily,chordFamilyRank
+1,Major,CΔ,"CΔ, C, Cmaj",1-3-5,"1, 3",2,5,The 3rd defines major quality; root establishes identity,triad,1
+2,Minor,C−,"C−, Cm, Cmin",1-♭3-5,"1, ♭3",2,5,The ♭3 defines minor quality; root establishes identity,triad,1
+3,Diminished,C°,"C°, Cdim",1-♭3-♭5,"1, ♭3, ♭5",3,None,Both 3rd and 5th are essential—the ♭5 is what defines diminished,triad,1
+4,Augmented,C+,"C+, Caug",1-3-♯5,"1, 3, ♯5",3,None,Both 3rd and 5th are essential—the ♯5 is what defines augmented,triad,1
+5,Sus. 4th,Csus4,Csus4,1-4-5,"1, 4",2,5,The 4 replaces the 3rd; this defines the suspended quality,triad,1
+6,Sus. 2nd,Csus2,Csus2,1-2-5,"1, 2",2,5,The 2 replaces the 3rd; this defines the suspended quality,triad,1
+7,Power,C5,C5,1-5,"1, 5",2,None,Already minimal; both notes define the chord,triad,1
+8,(Dominant) 7th,C7,C7,1-3-5-♭7,"1, 3, ♭7",3,5,The 3rd and ♭7 create the tritone (distinguishing feature),seventh,2
+9,Minor 7th,C−7,"C−7, Cm7, Cmin7",1-♭3-5-♭7,"1, ♭3, ♭7",3,5,The ♭3 and ♭7 are essential for chord identity,seventh,2
+10,Major 7th,CΔ7,"CΔ7, Cmaj7, CMaj7",1-3-5-7,"1, 3, 7",3,5,The 7th is essential; defines the chord type,seventh,2
+11,(Major) 6th,CΔ6,"CΔ6, C6, Cmaj6",1-3-5-6,"1, 3, 6",3,5,The 6 is the extension; 3rd defines major,seventh,2
+12,Half-Dim. 7th,Cø7,"Cø7, Cm7♭5",1-♭3-♭5-♭7,"1, ♭3, ♭5, ♭7",4,None,All notes essential (both altered 3rd and 5th define it),seventh,2
+13,Minor 6th,C−6,"C−6, Cm6, Cmin6",1-♭3-5-6,"1, ♭3, 6",3,5,The 6 is the extension; ♭3 defines minor,seventh,2
+14,Dim. 7th,C°7,"C°7, Cdim7",1-♭3-♭5-♭♭7,"1, ♭3, ♭5, ♭♭7",4,None,All notes essential (all intervals are diminished),seventh,2
+15,Aug. 7th,C+7,"C+7, Caug7, C7♯5",1-3-♯5-♭7,"1, 3, ♯5, ♭7",4,None,The ♯5 is too defining to omit; all critical,seventh,2
+16,Min-Maj. 7th,CmΔ7,"CmΔ7, Cm(maj7)",1-♭3-5-7,"1, ♭3, 7",3,5,The natural 7 with minor 3rd is the defining characteristic,seventh,2
+17,Dim-Maj. 7th,C°Δ7,"C°Δ7, Cdim(maj7)",1-♭3-♭5-7,"1, ♭3, ♭5, 7",4,None,The natural 7 with diminished triad is very distinctive,seventh,2
+18,(Dom.) 9th,C9,C9,1-3-5-♭7-9,"1, 3, ♭7, 9",4,5,The 9 is essential; the 3 and ♭7 create the tritone,extended,3
+19,(Dom.) 13th,C13,C13,1-3-5-♭7-9-11-13,"1, 3, ♭7, 13",4,"5, 9, 11",Omit the 9 and 11 (not the 13); omit the 9 first if needed,extended,3
+20,6th/9th,C6/9,"C6/9, C69",1-3-5-6-9,"1, 3, 6, 9",4,5,Both 6 and 9 extensions are core to the sound,extended,3
+21,(Dom.) 11th,C11,C11,1-3-5-♭7-9-11,"1, 3, ♭7, 11",4,"5, 9",Omit the 3 (not the 9) when necessary; the 11 clashes with major 3,extended,3
+22,Major 9th,CΔ9,"CΔ9, Cmaj9",1-3-5-7-9,"1, 3, 7, 9",4,5,The 9 is essential; the 7 and 9 are core to the sound,extended,3
+23,Minor 9th,C−9,"C−9, Cm9",1-♭3-5-♭7-9,"1, ♭3, ♭7, 9",4,5,The 9 is essential; the ♭7 is core to the sound,extended,3
+24,Major 13th,CΔ13,"CΔ13, Cmaj13",1-3-5-7-9-11-13,"1, 3, 7, 13",4,"5, 9, 11",Omit the 9 and 11 (not the 13),extended,3
+25,Minor 13th,C−13,"C−13, Cm13",1-♭3-5-♭7-9-11-13,"1, ♭3, ♭7, 13",4,"5, 9, 11",Omit the 9 and 11 (not the 13); keep the ♭3,extended,3
+26,Add 9th,Cadd9,Cadd9,1-3-5-9,"1, 3, 9",3,5,The 9 is essential to the chord name,extended,3
+27,Add 11th,Cadd11,Cadd11,1-3-5-11,"1, 3, 11",3,5,The 11 is essential to the chord name,extended,3
+28,Major 11th,CΔ11,"CΔ11, Cmaj11",1-3-5-7-9-11,"1, 3, 7, 11",4,"5, 9",Rarely used; 11 conflicts with the 3. Usually omit the 3 instead,extended,3
+29,Minor 11th,C−11,"C−11, Cm11",1-♭3-5-♭7-9-11,"1, ♭3, ♭7, 11",4,"5, 9",Keep the ♭3 (doesn't clash); omit 5 or 9 if needed,extended,3
+30,(Dom.) 7♭9,C7♭9,C7♭9,1-3-5-♭7-♭9,"1, 3, ♭7, ♭9",4,5,The ♭9 is the defining alteration; essential to the sound,seventhAltered,4
+31,(Dom.) 7♯9,C7♯9,C7♯9,1-3-5-♭7-♯9,"1, 3, ♭7, ♯9",4,5,The ♯9 is the defining alteration; Hendrix chord sound,seventhAltered,4
+32,(Dom.) 7alt,C7alt,C7alt,1-3-♭7-±9-±11-±13,"1, 3, ♭7",3,5,"Any combination of altered 9ths, 11ths, 13ths; flexible voicing",seventhAltered,4
+33,(Dom.) 7♭13,C7♭13,C7♭13,1-3-5-♭7-♭13,"1, 3, ♭7, ♭13",4,"5, 9, 11",The ♭13 is the defining alteration,seventhAltered,4
+34,(Dom.) 7♯11,C7♯11,C7♯11,1-3-5-♭7-♯11,"1, 3, ♭7, ♯11",4,"5, 9",The ♯11 is the defining alteration; keeps the natural 5th,seventhAltered,4
+35,(Dom.) 7♭5,C7♭5,C7♭5,1-3-♭5-♭7,"1, 3, ♭7, ♭5",4,None,Both 3rd and ♭5 are essential (♭5 enharmonically = ♯11),seventhAltered,4
+36,(Dom.) 7♯5,C7♯5,C7♯5,1-3-♯5-♭7,"1, 3, ♯5, ♭7",4,None,The ♯5 is essential to the quality (enharmonically = ♭13),seventhAltered,4
+37,Maj7♯11,CΔ7♯11,"CΔ7♯11, Cmaj7♯11",1-3-5-7-♯11,"1, 3, 7, ♯11",4,"5, 9",The ♯11 is essential; Lydian mode quality; very common in jazz,maj7Altered,5
+38,Maj7♯5,CΔ7♯5,"CΔ7♯5, Cmaj7♯5",1-3-♯5-7,"1, 3, ♯5, 7",4,None,All notes essential; creates augmented major 7 sound,maj7Altered,5
+39,Maj7♭5,CΔ7♭5,"CΔ7♭5, Cmaj7♭5",1-3-♭5-7,"1, 3, ♭5, 7",4,None,All notes essential; found as III chord in melodic minor,maj7Altered,5
+40,m(maj7),CmΔ7,"CmΔ7, Cm(maj7)",1-♭3-5-7,"1, ♭3, 5, 7",4,None,The natural 7 with minor 3rd is the defining characteristic,min7Altered,6
+41,m7♭9,C−7♭9,"C−7♭9, Cm7♭9",1-♭3-5-♭7-♭9,"1, ♭3, ♭7, ♭9",4,5,The ♭9 is the defining alteration,min7Altered,6
+42,m7♯5,C−7♯5,"C−7♯5, Cm7♯5",1-♭3-♯5-♭7,"1, ♭3, ♯5, ♭7",4,None,All notes essential; augmented minor 7 sound,min7Altered,6
+43,m(maj7)9,CmΔ9,"CmΔ9, Cm(maj7)9",1-♭3-5-7-9,"1, ♭3, 7, 9",4,5,The 9 and natural 7 are essential; common tonic in jazz,min7Altered,6
+44,m11♯5,C−11♯5,"C−11♯5, Cm11♯5",1-♭3-♯5-♭7-9-11,"1, ♭3, ♯5, ♭7, 11",5,"9, 5",The ♯5 and 11 are essential; rare but exists,min7Altered,6
+45,7sus4,C7sus4,C7sus4,1-4-5-♭7,"1, 4, ♭7",3,5,The 4 replaces the 3; softer than dominant 7,sus7,7
+46,7sus2,C7sus2,C7sus2,1-2-5-♭7,"1, 2, ♭7",3,5,The 2 replaces the 3; less common than 7sus4,sus7,7
+47,7sus♭9,C7sus♭9,C7sus♭9,1-4-5-♭7-♭9,"1, 4, ♭7, ♭9",4,5,Suspended with altered 9,sus7,7
+48,maj7sus4,CΔ7sus4,"CΔ7sus4, Cmaj7sus4",1-4-5-7,"1, 4, 7",3,5,Major 7 with suspended 4; less common; unstable quality,sus7,7
+49,maj7sus2,CΔ7sus2,"CΔ7sus2, Cmaj7sus2",1-2-5-7,"1, 2, 7",3,5,Major 7 with suspended 2; less common; unstable quality,sus7,7
+50,m7♭5♭9,Cø7♭9,"Cø7♭9, Cm7♭5♭9",1-♭3-♭5-♭7-♭9,"1, ♭3, ♭5, ♭7, ♭9",5,None,All notes essential; includes both altered 5th and 9th,halfDimExt,8
+51,m7♭5♯9,Cø7♯9,"Cø7♯9, Cm7♭5♯9",1-♭3-♭5-♭7-♯9,"1, ♭3, ♭5, ♭7, ♯9",5,None,All notes essential; includes both altered 5th and 9th,halfDimExt,8
+52,(Dom.) 9♯11,C9♯11,C9♯11,1-3-5-♭7-9-♯11,"1, 3, ♭7, 9, ♯11",5,5,The 9 and ♯11 are both essential; no natural 11,domExtVar,9
+53,(Dom.) 13♭9,C13♭9,C13♭9,1-3-5-♭7-♭9-13,"1, 3, ♭7, ♭9, 13",5,"5, 11, 9",The ♭9 and 13 are essential; omit the 9 and 11,domExtVar,9
+54,(Dom.) 13♯9,C13♯9,C13♯9,1-3-5-♭7-♯9-13,"1, 3, ♭7, ♯9, 13",5,"5, 11, 9",The ♯9 and 13 are essential,domExtVar,9
+55,(Dom.) 9♯5,C9♯5,C9♯5,1-3-♯5-♭7-9,"1, 3, ♯5, ♭7, 9",5,None,All notes essential; both alterations define the sound,domExtVar,9
+56,(Dom.) 9♭5,C9♭5,C9♭5,1-3-♭5-♭7-9,"1, 3, ♭5, ♭7, 9",5,None,All notes essential; both alterations define the sound,domExtVar,9

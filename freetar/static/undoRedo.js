@@ -4,7 +4,6 @@
    - No external dependencies; self-contained IIFE.
 */
 (() => {
-  'use strict';
 
   // ---------- Config ----------
   const ENDPOINT = window.MY_CHORDS_EDIT_URL;
@@ -21,6 +20,27 @@
 
   // Stable stringify (JSON is ordered enough for your structure)
   const jstr = (o) => JSON.stringify(o);
+  const normalizeName = (raw) => {
+    if (raw == null) return '';
+    const str = String(raw).replace(/\r\n?/g, '\n');
+    return str.includes('\\n') ? str.replace(/\\n/g, '\n') : str;
+  };
+  const readCardName = (card) => {
+    const rawDataset = card?.dataset?.rawName;
+    if (rawDataset) {
+      try {
+        const parsed = JSON.parse(rawDataset);
+        if (parsed != null) return normalizeName(parsed);
+      } catch {
+        return normalizeName(rawDataset);
+      }
+    }
+    const nameInput = $('.chord-name-input', card);
+    if (nameInput && nameInput.value != null) return normalizeName(nameInput.value);
+    const titleEl = $('.chord-title', card);
+    if (titleEl && titleEl.textContent != null) return normalizeName(titleEl.textContent);
+    return '';
+  };
 
   // Build the same JSON your backend expects
   function serializeFromDOM() {
@@ -34,12 +54,8 @@
         const chords = [];
         $$('.chord-card', grid).forEach((card) => {
           if (card.classList.contains('chord-card-placeholder')) return;
-          const nameInput = $('.chord-name-input', card);
           const shapeInput = $('.chord-shape-input', card);
-          const titleEl = $('.chord-title', card);
-          const name = (
-            nameInput && nameInput.value ? nameInput.value : titleEl ? titleEl.textContent : ''
-          ).trim();
+          const name = readCardName(card).trim();
           const shape = shapeInput ? shapeInput.value.trim() : '';
           if (!shape) return; // ignore placeholders (matches your current save behavior)
           chords.push({ name: name || '(unnamed)', shape });
@@ -76,6 +92,8 @@
     return jstr(a) === jstr(b);
   }
 
+  const DEBUG_SNAPSHOTS = false;
+
   function pushSnapshot(reason = '', explicitState) {
     const hist = loadHistory();
     const current = explicitState !== undefined ? explicitState : serializeFromDOM();
@@ -104,7 +122,7 @@
 
     saveHistory(hist);
     updateButtons();
-    // console.debug('[undo] snapshot pushed:', reason);
+    if (DEBUG_SNAPSHOTS) console.debug('[undo] snapshot pushed:', reason);
   }
 
   // Allow other modules (e.g., diagram clicks) to request a snapshot without leaking internals
@@ -115,6 +133,7 @@
   }
 
   async function applySnapshotAndPersist(targetState, reason = '') {
+    const actionLabel = reason ? ` (${reason})` : '';
     try {
       // 1) Persist state on the server
       await fetch(ENDPOINT, {
@@ -128,7 +147,7 @@
         cache: 'no-store',
         headers: { 'X-Requested-With': 'fetch' },
       });
-      if (!res.ok) throw new Error('fetch failed: ' + res.status);
+      if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
       const html = await res.text();
 
       // 3) Parse and morph only #groups-root
@@ -145,7 +164,7 @@
       if (window.rewireChordUI) window.rewireChordUI();
       updateButtons();
     } catch (e) {
-      console.warn('[undo] Live morph failed; falling back to reload. Reason:', e);
+      console.warn(`[undo] Live morph failed${actionLabel}; falling back to reload. Reason:`, e);
       window.location.reload();
     }
   }
@@ -157,6 +176,12 @@
   function canRedo() {
     const hist = loadHistory();
     return hist.index >= 0 && hist.index < hist.items.length - 1;
+  }
+
+  function showHistoryToast(msg) {
+    if (typeof window.showMyChordsToast === 'function') {
+      window.showMyChordsToast(msg);
+    }
   }
 
   function doUndo() {
@@ -311,7 +336,7 @@
 
     // 10) Library import (server-side merge; handled via custom event)
     document.addEventListener('chords-imported', (e) => {
-      const state = e && e.detail && e.detail.state;
+      const state = e?.detail?.state;
       pushSnapshot('import', state);
     });
   }
@@ -363,11 +388,18 @@
     const key = e.key || '';
     if (key !== 'z' && key !== 'Z') return;
     const t = e.target;
-    const tag = t && t.tagName ? t.tagName.toLowerCase() : '';
-    if (tag === 'input' || tag === 'textarea' || (t && t.isContentEditable)) return;
+    const tag = t?.tagName ? t.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || t?.isContentEditable) return;
+    const wantsRedo = !!e.shiftKey;
+    if (wantsRedo ? !canRedo() : !canUndo()) return;
     e.preventDefault();
-    if (e.shiftKey) doRedo();
-    else doUndo();
+    if (wantsRedo) {
+      doRedo();
+      showHistoryToast('Redo');
+    } else {
+      doUndo();
+      showHistoryToast('Undo');
+    }
   });
 
   // Optional: make buttons auto-update if something else mutates the stack

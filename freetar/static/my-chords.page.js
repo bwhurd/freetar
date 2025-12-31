@@ -8,17 +8,41 @@
 
 function computeChordTitlePlacement(card) {
   if (!card) return null;
-  const table = card.querySelector('.chord-diagram');
   const title = card.querySelector('.chord-title');
-  if (!table || !title) return null;
+  if (!title) return null;
+
+  const table = card.querySelector('.chord-diagram');
+  const diagramVisible =
+    table &&
+    !(card.classList && card.classList.contains('collection-text-card')) &&
+    getComputedStyle(table).display !== 'none';
+
+  const prevTransform = title.style.transform;
+  title.style.transform = 'none';
+
+  if (!diagramVisible) {
+    const containerRect = (title.parentElement || card).getBoundingClientRect();
+    const titleRect = title.getBoundingClientRect();
+    const stringsCenter = (containerRect.left + containerRect.right) / 2;
+    const titleCenter = (titleRect.left + titleRect.right) / 2;
+
+    title.style.transform = prevTransform;
+
+    return {
+      deltaX: stringsCenter - titleCenter,
+      stringsCenter,
+      titleCenter,
+      titleRect,
+      leftRect: containerRect,
+      rightRect: containerRect,
+      containerRect,
+    };
+  }
 
   const left = table.querySelector('.string-left');
   const rights = table.querySelectorAll('.string-right');
   const right = rights[rights.length - 1];
   if (!left || !right) return null;
-
-  const prevTransform = title.style.transform;
-  title.style.transform = 'none';
 
   const leftRect = left.getBoundingClientRect();
   const rightRect = right.getBoundingClientRect();
@@ -56,6 +80,12 @@ function centerTitleForCard(card) {
 (() => {
   'use strict';
 
+  // Toasts
+  let toastRoot = null;
+  const TOAST_ROOT_ID = 'my-chords-toast-root';
+  const TOAST_DEFAULT_DURATION = 1100;
+  const TOAST_ANIMATION_MS = 220;
+
   // DOM refs (filled in init)
   let groupsRoot,
     deleteGroupModal,
@@ -86,13 +116,33 @@ function centerTitleForCard(card) {
   let diagramLockToggleBtn = null;
   let chordSettingsMenu = null;
   let chordSettingsToggleBtn = null;
+  let helpToggleBtn = null;
+  let helpModal = null;
+  let helpShortcutHandler = null;
   let maxPerRowCheckbox = null;
   let maxPerRowInput = null;
   let maxPerRowRow = null;
   let settingsOutsideHandler = null;
   let maxChordsPerRowEnabled = false;
   let maxChordsPerRow = 8;
+  let fiveFretsEnabled = false;
+  let fiveFretsCheckbox = null;
+  let fiveFretsRow = null;
+  let showIntervalsEnabled = false;
+  let showIntervalsCheckbox = null;
+  let showIntervalsRow = null;
+
+  // "g" modifier for inserting or toggling ghost root notes via diagram clicks
+  let ghostRootKeyDown = false;
+  let pointerOverChordDiagram = false;
+
   let activeAltChordDrag = null;
+  let altDupDragActive = false;
+  let dupDragPlaceholder = null;
+  let currentHoveredGroup = null;
+  let currentHoveredRow = null;
+  let lastEditedGroup = null;
+  let lastEditedRow = null;
   const ghostRowState = {
     group: null,
     ghostRow: null,
@@ -113,6 +163,58 @@ function centerTitleForCard(card) {
   const MAX_PER_ROW_DEFAULT = 8;
   const MAX_PER_ROW_MIN = 1;
   const MAX_PER_ROW_MAX = 24;
+  const VISIBLE_FRETS_DEFAULT = 4;
+  const VISIBLE_FRETS_EXTENDED = 5;
+
+  function ensureToastRoot() {
+    if (toastRoot && document.body && document.body.contains(toastRoot)) return toastRoot;
+    const existing = document.getElementById(TOAST_ROOT_ID);
+    if (existing) {
+      toastRoot = existing;
+      return existing;
+    }
+    if (!document.body) return null;
+    const root = document.createElement('div');
+    root.id = TOAST_ROOT_ID;
+    root.className = 'my-chords-toast-root';
+    document.body.appendChild(root);
+    toastRoot = root;
+    return root;
+  }
+
+  function showToast(message, options = {}) {
+    if (!message) return;
+    const root = ensureToastRoot();
+    if (!root) return;
+    const duration = Math.max(400, Math.min(8000, Number(options.duration) || TOAST_DEFAULT_DURATION));
+    while (root.childElementCount > 4) {
+      root.removeChild(root.firstElementChild);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'my-chords-toast';
+    toast.textContent = String(message);
+    toast.setAttribute('role', 'status');
+    toast.setAttribute('aria-live', 'polite');
+    root.appendChild(toast);
+
+    requestAnimationFrame(() => {
+      toast.classList.add('is-visible');
+    });
+
+    const removeToast = () => {
+      toast.classList.remove('is-visible');
+      setTimeout(() => {
+        if (toast.parentElement) toast.parentElement.removeChild(toast);
+      }, TOAST_ANIMATION_MS);
+    };
+
+    setTimeout(removeToast, duration);
+    return toast;
+  }
+
+  window.showMyChordsToast = function showMyChordsToast(message, options) {
+    return showToast(message, options);
+  };
 
   function loadSettings() {
     try {
@@ -157,12 +259,113 @@ function centerTitleForCard(card) {
     return Math.min(Math.max(parsed, MAX_PER_ROW_MIN), MAX_PER_ROW_MAX);
   }
 
+  function getVisibleFretCount() {
+    return fiveFretsEnabled ? VISIBLE_FRETS_EXTENDED : VISIBLE_FRETS_DEFAULT;
+  }
+
+  function applyVisibleFretRowsSetting(options = {}) {
+    const count = getVisibleFretCount();
+    if (typeof window !== 'undefined') {
+      window.MY_CHORDS_VISIBLE_FRETS = count;
+    }
+    if (options && options.rerender === false) return;
+    if (!groupsRoot || typeof renderCardDiagram !== 'function') return;
+    groupsRoot.querySelectorAll('.chord-card').forEach((card) => {
+      renderCardDiagram(card, { forceRecomputeBase: true });
+    });
+  }
+
   function persistUISettings() {
     saveSettings({
       diagramLockEnabled,
       maxChordsPerRowEnabled,
       maxChordsPerRow,
+      fiveFretsEnabled: !!fiveFretsEnabled,
+      showIntervals: !!showIntervalsEnabled,
     });
+  }
+
+  function isEditableTarget(el) {
+    if (!el) return false;
+    const tag = el.tagName ? el.tagName.toLowerCase() : '';
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+    return !!(el.isContentEditable || el.getAttribute?.('contenteditable') === 'true');
+  }
+
+  function isGroupInDom(group) {
+    return !!(group && groupsRoot && groupsRoot.contains(group));
+  }
+
+  function resolveShortcutGroup() {
+    if (isGroupInDom(currentHoveredGroup)) return currentHoveredGroup;
+    if (isGroupInDom(lastEditedGroup)) return lastEditedGroup;
+    if (!groupsRoot) return null;
+    const groups = groupsRoot.querySelectorAll('.group');
+    return groups.length ? groups[groups.length - 1] : null;
+  }
+
+  function isRowInDom(row) {
+    return (
+      !!row &&
+      row.classList.contains('chord-grid') &&
+      !row.classList.contains('group-ghost-row') &&
+      groupsRoot &&
+      groupsRoot.contains(row)
+    );
+  }
+
+  function resolveShortcutRow() {
+    if (isRowInDom(currentHoveredRow)) return currentHoveredRow;
+    if (isRowInDom(lastEditedRow)) return lastEditedRow;
+    if (!groupsRoot) return null;
+    const groups = Array.from(groupsRoot.querySelectorAll('.group'));
+    for (let i = groups.length - 1; i >= 0; i -= 1) {
+      const rows = Array.from(groups[i].querySelectorAll('.chord-grid')).filter(isRowInDom);
+      if (rows.length) return rows[rows.length - 1];
+      const ensured = ensureBottomChordGrid(groups[i]);
+      if (isRowInDom(ensured)) return ensured;
+    }
+    return null;
+  }
+
+  function ensureGroupHoverTracking() {
+    if (!groupsRoot || groupsRoot.dataset.hoverTracking === '1') return;
+    groupsRoot.addEventListener(
+      'pointerover',
+      (e) => {
+        const g = e.target.closest('.group');
+        if (g && groupsRoot.contains(g)) currentHoveredGroup = g;
+        const row = e.target.closest('.chord-grid');
+        if (row && groupsRoot.contains(row)) currentHoveredRow = row;
+      },
+      true,
+    );
+    groupsRoot.addEventListener(
+      'pointerout',
+      (e) => {
+        if (!currentHoveredGroup) return;
+        const g = e.target.closest('.group');
+        if (!g || g !== currentHoveredGroup) return;
+        const next = e.relatedTarget;
+        if (!next || !g.contains(next)) currentHoveredGroup = null;
+        if (currentHoveredRow) {
+          const row = e.target.closest('.chord-grid');
+          if (row && row === currentHoveredRow) {
+            if (!next || !row.contains(next)) currentHoveredRow = null;
+          }
+        }
+      },
+      true,
+    );
+    groupsRoot.addEventListener(
+      'pointerleave',
+      (e) => {
+        if (e.target === groupsRoot) currentHoveredGroup = null;
+        if (e.target === groupsRoot) currentHoveredRow = null;
+      },
+      true,
+    );
+    groupsRoot.dataset.hoverTracking = '1';
   }
 
   function applyMaxPerRowLayout() {
@@ -173,6 +376,104 @@ function centerTitleForCard(card) {
       String(maxChordsPerRow || MAX_PER_ROW_DEFAULT),
     );
     root.classList.toggle('chords-max-per-row-active', !!maxChordsPerRowEnabled);
+  }
+
+  function ensureTextareaNameInput(card) {
+    const existing = card && card.querySelector('.chord-name-input');
+    if (!existing || existing.tagName === 'TEXTAREA') return existing;
+    const rawDataset = card && card.dataset ? card.dataset.rawName : null;
+    let datasetValue = null;
+    if (rawDataset) {
+      try {
+        const parsed = JSON.parse(rawDataset);
+        if (parsed != null) datasetValue = normalizeNameValue(parsed);
+      } catch (_) {
+        datasetValue = normalizeNameValue(rawDataset);
+      }
+    }
+    const ta = document.createElement('textarea');
+    ta.className = existing.className;
+    ta.value = datasetValue != null ? datasetValue : existing.value || '';
+    ta.rows = existing.getAttribute('rows') || 2;
+    Array.from(existing.attributes || []).forEach((attr) => {
+      if (attr.name === 'type') return;
+      ta.setAttribute(attr.name, attr.value);
+    });
+    if (existing.parentNode) {
+      existing.parentNode.replaceChild(ta, existing);
+    }
+    return ta;
+  }
+
+  function normalizeNameValue(raw) {
+    if (raw == null) return '';
+    const str = String(raw).replace(/\r\n?/g, '\n');
+    return str.includes('\\n') ? str.replace(/\\n/g, '\n') : str;
+  }
+
+  function preferDatasetNewlines(card, name) {
+    const normalized = normalizeNameValue(name);
+    const rawDataset = card && card.dataset ? card.dataset.rawName : null;
+    if (!rawDataset) return normalized;
+    try {
+      const parsed = JSON.parse(rawDataset);
+      const datasetVal = normalizeNameValue(parsed);
+      if (datasetVal.includes('\n') && !normalized.includes('\n')) return datasetVal;
+    } catch (_) {
+      const fallback = normalizeNameValue(rawDataset);
+      if (fallback.includes('\n') && !normalized.includes('\n')) return fallback;
+    }
+    return normalized;
+  }
+
+  function toDisplayWithBreaks(name) {
+    const normalized = normalizeNameValue(name);
+    const withUnderscores = normalized.replace(/_/g, '<br>');
+    return withUnderscores.replace(/\n/g, '<br>');
+  }
+
+  function normalizeNameForPersistence(rawName) {
+    const normalized = normalizeNameValue(rawName);
+    if (isChordNameFullyQuoted(normalized)) {
+      return normalized.replace(/\n/g, '_');
+    }
+    return normalized;
+  }
+
+  function nameValueForEditing(rawName) {
+    const normalized = normalizeNameValue(rawName);
+    if (isChordNameFullyQuoted(normalized)) {
+      return normalized.replace(/_/g, '\n');
+    }
+    return normalized;
+  }
+
+  function readCardName(card) {
+    const rawDataset = card && card.dataset ? card.dataset.rawName : null;
+    if (rawDataset) {
+      try {
+        const parsed = JSON.parse(rawDataset);
+        if (parsed != null) return normalizeNameValue(parsed);
+      } catch (_) {
+        return normalizeNameValue(rawDataset);
+      }
+    }
+    const nameInput = ensureTextareaNameInput(card);
+    if (nameInput && nameInput.value != null) return normalizeNameValue(nameInput.value);
+    const titleEl = card && card.querySelector ? card.querySelector('.chord-title') : null;
+    return normalizeNameValue((titleEl && titleEl.textContent) || '');
+  }
+
+  function applyIntervalOverlayState() {
+    if (typeof window !== 'undefined') {
+      window.MY_CHORD_INTERVALS_ENABLED = !!showIntervalsEnabled;
+    }
+    if (!groupsRoot) return;
+    if (typeof renderCardDiagram !== 'function') return;
+    const cards = groupsRoot.querySelectorAll('.chord-card');
+    cards.forEach((card) => {
+      renderCardDiagram(card);
+    });
   }
 
   function updateChordSettingsUI() {
@@ -193,7 +494,14 @@ function centerTitleForCard(card) {
     if (maxPerRowRow) {
       maxPerRowRow.classList.toggle('is-disabled', !maxChordsPerRowEnabled);
     }
+    if (fiveFretsCheckbox) {
+      fiveFretsCheckbox.checked = !!fiveFretsEnabled;
+    }
+    if (showIntervalsCheckbox) {
+      showIntervalsCheckbox.checked = !!showIntervalsEnabled;
+    }
   }
+
 
   function detachSettingsOutsideHandler() {
     if (settingsOutsideHandler) {
@@ -325,6 +633,60 @@ function centerTitleForCard(card) {
         }
       });
     });
+  }
+
+  function openHelpModal() {
+    if (!helpModal || !document.body.contains(helpModal)) {
+      helpModal = document.getElementById('help-modal');
+    }
+    if (helpModal && helpModal.classList.contains('is-open')) return;
+    if (window.MicroModal) {
+      MicroModal.show('help-modal', {
+        openClass: 'is-open',
+        disableScroll: true,
+        disableFocus: false,
+        awaitCloseAnimation: true,
+        // Safety: if animations are skipped, ensure the open class clears.
+        onClose: (modal) => {
+          setTimeout(() => {
+            if (modal && modal.getAttribute('aria-hidden') === 'true') {
+              modal.classList.remove('is-open');
+            }
+          }, 280);
+        },
+      });
+    } else if (helpModal) {
+      helpModal.classList.add('is-open');
+      helpModal.setAttribute('aria-hidden', 'false');
+    }
+  }
+
+  function wireHelpControls() {
+    if (!helpToggleBtn || !document.body.contains(helpToggleBtn)) {
+      helpToggleBtn = document.getElementById('help-toggle');
+    }
+    if (!helpModal || !document.body.contains(helpModal)) {
+      helpModal = document.getElementById('help-modal');
+    }
+    if (helpToggleBtn && !helpToggleBtn.__helpWired) {
+      helpToggleBtn.__helpWired = true;
+      helpToggleBtn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        openHelpModal();
+      });
+    }
+    if (!helpShortcutHandler) {
+      helpShortcutHandler = (e) => {
+        if (!e.ctrlKey || e.metaKey || e.altKey) return;
+        const key = e.key || '';
+        if (key !== '/' && key !== '?') return;
+        if (isEditableTarget(e.target)) return;
+        openHelpModal();
+        e.preventDefault();
+        e.stopPropagation();
+      };
+      document.addEventListener('keydown', helpShortcutHandler, true);
+    }
   }
 
   function updateDiagramLockButtonUI() {
@@ -498,14 +860,64 @@ function centerTitleForCard(card) {
     return { baseName, noteText };
   }
 
+  function isChordNameFullyQuoted(rawName) {
+    const raw = rawName == null ? '' : String(rawName);
+    const trimmed = raw.trim();
+    return trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"');
+  }
+
+  function stripOuterQuotes(rawName) {
+    const raw = rawName == null ? '' : String(rawName);
+    const trimmed = raw.trim();
+    if (trimmed.length >= 2 && trimmed.startsWith('"') && trimmed.endsWith('"')) {
+      return trimmed.slice(1, trimmed.length - 1);
+    }
+    return raw;
+  }
+
   function updateChordTitleFromName(card, rawName) {
     if (!card) return;
     const titleEl = card.querySelector('.chord-title');
     if (!titleEl) return;
 
-    const { baseName, noteText } = parseChordNameNote(rawName);
-    const displayName = baseName ? baseName : '(unnamed)';
-    titleEl.innerHTML = prettifyChordName(displayName);
+    // 1. Resolve the best possible name string, preferring dataset if it has newlines
+    let bestName = rawName;
+    const dsRaw = card.dataset ? card.dataset.rawName : null;
+    if (dsRaw) {
+      let dsVal = null;
+      try {
+        dsVal = JSON.parse(dsRaw);
+      } catch (_) {
+        dsVal = dsRaw;
+      }
+      const normDS = normalizeNameValue(dsVal);
+      if (normDS.includes('\n') && (!bestName || !bestName.includes('\n'))) {
+        bestName = normDS;
+      }
+    }
+
+    const normalizedRaw = normalizeNameValue(bestName);
+    if (card.dataset) {
+      try {
+        card.dataset.rawName = JSON.stringify(normalizedRaw == null ? '' : String(normalizedRaw));
+      } catch (_) {
+        card.dataset.rawName = normalizedRaw == null ? '' : String(normalizedRaw);
+      }
+    }
+
+    const { baseName, noteText } = parseChordNameNote(normalizedRaw);
+    const rawBase = baseName == null ? '' : String(baseName);
+    const isQuoted = isChordNameFullyQuoted(rawBase);
+    const stripped = isQuoted ? stripOuterQuotes(rawBase) : rawBase;
+    const displayName = normalizeNameValue(stripped ? stripped : '(unnamed)');
+    const rendered = prettifyChordName(displayName);
+    titleEl.innerHTML = isQuoted ? toDisplayWithBreaks(rendered) : rendered;
+    if (card.classList) card.classList.toggle('collection-text-card', isQuoted);
+    if (isQuoted) {
+      titleEl.style.transform = 'none';
+    } else {
+      titleEl.style.transform = titleEl.style.transform === 'none' ? '' : titleEl.style.transform;
+    }
 
     if (noteText) {
       titleEl.dataset.tooltip = noteText;
@@ -567,7 +979,7 @@ function centerTitleForCard(card) {
 
     const { titleEl, nameInput, originalName, originalVisibility } = state;
     const input = inlineNameInputEl;
-    const nextName = commit && input ? (input.value || '').trim() : originalName;
+    const nextName = commit && input ? input.value || '' : originalName;
     inlineNameEditState = null;
 
     if (input && input.parentElement && input.parentElement.contains(input)) {
@@ -580,7 +992,8 @@ function centerTitleForCard(card) {
     if (state.card) state.card.classList.remove('is-inline-name-editing');
     if (!state.card || !nameInput || !titleEl) return;
 
-    nameInput.value = nextName;
+    const targetNameInput = ensureTextareaNameInput(state.card) || nameInput;
+    targetNameInput.value = nextName;
     updateChordTitleFromName(state.card, nextName);
     centerTitleForCard(state.card);
     if (commit) {
@@ -589,6 +1002,22 @@ function centerTitleForCard(card) {
       }
       persist('inline-name-edit');
     }
+  }
+
+  function applySuggestedNameOutsideEdit(card, suggestedName) {
+    if (!card || !card.isConnected) return;
+    if (card.classList.contains('is-editing') || card.classList.contains('is-inline-name-editing')) return;
+    const nextName = nameValueForEditing(suggestedName == null ? '' : suggestedName);
+    if (!nextName) return;
+    const nameInput = ensureTextareaNameInput(card);
+    if (!nameInput) return;
+    nameInput.value = nextName;
+    updateChordTitleFromName(card, nextName);
+    centerTitleForCard(card);
+    if (window.freetarUndoSnapshot) {
+      window.freetarUndoSnapshot('inline-name-edit', buildDataFromDOM());
+    }
+    persist('inline-name-edit');
   }
 
   function beginInlineNameEdit(card) {
@@ -611,9 +1040,9 @@ function centerTitleForCard(card) {
     const container = titleEl.parentElement || card;
 
     if (!inlineNameInputEl) {
-      inlineNameInputEl = document.createElement('input');
-      inlineNameInputEl.type = 'text';
-      inlineNameInputEl.className = 'chord-name-inline-input';
+      inlineNameInputEl = document.createElement('textarea');
+      inlineNameInputEl.className = 'chord-name-inline-input chord-name-input';
+      inlineNameInputEl.rows = 2;
       inlineNameInputEl.setAttribute('aria-live', 'off');
       inlineNameInputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -622,6 +1051,9 @@ function centerTitleForCard(card) {
         } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
           e.preventDefault();
           finishInlineNameEdit(inlineNameEditState?.card, { commit: true });
+        } else if (e.key === 'Enter' && e.shiftKey) {
+          // allow newline insertion in inline edits
+          return;
         } else if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
           e.preventDefault();
           finishInlineNameEdit(inlineNameEditState?.card, { commit: true });
@@ -631,13 +1063,15 @@ function centerTitleForCard(card) {
         const state = inlineNameEditState;
         if (!state) return;
         const nextTarget = e.relatedTarget;
+        // If focus is moving into the suggestions panel, keep inline edit active.
+        if (nextTarget && nextTarget.closest && nextTarget.closest('.chord-name-suggest-panel')) return;
         if (nextTarget && state.card && state.card.contains(nextTarget)) return;
         finishInlineNameEdit(state.card, { commit: true });
       });
     }
 
     copyNameInputAttributes(nameInput, inlineNameInputEl);
-    inlineNameInputEl.value = nameInput.value || '';
+    inlineNameInputEl.value = nameValueForEditing(nameInput.value || '');
 
     const positioned = positionInlineNameInput(card, container);
     if (!positioned) return;
@@ -660,6 +1094,10 @@ function centerTitleForCard(card) {
       inlineNameOutsideHandler = (ev) => {
         if (!inlineNameEditState) return;
         const t = ev.target;
+
+        // Clicking chord suggestions must NOT end inline title editing.
+        if (t && t.closest && t.closest('.chord-name-suggest-panel')) return;
+
         if (inlineNameInputEl && (t === inlineNameInputEl || inlineNameInputEl.contains(t))) return;
         finishInlineNameEdit(inlineNameEditState.card, { commit: true });
       };
@@ -678,6 +1116,14 @@ function centerTitleForCard(card) {
       (inlineNameEditState.titleEl && inlineNameEditState.titleEl.parentElement) || card;
     positionInlineNameInput(card, container);
   });
+
+  document.querySelectorAll('.chord-edit-modal-container .chord-name-input').forEach(textarea => {
+    textarea.addEventListener('input', function () {
+      this.style.height = 'auto';
+      this.style.height = this.scrollHeight + 'px';
+    });
+  });
+
 
   // ---------- Symbol toolbar (appears above name input while editing) ----------
   function insertTokenIntoNameInput(card, token) {
@@ -998,10 +1444,11 @@ function centerTitleForCard(card) {
   }
 
   // ---------- helpers ----------
-  function buildShapeFromTokensAndRoots(tokens, roots) {
+  function buildShapeFromTokensAndRoots(tokens, roots, overlays) {
     if (typeof window.buildShapeFromTokensAndRootKinds === 'function') {
-      return window.buildShapeFromTokensAndRootKinds(tokens, roots);
+      return window.buildShapeFromTokensAndRootKinds(tokens, roots, overlays);
     }
+
     const vals = Array.isArray(tokens) ? tokens.slice(0, 6) : [];
     const kinds = Array.isArray(roots) ? roots.slice(0, 6) : [];
     while (vals.length < 6) vals.push(null);
@@ -1013,18 +1460,29 @@ function centerTitleForCard(card) {
         if (t == null) return 'x';
         const num = Number(t);
         if (!Number.isFinite(num)) return 'x';
+
+        const overlayVal =
+          overlays && overlays[i] && Number.isFinite(Number(overlays[i].ghostFret))
+            ? Number(overlays[i].ghostFret)
+            : null;
+
         if (num === 0) {
+          const coreZero = overlayVal != null ? `(0,{${overlayVal}})` : '0';
+          if (overlayVal != null && rk === 'played') return `[${coreZero}]`;
+          if (overlayVal != null && rk === 'ghost') return `{${coreZero}}`;
           if (rk === 'played') return '[0]';
           if (rk === 'ghost') return '{0}';
-          return '0';
+          return coreZero;
         }
-        const core = num >= 10 ? `(${num})` : String(num);
+
+        const core = overlayVal != null ? `(${num},{${overlayVal}})` : num >= 10 ? `(${num})` : String(num);
         if (rk === 'played') return `[${core}]`;
         if (rk === 'ghost') return `{${core}}`;
         return core;
       })
       .join('');
   }
+
 
   function toggleRootOnString(shape, stringIndex) {
     if (typeof parseTokensAndRootKinds !== 'function') return shape;
@@ -1058,6 +1516,26 @@ function centerTitleForCard(card) {
   let baseFretActiveCard = null;
   let baseFretBuffer = '';
   let baseFretOnConfirm = null;
+  const baseFretScrollState = new WeakMap();
+  const baseFretDragState = new WeakMap();
+
+  function getFretStepPx(card) {
+    const tbl = card?.querySelector?.('table.chord-diagram');
+    const label = tbl?.querySelector?.('.chord-fret-label');
+    const row = tbl?.querySelector?.('tr[data-fret]');
+    const rect = label?.getBoundingClientRect?.() || row?.getBoundingClientRect?.();
+    const h = rect && Number.isFinite(rect.height) ? rect.height : null;
+    return h && h > 6 ? h : 22;
+  }
+
+  function getVisibleRowsForBase() {
+    if (typeof window.getChordDiagramVisibleRows === 'function') {
+      const rows = window.getChordDiagramVisibleRows();
+      if (Number.isFinite(rows) && rows >= VISIBLE_FRETS_DEFAULT) return rows;
+    }
+    const count = getVisibleFretCount();
+    return Number.isFinite(count) && count >= VISIBLE_FRETS_DEFAULT ? count : VISIBLE_FRETS_DEFAULT;
+  }
 
   function sanitizeBaseFretValue(raw) {
     return (raw || '').replace(/\D/g, '').slice(0, 2);
@@ -1171,6 +1649,8 @@ function centerTitleForCard(card) {
   function handleFretLabelClick(card, rowIndex, currentLabel) {
     const safeRowIndex = Number.isInteger(rowIndex) && rowIndex >= 0 ? rowIndex : 0;
     const currentLabelNum = Number.isFinite(currentLabel) ? currentLabel : null;
+    const visibleRowsForBase = getVisibleRowsForBase();
+    const rowSpan = Math.max(1, visibleRowsForBase - 1);
     if (typeof promptForBaseFret !== 'function') return;
     promptForBaseFret(card, (newFret) => {
       const targetFret = parseInt(newFret, 10);
@@ -1206,7 +1686,7 @@ function centerTitleForCard(card) {
         tokens.forEach((t) => {
           if (typeof t === 'number' && t > 0 && t > maxFret) maxFret = t;
         });
-        if (Number.isFinite(maxFret) && maxFret !== -Infinity) return Math.max(1, maxFret - 3);
+        if (Number.isFinite(maxFret) && maxFret !== -Infinity) return Math.max(1, maxFret - rowSpan);
         return 1;
       })();
 
@@ -1243,6 +1723,123 @@ function centerTitleForCard(card) {
     });
   }
 
+  function adjustBaseFretView(card, delta) {
+    if (!card || !Number.isInteger(delta) || delta === 0) return;
+    const shapeInput = card.querySelector('.chord-shape-input');
+    const shape = shapeInput ? shapeInput.value || '' : '';
+    if (typeof parseTokensAndRootKinds !== 'function') return;
+    const parsed = parseTokensAndRootKinds(shape);
+    if (!parsed || !Array.isArray(parsed.tokens)) return;
+    const fretted = parsed.tokens.filter((t) => typeof t === 'number' && t > 0);
+    if (!fretted.length) return;
+    const visibleRowsForBase = getVisibleRowsForBase();
+    const rowSpan = Math.max(1, visibleRowsForBase - 1);
+    const minFret = Math.min(...fretted);
+    const maxFret = Math.max(...fretted);
+    const explicit = card?.dataset?.baseFret ? parseInt(card.dataset.baseFret, 10) : null;
+    const autoBase = Math.max(1, minFret);
+    const currentBase = Number.isFinite(explicit) && explicit > 0 ? explicit : autoBase;
+    const minBase = Math.max(1, maxFret - rowSpan);
+    const maxBase = Math.max(1, minFret);
+    const state = baseFretScrollState.get(card) || {};
+    const activeTarget =
+      Number.isFinite(state.target) && state.target >= minBase && state.target <= maxBase
+        ? state.target
+        : currentBase;
+    const nextTarget = Math.max(minBase, Math.min(maxBase, activeTarget + delta));
+    if (nextTarget === activeTarget) return;
+    if (state.timer) {
+      clearTimeout(state.timer);
+      state.timer = null;
+    }
+    state.target = nextTarget;
+    state.minBase = minBase;
+    state.maxBase = maxBase;
+    baseFretScrollState.set(card, state);
+    const stepDelayMs = 80;
+    const tick = () => {
+      const s = baseFretScrollState.get(card);
+      if (!s) return;
+      const dsBase = card?.dataset?.baseFret ? parseInt(card.dataset.baseFret, 10) : null;
+      const current =
+        Number.isFinite(dsBase) && dsBase > 0
+          ? dsBase
+          : Number.isFinite(explicit) && explicit > 0
+            ? explicit
+            : autoBase;
+      if (!Number.isFinite(s.target)) {
+        s.timer = null;
+        return;
+      }
+      if (current === s.target) {
+        s.timer = null;
+        return;
+      }
+      const direction = s.target > current ? 1 : -1;
+      const next = Math.max(s.minBase || minBase, Math.min(s.maxBase || maxBase, current + direction));
+      if (next === current) {
+        s.timer = null;
+        return;
+      }
+      card.dataset.baseFret = String(next);
+      renderCardDiagram(card);
+      if (next === s.target) {
+        s.timer = null;
+        return;
+      }
+      s.timer = setTimeout(tick, stepDelayMs);
+    };
+    state.timer = setTimeout(tick, stepDelayMs);
+    baseFretScrollState.set(card, state);
+  }
+
+  function startFretLabelDrag(card, clientY) {
+    if (!card || !Number.isFinite(clientY)) return;
+    const state = {
+      startY: clientY,
+      lastY: clientY,
+      pixelAccum: 0,
+      moved: false,
+      moveHandler: null,
+      upHandler: null,
+      stepPx: getFretStepPx(card),
+    };
+    state.moveHandler = (ev) => {
+      if (!Number.isFinite(ev.clientY)) return;
+      const deltaY = ev.clientY - state.lastY;
+      state.pixelAccum += deltaY;
+      state.lastY = ev.clientY;
+      const stepPx = state.stepPx || getFretStepPx(card);
+      if (!Number.isFinite(stepPx) || stepPx <= 4) return;
+      const steps = Math.trunc(state.pixelAccum / stepPx);
+      if (steps !== 0) {
+        adjustBaseFretView(card, -steps);
+        state.pixelAccum -= steps * stepPx;
+        state.moved = true;
+      }
+      ev.preventDefault();
+      ev.stopPropagation();
+    };
+    state.upHandler = (ev) => {
+      if (state.moveHandler) document.removeEventListener('pointermove', state.moveHandler, true);
+      if (state.upHandler) document.removeEventListener('pointerup', state.upHandler, true);
+      baseFretDragState.delete(card);
+      if (state.moved) {
+        card.__suppressFretLabelClick = true;
+        setTimeout(() => {
+          card.__suppressFretLabelClick = false;
+        }, 150);
+      }
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+    };
+    document.addEventListener('pointermove', state.moveHandler, true);
+    document.addEventListener('pointerup', state.upHandler, true);
+    baseFretDragState.set(card, state);
+  }
+
   function buildDataFromDOM() {
     const groups = [];
     groupsRoot.querySelectorAll('.group').forEach((groupEl) => {
@@ -1252,15 +1849,19 @@ function centerTitleForCard(card) {
       const rows = rowEls.map((grid) => {
         const chords = [];
         grid.querySelectorAll('.chord-card').forEach((card) => {
-          if (card.classList.contains('chord-card-placeholder')) return;
-          const nameInput = card.querySelector('.chord-name-input');
+          if (
+            card.classList.contains('chord-card-placeholder') ||
+            card.dataset.dupSourcePlaceholder === 'true'
+          )
+            return;
+          const nameInput = ensureTextareaNameInput(card);
           const shapeInput = card.querySelector('.chord-shape-input');
-          const titleEl = card.querySelector('.chord-title');
-          const name = (nameInput?.value || titleEl?.textContent || '').trim();
-          const shape = shapeInput?.value.trim() || '';
-          if (!shape) return;
-          chords.push({ name: name || '(unnamed)', shape });
-        });
+    const name = readCardName(card) || '';
+    const persistedName = normalizeNameForPersistence(name);
+    const shape = shapeInput?.value.trim() || '';
+    if (!shape) return;
+    chords.push({ name: persistedName || '(unnamed)', shape });
+  });
         return { chords };
       });
       let prunedRows = rows;
@@ -1295,6 +1896,40 @@ function centerTitleForCard(card) {
     pendingEditSnapshots.length = 0;
   }
 
+  function clearDupDragPlaceholder() {
+    altDupDragActive = false;
+    if (dupDragPlaceholder?.parentNode) {
+      dupDragPlaceholder.parentNode.removeChild(dupDragPlaceholder);
+    }
+    dupDragPlaceholder = null;
+    if (document?.body) {
+      document.body.classList.remove('chord-dup-drag-active');
+    }
+  }
+
+  function createDupDragPlaceholder(card) {
+    if (!card?.parentElement) return;
+    clearDupDragPlaceholder();
+    const clone = card.cloneNode(true);
+    clone.dataset.dupSourcePlaceholder = 'true';
+    clone.classList.add('chord-dup-source-placeholder');
+    clone.style.pointerEvents = 'none';
+    clone.setAttribute('aria-hidden', 'true');
+    clone.classList.remove(
+      'is-editing',
+      'editing-expanded',
+      'is-inline-name-editing',
+      'deletable',
+      'chord-card-spotlight',
+    );
+    const editSection = clone.querySelector('.chord-edit-section');
+    if (editSection) editSection.style.display = 'none';
+    const deleteBtn = clone.querySelector('.delete-chord-btn');
+    if (deleteBtn) deleteBtn.style.display = 'none';
+    card.parentElement.insertBefore(clone, card);
+    dupDragPlaceholder = clone;
+  }
+
   function buildEditingAwareSnapshot() {
     const baseline = buildDataFromDOM();
     if (!currentEditingCard || !currentEditingSourceCard || !groupsRoot) return baseline;
@@ -1310,7 +1945,8 @@ function centerTitleForCard(card) {
     const shapeInput = editCard?.querySelector('.chord-shape-input');
     if (!nameInput || !shapeInput) return baseline;
 
-    const name = (nameInput.value || '').trim();
+    const rawName = nameInput.value || '';
+    const name = normalizeNameForPersistence(rawName).trim();
     const shape = (shapeInput.value || '').trim();
 
     const targetGroup = baseline[groupIndex];
@@ -1373,6 +2009,16 @@ function centerTitleForCard(card) {
   function beginEditing(sourceCard) {
     const resolvedSource = sourceCard && sourceCard.__sourceCard ? sourceCard.__sourceCard : sourceCard;
     if (!resolvedSource) return;
+    const rawNameForQuoteCheck = (resolvedSource.querySelector('.chord-name-input')?.value) || '';
+    const isQuoteCard = isChordNameFullyQuoted(normalizeNameValue(rawNameForQuoteCheck));
+    const owningGroup = resolvedSource.closest('.group');
+    if (owningGroup && groupsRoot && groupsRoot.contains(owningGroup)) {
+      lastEditedGroup = owningGroup;
+    }
+    const owningRow = resolvedSource.closest('.chord-grid');
+    if (owningRow && groupsRoot && groupsRoot.contains(owningRow)) {
+      lastEditedRow = owningRow;
+    }
     if (inlineNameEditState) {
       finishInlineNameEdit(inlineNameEditState.card, { commit: true });
     }
@@ -1404,6 +2050,13 @@ function centerTitleForCard(card) {
     currentEditingSourceCard = resolvedSource;
     clone.dataset.originalName = (resolvedSource.querySelector('.chord-name-input')?.value) || '';
     clone.dataset.originalShape = (resolvedSource.querySelector('.chord-shape-input')?.value) || '';
+    nameInput.value = nameValueForEditing(nameInput.value || '');
+    if (isQuoteCard) {
+      nameInput.rows = 8;
+      nameInput.style.height = '';
+    } else {
+      nameInput.rows = nameInput.rows || 2;
+    }
 
     // Keep the edit UI directly under the diagram inside this card
     const section = clone.querySelector('.chord-edit-section');
@@ -1418,7 +2071,13 @@ function centerTitleForCard(card) {
     fields.style.display = '';
 
     // Show the wide 3-row symbols palette anchored inside this card
-    ensureSymbolToolbar(clone);
+    const symbolsBar = ensureSymbolToolbar(clone);
+    if (isQuoteCard) {
+      if (shapeInput) shapeInput.style.display = 'none';
+      if (symbolsBar) symbolsBar.style.display = 'none';
+    } else if (shapeInput) {
+      shapeInput.style.display = '';
+    }
 
     if (window.MicroModal) {
       MicroModal.show('chord-edit-modal');
@@ -1462,7 +2121,7 @@ function centerTitleForCard(card) {
     }
 
     if (commit) {
-      const newName = spotlightNameInput.value.trim();
+      const newName = spotlightNameInput.value || '';
       const newShape =
         typeof window.normalizeShapeText === 'function'
           ? window.normalizeShapeText(spotlightShapeInput.value)
@@ -1476,7 +2135,7 @@ function centerTitleForCard(card) {
         delete sourceCard.dataset.baseFret;
       }
       updateChordTitleFromName(sourceCard, newName);
-      renderCardDiagram(sourceCard);
+      renderCardDiagram(sourceCard, { forceRecomputeBase: true });
       persist('edit-commit');
       if (pendingEditSnapshots.length && window.freetarUndoSnapshot) {
         pendingEditSnapshots.forEach((state) => {
@@ -1529,9 +2188,45 @@ function centerTitleForCard(card) {
     }
   });
 
+  // Track whether the pointer is currently over a chord diagram so "g" can act like a diagram-only modifier
+  document.addEventListener(
+    'pointermove',
+    (e) => {
+      pointerOverChordDiagram = !!(e.target && e.target.closest && e.target.closest('.chord-diagram'));
+    },
+    { passive: true },
+  );
+
+  window.addEventListener('blur', () => {
+    ghostRootKeyDown = false;
+    pointerOverChordDiagram = false;
+  });
+
+  // Capture so we can prevent typing "g" into focused inputs when the pointer is over the diagram
+  document.addEventListener(
+    'keydown',
+    (e) => {
+      if (e.key !== 'g' && e.key !== 'G') return;
+      if (!pointerOverChordDiagram) return;
+      ghostRootKeyDown = true;
+      e.preventDefault();
+    },
+    true,
+  );
+
+  document.addEventListener(
+    'keyup',
+    (e) => {
+      if (e.key !== 'g' && e.key !== 'G') return;
+      ghostRootKeyDown = false;
+    },
+    true,
+  );
+
+
   function wireChordCard(card) {
     const editBtn = card.querySelector('.chord-edit');
-    const nameInput = card.querySelector('.chord-name-input');
+    const nameInput = ensureTextareaNameInput(card);
     const shapeInput = card.querySelector('.chord-shape-input');
     const titleEl = card.querySelector('.chord-title');
     if (!editBtn || !nameInput || !shapeInput) return;
@@ -1564,8 +2259,43 @@ function centerTitleForCard(card) {
       else beginEditing(card);
     });
 
+    if (!card.__ctrlClickWired) {
+      card.__ctrlClickWired = true;
+      card.addEventListener('click', (e) => {
+        if (!e.ctrlKey && !e.metaKey) return;
+        if (e.target && (e.target.closest('.chord-edit') || e.target.closest('.chord-handle'))) return;
+        const isEditing =
+          currentEditingCard === card ||
+          currentEditingSourceCard === card ||
+          (currentEditingSpotlightCard &&
+            (currentEditingSpotlightCard === card || currentEditingSpotlightCard.__sourceCard === card));
+        const target = e.target;
+        const inDiagram = !!(target && target.closest && target.closest('table.chord-diagram'));
+        if (isEditing && !inDiagram) return; // only diagram Ctrl-click should commit/exit
+        e.preventDefault();
+        e.stopPropagation();
+        if (isEditing) finishEditing(true);
+        else beginEditing(card);
+      });
+    }
+
     nameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && e.shiftKey) {
+        e.preventDefault();
+        const start = nameInput.selectionStart ?? nameInput.value.length;
+        const end = nameInput.selectionEnd ?? start;
+        const val = nameInput.value || '';
+        const nextVal = `${val.slice(0, start)}\n${val.slice(end)}`;
+        nameInput.value = nextVal;
+        const pos = start + 1;
+        nameInput.setSelectionRange(pos, pos);
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        return;
+      }
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        finishEditing(true);
+      } else if (e.key === 'Enter') {
         e.preventDefault();
         shapeInput.focus();
         shapeInput.select();
@@ -1654,8 +2384,21 @@ function centerTitleForCard(card) {
       }
     });
 
-    function applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing) {
-      const newShape = buildShapeFromTokensAndRoots(tokens, roots);
+    function replaceTokenAtIndex(shapeText, stringIndex, newTokenText) {
+      const tokenRegex =
+        /\[\(\d+,\{\d+\}\)\]|\{\(\d+,\{\d+\}\)\}|\(\d+,\{\d+\}\)|\[\(\d+\)\]|\[\d+\]|\{\(\d+\)\}|\{\d+\}|\(\d+\)|\d|x/gi;
+      const tokens = typeof shapeText === 'string' ? shapeText.match(tokenRegex) : null;
+      if (!tokens || tokens.length !== 6) return shapeText;
+      const idx = Number.isInteger(stringIndex) ? Math.min(Math.max(stringIndex, 0), 5) : 0;
+      let seen = 0;
+      return shapeText.replace(tokenRegex, (match) => {
+        const out = seen === idx ? newTokenText : match;
+        seen += 1;
+        return out;
+      });
+    }
+
+    function applyShapeChange(newShape, card, shapeInput, oldShape, isEditing) {
       if (newShape === oldShape) {
         if (isEditing) shapeInput.focus();
         return;
@@ -1674,11 +2417,207 @@ function centerTitleForCard(card) {
       }
     }
 
-    function handleAltClick(stringIndex, tokens, roots, card, shapeInput, oldShape, isEditing) {
-      tokens[stringIndex] = null;
-      roots[stringIndex] = null;
-      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
+    function applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlaysOverride) {
+      let overlays = overlaysOverride || null;
+
+      // Preserve any existing overlay ghost roots unless the caller provides an override
+      if (!overlays && typeof window.parseTokensAndRootKinds === 'function') {
+        const parsedOld = window.parseTokensAndRootKinds(oldShape || '');
+        overlays = parsedOld && parsedOld.overlays ? parsedOld.overlays : null;
+      }
+
+      const newShape = buildShapeFromTokensAndRoots(tokens, roots, overlays);
+      applyShapeChange(newShape, card, shapeInput, oldShape, isEditing);
     }
+
+
+    function clearConflictingRoots(stringIndex, fret, tokens, roots, overlays, newRootKind) {
+      const existingRootRef = (() => {
+        for (let i = 0; i < roots.length; i += 1) {
+          if (roots[i] === 'played' && tokens[i] != null) {
+            const num = Number(tokens[i]);
+            if (Number.isFinite(num)) return { stringIndex: i, fret: num };
+          }
+        }
+        for (let i = 0; i < roots.length; i += 1) {
+          if (roots[i] === 'ghost' && tokens[i] != null) {
+            const num = Number(tokens[i]);
+            if (Number.isFinite(num)) return { stringIndex: i, fret: num };
+          }
+        }
+        if (overlays && typeof overlays === 'object') {
+          for (let i = 0; i < 6; i += 1) {
+            const ghostFret =
+              overlays[i] && Number.isFinite(Number(overlays[i].ghostFret))
+                ? Number(overlays[i].ghostFret)
+                : null;
+            if (ghostFret != null) return { stringIndex: i, fret: ghostFret };
+          }
+        }
+        return null;
+      })();
+
+      const OPEN_STRING_PITCHES = [40, 45, 50, 55, 59, 64]; // EADGBE
+      let rootCleared = false;
+
+      if (
+        existingRootRef &&
+        existingRootRef.stringIndex !== stringIndex &&
+        existingRootRef.stringIndex >= 0 &&
+        existingRootRef.stringIndex < OPEN_STRING_PITCHES.length &&
+        Number.isFinite(existingRootRef.fret) &&
+        Number.isInteger(stringIndex) &&
+        stringIndex >= 0 &&
+        stringIndex < OPEN_STRING_PITCHES.length &&
+        Number.isFinite(fret)
+      ) {
+        const pitchClass = (s, f) => (OPEN_STRING_PITCHES[s] + f) % 12;
+        const intervalIsOne =
+          pitchClass(existingRootRef.stringIndex, existingRootRef.fret) ===
+          pitchClass(stringIndex, fret);
+        if (!intervalIsOne) {
+          for (let i = 0; i < roots.length; i += 1) {
+            if (i === stringIndex) continue;
+            if (roots[i] === 'played' || roots[i] === 'ghost') {
+              if (roots[i] === 'ghost') {
+                tokens[i] = null;
+              }
+              roots[i] = null;
+              rootCleared = true;
+            }
+            if (overlays && overlays[i]) {
+              delete overlays[i];
+              rootCleared = true;
+            }
+          }
+        }
+      }
+
+      return rootCleared;
+    }
+
+    function demotePlayedRootOnSameStringConflict(stringIndex, fret, tokens, roots) {
+      if (!Array.isArray(tokens) || !Array.isArray(roots)) return;
+      if (!Number.isInteger(stringIndex) || stringIndex < 0 || stringIndex >= tokens.length) return;
+      if (roots[stringIndex] !== 'played') return;
+      const tokenFret = Number.isFinite(Number(tokens[stringIndex]))
+        ? Number(tokens[stringIndex])
+        : null;
+      if (tokenFret == null || tokenFret === fret) return;
+      roots[stringIndex] = null;
+    }
+
+
+    function handleAltClick(
+      stringIndex,
+      fret,
+      tokens,
+      roots,
+      overlays,
+      card,
+      shapeInput,
+      oldShape,
+      isEditing,
+    ) {
+      clearConflictingRoots(stringIndex, fret, tokens, roots, overlays, 'ghost');
+
+      const overlayGhost =
+        overlays &&
+        overlays[stringIndex] &&
+        Number.isFinite(Number(overlays[stringIndex].ghostFret))
+          ? Number(overlays[stringIndex].ghostFret)
+          : null;
+      const current = tokens[stringIndex];
+      const currentNum = Number.isFinite(Number(current)) ? Number(current) : null;
+      const isSameFret = currentNum != null && currentNum === fret;
+      const hasBaseNote = current != null && Number.isFinite(Number(current));
+      const baseIsGhostToken = roots[stringIndex] === 'ghost';
+
+      // Convert an existing plain or played note at this fret into a ghost root
+      if (isSameFret && hasBaseNote && !baseIsGhostToken) {
+        roots[stringIndex] = 'ghost';
+        if (overlays && overlays[stringIndex]) delete overlays[stringIndex];
+        applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+        return;
+      }
+
+      // If a normal note already exists elsewhere on this string, add or move a ghost overlay
+      if (hasBaseNote && !baseIsGhostToken) {
+        if (overlayGhost != null && overlayGhost === fret) {
+          delete overlays[stringIndex];
+        } else {
+          demotePlayedRootOnSameStringConflict(stringIndex, fret, tokens, roots);
+          overlays[stringIndex] = { ghostFret: fret };
+        }
+        applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+        return;
+      }
+
+      if (overlays && overlays[stringIndex]) delete overlays[stringIndex];
+
+      if (isSameFret && roots[stringIndex] === 'ghost') {
+        roots[stringIndex] = null;
+      } else {
+        tokens[stringIndex] = fret;
+        roots[stringIndex] = 'ghost';
+      }
+
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+    }
+
+    function handleGhostRootClick(
+      stringIndex,
+      fret,
+      tokens,
+      roots,
+      overlays,
+      card,
+      shapeInput,
+      oldShape,
+      isEditing,
+    ) {
+      const idx = stringIndex;
+      clearConflictingRoots(idx, fret, tokens, roots, overlays, 'ghost');
+      const t = tokens[idx];
+      const isTokenNum = Number.isFinite(Number(t));
+      const tokenFret = isTokenNum ? Number(t) : null;
+
+      const existingOverlay =
+        overlays && overlays[idx] && Number.isFinite(Number(overlays[idx].ghostFret))
+          ? Number(overlays[idx].ghostFret)
+          : null;
+
+      // Case: toggle off overlay ghost root on same string (example 1b)
+      if (existingOverlay != null && existingOverlay === fret) {
+        delete overlays[idx];
+        applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+        return;
+      }
+
+      // Case: token is a pure ghost root like {8} and user clicks same fret with g (example 2b)
+      if (roots[idx] === 'ghost' && tokenFret != null && tokenFret === fret && existingOverlay == null) {
+        tokens[idx] = null;
+        roots[idx] = null;
+        delete overlays[idx];
+        applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+        return;
+      }
+
+      // If there is already a token on this string, add or replace an overlay ghost root (example 1)
+      if (t != null) {
+        demotePlayedRootOnSameStringConflict(idx, fret, tokens, roots);
+        overlays[idx] = { ghostFret: fret };
+        applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+        return;
+      }
+
+      // If the string is muted, set a ghost root token (example 2)
+      tokens[idx] = fret;
+      roots[idx] = 'ghost';
+      delete overlays[idx];
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
+    }
+
 
     function handleCtrlClick(card, isEditing) {
       const isCurrent = isEditing;
@@ -1698,30 +2637,33 @@ function centerTitleForCard(card) {
       fret,
       tokens,
       roots,
+      overlays,
       card,
       shapeInput,
       oldShape,
       isEditing,
     ) {
-      const t = tokens[stringIndex];
-      const r = roots[stringIndex];
+      clearConflictingRoots(stringIndex, fret, tokens, roots, overlays, 'played');
+      const overlayGhost =
+        overlays &&
+        overlays[stringIndex] &&
+        Number.isFinite(Number(overlays[stringIndex].ghostFret))
+          ? Number(overlays[stringIndex].ghostFret)
+          : null;
+      const current = tokens[stringIndex];
+      const isSameFret = current != null && Number.isFinite(Number(current)) && Number(current) === fret;
+      const overlayMatchesFret = overlayGhost != null && overlayGhost === fret;
 
-      const isOnClickedFret = t === fret;
+      if (overlayMatchesFret && overlays && overlays[stringIndex]) delete overlays[stringIndex];
 
-      if (!isOnClickedFret) {
-        tokens[stringIndex] = fret;
-        roots[stringIndex] = 'played';
-      } else if (r === 'played') {
-        roots[stringIndex] = 'ghost';
-      } else if (r === 'ghost') {
-        tokens[stringIndex] = null;
+      if (isSameFret && roots[stringIndex] === 'played') {
         roots[stringIndex] = null;
       } else {
         tokens[stringIndex] = fret;
         roots[stringIndex] = 'played';
       }
 
-      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
     }
 
     function handlePlainClick(
@@ -1729,31 +2671,81 @@ function centerTitleForCard(card) {
       fret,
       tokens,
       roots,
+      overlays,
       card,
       shapeInput,
       oldShape,
       isEditing,
       clickedHeader,
     ) {
+      const overlayGhost =
+        overlays &&
+        overlays[stringIndex] &&
+        Number.isFinite(Number(overlays[stringIndex].ghostFret))
+          ? Number(overlays[stringIndex].ghostFret)
+          : null;
       const t = tokens[stringIndex];
       const isSameFret = typeof t === 'number' && t > 0 && t === fret;
       const isOpenHeaderClick = t === 0 && clickedHeader;
 
       if (isSameFret || isOpenHeaderClick) {
-        tokens[stringIndex] = null;
-        roots[stringIndex] = null;
+        const shouldPromoteOverlay = overlayGhost != null && overlayGhost !== fret;
+        if (shouldPromoteOverlay) {
+          tokens[stringIndex] = overlayGhost;
+          roots[stringIndex] = 'ghost';
+          if (overlays && overlays[stringIndex]) delete overlays[stringIndex];
+        } else {
+          tokens[stringIndex] = null;
+          roots[stringIndex] = null;
+          if (overlayGhost != null && overlays && overlays[stringIndex]) delete overlays[stringIndex];
+        }
       } else {
         tokens[stringIndex] = fret;
         roots[stringIndex] = null;
       }
 
-      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing);
+      applyClickResult(tokens, roots, card, shapeInput, oldShape, isEditing, overlays);
     }
 
     const table = card.querySelector('table.chord-diagram');
     if (table && !table.__rootClickWired) {
       table.__rootClickWired = true;
       table.addEventListener('click', onChordDiagramClick);
+    }
+    if (table && !table.__fretScrollWired) {
+      table.__fretScrollWired = true;
+      table.addEventListener(
+        'wheel',
+        (ev) => {
+          const label = ev.target && ev.target.closest ? ev.target.closest('.chord-fret-label') : null;
+          if (!label) return;
+          if (!Number.isFinite(ev.deltaY) || ev.deltaY === 0) return;
+          if (ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+          ev.preventDefault();
+          const stepPx = getFretStepPx(card);
+          const state = baseFretScrollState.get(card) || {};
+          state.wheelAccum = (state.wheelAccum || 0) + ev.deltaY;
+          const steps = Math.trunc(state.wheelAccum / stepPx);
+          if (steps !== 0) {
+            adjustBaseFretView(card, -steps); // scroll down → lower numbers
+            state.wheelAccum -= steps * stepPx;
+          }
+          baseFretScrollState.set(card, state);
+        },
+        { passive: false },
+      );
+      table.addEventListener(
+        'pointerdown',
+        (ev) => {
+          const label = ev.target && ev.target.closest ? ev.target.closest('.chord-fret-label') : null;
+          if (!label) return;
+          if (ev.button !== 0) return;
+          if (!Number.isFinite(ev.clientY)) return;
+          ev.preventDefault();
+          startFretLabelDrag(card, ev.clientY);
+        },
+        true,
+      );
     }
 
     function onChordDiagramClick(event) {
@@ -1769,6 +2761,10 @@ function centerTitleForCard(card) {
       }
       const fretLabel = event.target.closest('.chord-fret-label');
       if (fretLabel) {
+        if (card.__suppressFretLabelClick) {
+          card.__suppressFretLabelClick = false;
+          return;
+        }
         const fretRowEl = fretLabel.closest('tr[data-fret]');
         const fretRows = Array.from(card.querySelectorAll('tbody tr[data-fret]'));
         const rowIndex = fretRowEl ? fretRows.indexOf(fretRowEl) : -1;
@@ -1879,14 +2875,51 @@ function centerTitleForCard(card) {
       const tokens = parsed.tokens.slice();
       const roots = parsed.roots.slice();
 
-      if (event.altKey) {
-        handleAltClick(stringIndex, tokens, roots, card, shapeInput, oldShape, isEditing);
+      const overlays = {};
+      if (parsed.overlays && typeof parsed.overlays === 'object') {
+        Object.keys(parsed.overlays).forEach((k) => {
+          const idx = parseInt(k, 10);
+          const gf =
+            parsed.overlays[k] && Number.isFinite(Number(parsed.overlays[k].ghostFret))
+              ? Number(parsed.overlays[k].ghostFret)
+              : null;
+          if (Number.isInteger(idx) && idx >= 0 && idx < 6 && gf != null) {
+            overlays[idx] = { ghostFret: gf };
+          }
+        });
+      }
+
+      if (ghostRootKeyDown && !event.altKey && !event.shiftKey) {
+        handleGhostRootClick(
+          stringIndex,
+          fret,
+          tokens,
+          roots,
+          overlays,
+          card,
+          shapeInput,
+          oldShape,
+          isEditing,
+        );
+      } else if (event.altKey) {
+        handleAltClick(
+          stringIndex,
+          fret,
+          tokens,
+          roots,
+          overlays,
+          card,
+          shapeInput,
+          oldShape,
+          isEditing,
+        );
       } else if (event.shiftKey) {
         handleShiftClick(
           stringIndex,
           fret,
           tokens,
           roots,
+          overlays,
           card,
           shapeInput,
           oldShape,
@@ -1898,6 +2931,7 @@ function centerTitleForCard(card) {
           fret,
           tokens,
           roots,
+          overlays,
           card,
           shapeInput,
           oldShape,
@@ -1908,7 +2942,7 @@ function centerTitleForCard(card) {
     }
   }
 
-  function addChordToGrid(grid, name = '...', shape = '000000', opts = {}) {
+  function addChordToGrid(grid, name = '...', shape = 'xxxxxx', opts = {}) {
     const { silent = false, prepend = false } = opts || {};
     const card = document.createElement('div');
     card.className = 'text-center chord-card mb-3';
@@ -1924,7 +2958,7 @@ function centerTitleForCard(card) {
 
     <div class="chord-edit-section">
       <div class="chord-edit-fields mb-2">
-        <input class="form-control form-control-sm mb-1 chord-name-input" value="${name}">
+        <textarea class="form-control form-control-sm mb-1 chord-name-input" rows="2">${name}</textarea>
         <input class="form-control form-control-sm chord-shape-input" value="${shape}">
       </div>
       <div class="chord-symbols-toolbar"></div>
@@ -1940,14 +2974,38 @@ function centerTitleForCard(card) {
     return card;
   }
 
-  function pointerElementFromEvent(evt) {
+  function addChordToRowEnd(rowEl) {
+    if (!rowEl) return null;
+    const grid =
+      rowEl.classList.contains('chord-grid') && !rowEl.classList.contains('group-ghost-row')
+        ? rowEl
+        : rowEl.closest('.chord-grid');
+    const groupEl = grid ? grid.closest('.group') : null;
+    if (!grid || !groupEl || !groupsRoot || !groupsRoot.contains(groupEl)) return null;
+    const card = addChordToGrid(grid, '...', 'xxxxxx', { prepend: false });
+    if (deleteModeGroup === groupEl) {
+      card.classList.add('deletable');
+      const btn = card.querySelector('.delete-chord-btn');
+      if (btn) btn.style.display = 'block';
+    }
+    updateEmptyMsg();
+    return card;
+  }
+
+  function pointerCoordsFromEvent(evt) {
     const oe = evt?.originalEvent;
-    if (!oe || typeof document === 'undefined') return null;
+    if (!oe) return null;
     const touchPoint = (oe.touches && oe.touches[0]) || (oe.changedTouches && oe.changedTouches[0]);
     const point = touchPoint || oe;
     const { clientX, clientY } = point || {};
     if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
-    return document.elementFromPoint(clientX, clientY);
+    return { x: clientX, y: clientY };
+  }
+
+  function pointerElementFromEvent(evt) {
+    const coords = pointerCoordsFromEvent(evt);
+    if (!coords || typeof document === 'undefined') return null;
+    return document.elementFromPoint(coords.x, coords.y);
   }
 
   function getGhostTargetFromEl(el) {
@@ -2235,7 +3293,7 @@ function centerTitleForCard(card) {
     }
     ensureRowHandle(newGrid);
     wireChordGrid(newGrid, groupEl);
-    addChordToGrid(newGrid, '...', '000000', { silent: true });
+    addChordToGrid(newGrid, '...', 'xxxxxx', { silent: true });
     updateRowHandlePosition(newGrid);
     normalizeRowIndices(groupEl);
     if (typeof rewireChordUI === 'function') rewireChordUI();
@@ -2336,7 +3394,9 @@ function centerTitleForCard(card) {
   }
 
   function handleAltChordDuplicate(evt, dragMeta, targetContainer = null, targetIndex = null) {
-    const { item, from, nextSibling } = dragMeta || {};
+    const { item, from, nextSibling, sourceIndex } = dragMeta || {};
+    const startPointer = dragMeta?.startPointer || null;
+    const endPointer = pointerCoordsFromEvent(evt);
     const to = targetContainer || evt?.to;
     const rawIndex = Number.isInteger(targetIndex)
       ? targetIndex
@@ -2345,9 +3405,48 @@ function centerTitleForCard(card) {
         : null;
     if (!item || !from || !to) return false;
 
-    const dropSiblings = Array.from(to.querySelectorAll('.chord-card')).filter((card) => card !== item);
-    const dropIndex = Number.isInteger(rawIndex) && rawIndex >= 0 ? rawIndex : dropSiblings.length;
+    const dropSiblings = Array.from(to.querySelectorAll('.chord-card')).filter(
+      (card) => card !== item && card.dataset.dupSourcePlaceholder !== 'true',
+    );
+
+    let domDropIndex = null;
+    if (to.contains(item)) {
+      let idx = 0;
+      for (const child of Array.from(to.querySelectorAll('.chord-card'))) {
+        if (child.dataset.dupSourcePlaceholder === 'true') continue;
+        if (child === item) {
+          domDropIndex = idx;
+          break;
+        }
+        idx += 1;
+      }
+    }
+
+    const dropIndex = Number.isInteger(domDropIndex)
+      ? domDropIndex
+      : Number.isInteger(rawIndex) && rawIndex >= 0
+        ? rawIndex
+        : dropSiblings.length;
     const dropNext = dropSiblings[dropIndex] || null;
+
+    const movedDuringAltDup =
+      startPointer &&
+      endPointer &&
+      Math.hypot(endPointer.x - startPointer.x, endPointer.y - startPointer.y) > 4;
+
+    if (
+      to === from &&
+      Number.isInteger(sourceIndex) &&
+      Number.isInteger(dropIndex) &&
+      dropIndex === sourceIndex &&
+      !movedDuringAltDup
+    ) {
+      // Dropped back where it started: treat as no-op move
+      if (nextSibling && nextSibling.parentElement === from) {
+        from.insertBefore(item, nextSibling);
+      }
+      return false;
+    }
 
     // Restore the original card to its source slot
     if (nextSibling && nextSibling.parentElement === from) {
@@ -2385,9 +3484,17 @@ function centerTitleForCard(card) {
     if (!grid || grid.__chordSortable) return;
     const parentGroup = groupEl || grid.closest('.group');
     const sortable = Sortable.create(grid, {
+      draggable: '.chord-card:not([data-dup-source-placeholder=\"true\"])',
       group: 'chords',
       handle: '.chord-handle',
+      ghostClass: 'chord-drag-ghost',
+      dragClass: 'chord-drag-item',
+      chosenClass: 'chord-drag-chosen',
       animation: 150,
+      easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+      delay: 300,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 3,
       // Enable and tune autoscroll so long chord lists remain scrollable while dragging
       scroll: true, // page or nearest scroll container will scroll
       bubbleScroll: true, // allow parent containers/window to scroll
@@ -2397,12 +3504,25 @@ function centerTitleForCard(card) {
         clearGhostRow();
         ghostRowState.lastHover = null;
         ensureDragMoveHandler();
+        const sourceIndex = Array.from(evt.from?.querySelectorAll('.chord-card')).filter(
+          (el) => el.dataset.dupSourcePlaceholder !== 'true',
+        ).indexOf(evt.item);
         const isAltDrag = !!(evt?.originalEvent?.altKey);
+        const dragStartPointer = pointerCoordsFromEvent(evt);
+        altDupDragActive = isAltDrag;
+        if (isAltDrag) {
+          if (document?.body) document.body.classList.add('chord-dup-drag-active');
+          createDupDragPlaceholder(evt.item);
+        } else {
+          clearDupDragPlaceholder();
+        }
         if (isAltDrag) {
           activeAltChordDrag = {
             item: evt.item,
             from: evt.from,
             nextSibling: evt.item ? evt.item.nextElementSibling : null,
+            sourceIndex,
+            startPointer: dragStartPointer,
           };
         } else {
           activeAltChordDrag = null;
@@ -2412,6 +3532,7 @@ function centerTitleForCard(card) {
         updateGhostRowHover(evt);
       },
       onEnd: (evt) => {
+        clearDupDragPlaceholder();
         const ghostDrop = getGhostDropTarget(evt);
         const ghostGroup = ghostDrop?.group || null;
         const ghostGrid =
@@ -2506,7 +3627,7 @@ function centerTitleForCard(card) {
     wireGroupExportButton(groupEl);
 
     if (addChordBtn && primaryGrid && !addChordBtn.__wired) {
-      addChordBtn.addEventListener('click', () => addChordToGrid(primaryGrid, '...', '000000', { prepend: true }));
+      addChordBtn.addEventListener('click', () => addChordToGrid(primaryGrid, '...', 'xxxxxx', { prepend: true }));
       addChordBtn.__wired = true;
     }
 
@@ -2617,11 +3738,7 @@ function centerTitleForCard(card) {
       } catch (e) {
         /* noop */
       }
-      const nameInput = card.querySelector('.chord-name-input');
-      const rawName =
-        (nameInput && nameInput.value != null ? nameInput.value : '') ||
-        card.querySelector('.chord-title')?.textContent ||
-        '';
+      const rawName = readCardName(card);
       updateChordTitleFromName(card, rawName);
     });
 
@@ -2643,6 +3760,7 @@ function centerTitleForCard(card) {
     if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
     updateAllRowHandles();
     updateEmptyMsg();
+    wireHelpControls();
     ensureHistoryTooltips();
     if (window.initTooltips) window.initTooltips();
   }
@@ -2794,7 +3912,7 @@ function centerTitleForCard(card) {
         groupsRoot.insertBefore(newGroup, sibling);
         if (window.initTooltips) window.initTooltips();
         const grid = newGroup.querySelector('.chord-grid');
-        if (grid) addChordToGrid(grid, '...', '000000', { silent: true });
+        if (grid) addChordToGrid(grid, '...', 'xxxxxx', { silent: true });
         updateEmptyMsg();
         ensureZones();
         await persist('add-group-hover');
@@ -2973,16 +4091,23 @@ function centerTitleForCard(card) {
     if (hoverGroupInsert && hoverGroupInsert.refresh) hoverGroupInsert.refresh();
   });
 
-  // Ctrl-click anywhere within the active edit card (outside the diagram) commits the edit.
-  document.addEventListener('click', (e) => {
-    if (!currentEditingCard) return;
-    if (!(e.ctrlKey || e.metaKey)) return;
-    if (!currentEditingCard.contains(e.target)) return;
-    if (e.target.closest('table.chord-diagram')) return; // diagram has its own ctrl handler
-    e.preventDefault();
-    e.stopPropagation();
-    finishEditing(true);
-  }, true);
+  // Ctrl-click on the active card's diagram commits; edit fields ignore Ctrl-click.
+  document.addEventListener(
+    'click',
+    (e) => {
+      if (!currentEditingCard) return;
+      if (!(e.ctrlKey || e.metaKey)) return;
+      if (!currentEditingCard.contains(e.target)) return;
+      const inEditFields = !!e.target.closest('.chord-edit-fields');
+      if (inEditFields) return;
+      const inDiagram = !!e.target.closest('table.chord-diagram');
+      if (!inDiagram) return; // only diagram Ctrl-click should commit
+      e.preventDefault();
+      e.stopPropagation();
+      finishEditing(true);
+    },
+    true,
+  );
 
   // ---------- init & global wiring ----------
   function init() {
@@ -2995,12 +4120,26 @@ function centerTitleForCard(card) {
     confirmDeleteGroupBtn = document.getElementById('confirm-delete-group');
     baseFretModal = document.getElementById('base-fret-modal');
     baseFretValueEl = document.getElementById('base-fret-modal-value');
+    helpModal = document.getElementById('help-modal');
+    helpToggleBtn = document.getElementById('help-toggle');
     updateBaseFretDisplay();
     if (baseFretValueEl) {
       baseFretValueEl.addEventListener('input', syncBaseFretBufferFromInput);
     }
     wireModalCloseButtons();
     const storedSettings = loadSettings();
+    if (window.freetarChordNaming && typeof window.freetarChordNaming.loadDictionary === 'function') {
+      window.freetarChordNaming.loadDictionary();
+    }
+
+    document.addEventListener('chord-name-suggestion-applied', (ev) => {
+      const detailCard = ev?.detail?.card;
+      const card =
+        (detailCard && detailCard.isConnected ? detailCard : ev?.target?.closest?.('.chord-card')) ||
+        null;
+      if (!card) return;
+      applySuggestedNameOutsideEdit(card, ev?.detail?.name);
+    });
 
     if (window.MicroModal) {
       MicroModal.init({
@@ -3037,6 +4176,7 @@ function centerTitleForCard(card) {
         debugMode: false,
       });
     }
+    wireHelpControls();
 
     // ----- Batch Import wiring (restore old behavior) -----
     showImportBtn = document.getElementById('show-import-chords');
@@ -3053,12 +4193,29 @@ function centerTitleForCard(card) {
     } else {
       maxChordsPerRow = MAX_PER_ROW_DEFAULT;
     }
+    if (storedSettings && typeof storedSettings.fiveFretsEnabled === 'boolean') {
+      fiveFretsEnabled = storedSettings.fiveFretsEnabled;
+    } else {
+      fiveFretsEnabled = false;
+    }
+    if (storedSettings && typeof storedSettings.showIntervals === 'boolean') {
+      showIntervalsEnabled = storedSettings.showIntervals;
+    } else {
+      showIntervalsEnabled = false;
+    }
     chordSettingsMenu = document.getElementById('chord-settings-menu');
     chordSettingsToggleBtn = document.getElementById('chord-settings-toggle');
     maxPerRowCheckbox = document.getElementById('max-per-row-checkbox');
     maxPerRowInput = document.getElementById('max-per-row-input');
     maxPerRowRow = document.getElementById('max-per-row-row');
+    fiveFretsCheckbox = document.getElementById('five-frets-checkbox');
+    fiveFretsRow = document.getElementById('five-frets-row');
+    showIntervalsCheckbox = document.getElementById('show-intervals-checkbox');
+    showIntervalsRow = document.getElementById('show-intervals-row');
     diagramLockToggleBtn = document.getElementById('diagram-lock-toggle');
+
+    applyVisibleFretRowsSetting({ rerender: false });
+
     if (diagramLockToggleBtn) {
       const storedLock =
         storedSettings && typeof storedSettings.diagramLockEnabled === 'boolean'
@@ -3114,6 +4271,24 @@ function centerTitleForCard(card) {
         persistUISettings();
       });
     }
+    if (fiveFretsCheckbox && !fiveFretsCheckbox.__settingsWired) {
+      fiveFretsCheckbox.__settingsWired = true;
+      fiveFretsCheckbox.addEventListener('change', (ev) => {
+        fiveFretsEnabled = !!ev.target.checked;
+        applyVisibleFretRowsSetting();
+        updateChordSettingsUI();
+        persistUISettings();
+      });
+    }
+    if (showIntervalsCheckbox && !showIntervalsCheckbox.__settingsWired) {
+      showIntervalsCheckbox.__settingsWired = true;
+      showIntervalsCheckbox.addEventListener('change', (ev) => {
+        showIntervalsEnabled = !!ev.target.checked;
+        applyIntervalOverlayState();
+        updateChordSettingsUI();
+        persistUISettings();
+      });
+    }
     if (maxPerRowInput && !maxPerRowInput.__settingsWired) {
       maxPerRowInput.__settingsWired = true;
       maxPerRowInput.addEventListener('input', (ev) => {
@@ -3126,8 +4301,10 @@ function centerTitleForCard(card) {
       });
     }
     applyMaxPerRowLayout();
+    applyIntervalOverlayState();
     updateChordSettingsUI();
     wireLibraryImportExportButtons();
+
 
     const getDefaultGroup = () => {
       return groupsRoot.querySelector('.group') || createGroup('');
@@ -3174,9 +4351,34 @@ function centerTitleForCard(card) {
       if (!importInput) return;
       const lines = importInput.value.split(/\r?\n/);
       let added = 0;
+      const gridCache = new WeakMap();
+      let pendingRowBreak = false;
+
+      const hasGroupChords = (groupEl) =>
+        !!groupEl?.querySelector(
+          '.chord-card:not(.chord-card-placeholder):not([data-dup-source-placeholder="true"])',
+        );
+
+      const getGridForGroup = (groupEl, startNewRow = false) => {
+        if (!groupEl) return null;
+        if (startNewRow) {
+          const nextGrid = ensureBottomChordGrid(groupEl);
+          if (nextGrid) gridCache.set(groupEl, nextGrid);
+          return nextGrid;
+        }
+        const cached = gridCache.get(groupEl);
+        if (cached && groupEl.contains(cached)) return cached;
+        const firstGrid = groupEl.querySelector('.chord-grid') || ensureBottomChordGrid(groupEl);
+        if (firstGrid) gridCache.set(groupEl, firstGrid);
+        return firstGrid;
+      };
+
       for (const rawLine of lines) {
         const line = rawLine.trim();
-        if (!line) continue;
+        if (!line) {
+          pendingRowBreak = true;
+          continue;
+        }
         const parts = line
           .split(',')
           .map((s) => s.trim())
@@ -3194,7 +4396,8 @@ function centerTitleForCard(card) {
         const targetGroup = grp
           ? getOrCreateGroupByName(grp) || getDefaultGroup()
           : getDefaultGroup();
-        const grid = targetGroup.querySelector('.chord-grid');
+        const grid = getGridForGroup(targetGroup, pendingRowBreak && hasGroupChords(targetGroup));
+        pendingRowBreak = false;
         if (grid) {
           addChordToGrid(grid, name, shape, { silent: true });
           added++;
@@ -3229,6 +4432,7 @@ function centerTitleForCard(card) {
     // Re-attach the rest of the interactive wiring
     rewireChordUI();
     if (hoverGroupInsert && hoverGroupInsert.init) hoverGroupInsert.init();
+    ensureGroupHoverTracking();
 
     // Persist cleared group names on blur
     groupsRoot.addEventListener(
@@ -3286,6 +4490,43 @@ function centerTitleForCard(card) {
       }
     });
 
+    document.addEventListener(
+      'keydown',
+      (e) => {
+        if (!e.altKey || e.ctrlKey || e.metaKey) return;
+        const key = (e.key || '').toLowerCase();
+        if (key !== 'a' && key !== 'd') return;
+        const target = e.target;
+        if (isEditableTarget(target)) return;
+        if (currentEditingCard) return; // let Alt bindings inside edit flows win
+        const targetRow = resolveShortcutRow();
+        const targetGroup = targetRow ? targetRow.closest('.group') : resolveShortcutGroup();
+        if (!targetRow || !targetGroup) return;
+        if (key === 'a') {
+          const card = addChordToRowEnd(targetRow);
+          if (!card) return;
+          if (typeof window.showMyChordsToast === 'function') {
+            window.showMyChordsToast('Added chord');
+          }
+          e.preventDefault();
+          e.stopPropagation();
+        } else if (key === 'd') {
+          const alreadyActive = deleteModeGroup === targetGroup;
+          if (alreadyActive) {
+            disableDeleteMode();
+          } else {
+            enableDeleteMode(targetGroup);
+            if (typeof window.showMyChordsToast === 'function') {
+              window.showMyChordsToast('Delete mode');
+            }
+          }
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      },
+      true,
+    );
+
     // Modal controls
     if (confirmDeleteGroupBtn) {
       confirmDeleteGroupBtn.addEventListener('click', async () => {
@@ -3307,6 +4548,7 @@ function centerTitleForCard(card) {
 
     // Click-away commit + Esc cancel while editing
     document.addEventListener('click', (e) => {
+      if (e.target && e.target.closest && e.target.closest('.chord-name-suggest-panel')) return;
       if (!currentEditingCard) return;
       const modal = document.getElementById('chord-edit-modal');
       if (modal && modal.classList.contains('is-open')) {

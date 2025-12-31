@@ -15,6 +15,7 @@
     "purgecss": "^7.0.2"
   },
   "dependencies": {
+    "kordweb": "^0.7.1",
     "morphdom": "2.7.3",
     "undo-manager": "^1.1.1"
   },
